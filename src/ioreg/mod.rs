@@ -152,7 +152,6 @@ struct IoRegInfo {
 //
 
 pub fn expand_ioreg(cx: &mut ExtCtxt, sp: Span, args: &[ast::TokenTree]) -> Box<MacResult + 'static> {
-    println!("expanding ioreg");
     let mut parser = cx.new_parser_from_tts(args);
     let ioreg_info = parse_ioreg(&mut parser);
     generate_ioreg(cx, ioreg_info)
@@ -163,18 +162,27 @@ pub fn expand_ioreg(cx: &mut ExtCtxt, sp: Span, args: &[ast::TokenTree]) -> Box<
 // ioreg parsing
 //
 
-fn parse_ioreg(parser: &mut Parser) -> IoRegInfo {
-    let expect_name_keyword = parser.parse_ident().unwrap(); // TODO: error checking
-    if expect_name_keyword.name.as_str() != "name" {
-        panic!("expected 'name' identifier, but got {}", expect_name_keyword.name);
+fn expect_ident(expect: &str, parser: &mut Parser) {
+    let curr_span = parser.span;
+    match parser.parse_ident() {
+        Ok(i) => {
+            if i.name.as_str() != expect {
+                parser.span_err(curr_span, format!("expected '{}' but found '{}'", expect, i.name.as_str()).as_str());
+            }
+        }
+        Err(e) => {
+            parser.span_err(curr_span, e.message())
+        }
     }
+}
+
+fn parse_ioreg(parser: &mut Parser) -> IoRegInfo {
+    expect_ident("name", parser);
 
     // skip the =>
     parser.eat(&token::FatArrow);
 
     let name_str = parser.parse_ident().unwrap(); // TODO: error checking
-
-    println!("found {} as a name", name_str.name);
 
     IoRegInfo{
         name: name_str.name.as_str().to_string(),
@@ -188,14 +196,14 @@ fn parse_ioreg(parser: &mut Parser) -> IoRegInfo {
 //
 
 fn generate_ioreg(cx: &ExtCtxt, info: IoRegInfo) -> Box<MacResult + 'static> {
-    println!("generating ioreg");
-
     let builder = aster::AstBuilder::new();
-    let info_struct = builder.item().struct_(info.name)
+    let info_struct = builder.item().struct_(info.name.clone())
         .field("address").ty().usize()
         .build();
 
+    println!("\n\n=====   Generated: {}   =====\n", info.name);
     println!("{}", syntax::print::pprust::item_to_string(&info_struct));
+    println!("\n\n");
 
     let items: Vec<P<ast::Item>> = vec![info_struct];
     syntax::ext::base::MacEager::items(SmallVector::many(items.clone()))
