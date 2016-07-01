@@ -1,0 +1,9 @@
+[package]
+name = "dynamo"
+version = "0.1.0"
+authors = ["Zach Marcantel <zmarcantel@gmail.com>"]
+
+[lib]
+plugin = true
+
+[dependencies]
