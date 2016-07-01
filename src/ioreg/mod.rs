@@ -1,16 +1,3 @@
-extern crate syntax;
-extern crate rustc;
-extern crate rustc_plugin;
-
-use syntax::ast;
-use syntax::codemap::Span;
-use syntax::parse::parser::Parser;
-use syntax::ext::base::{ExtCtxt, MacResult};
-
-// imports
-use ::common;
- 
-
 /*
     Example of an IO Register definition:
     
@@ -140,7 +127,23 @@ use ::common;
     )  
 */
 
+extern crate syntax;
+extern crate rustc;
+extern crate rustc_plugin;
+extern crate aster;
+
+
+use syntax::ast;
+use syntax::ptr::P;
+use syntax::codemap::Span;
+use syntax::parse::token;
+use syntax::parse::parser::Parser;
+use syntax::util::small_vector::SmallVector;
+use syntax::ext::base::{ExtCtxt, MacResult};
+
+
 struct IoRegInfo {
+    name: String,
     address: u32,   // TODO: usize?
 }
 
@@ -161,7 +164,20 @@ pub fn expand_ioreg(cx: &mut ExtCtxt, sp: Span, args: &[ast::TokenTree]) -> Box<
 //
 
 fn parse_ioreg(parser: &mut Parser) -> IoRegInfo {
+    let expect_name_keyword = parser.parse_ident().unwrap(); // TODO: error checking
+    if expect_name_keyword.name.as_str() != "name" {
+        panic!("expected 'name' identifier, but got {}", expect_name_keyword.name);
+    }
+
+    // skip the =>
+    parser.eat(&token::FatArrow);
+
+    let name_str = parser.parse_ident().unwrap(); // TODO: error checking
+
+    println!("found {} as a name", name_str.name);
+
     IoRegInfo{
+        name: name_str.name.as_str().to_string(),
         address: 0,
     }
 }
@@ -173,5 +189,14 @@ fn parse_ioreg(parser: &mut Parser) -> IoRegInfo {
 
 fn generate_ioreg(cx: &ExtCtxt, info: IoRegInfo) -> Box<MacResult + 'static> {
     println!("generating ioreg");
-    common::MacItems::new(vec!())
+
+    let builder = aster::AstBuilder::new();
+    let info_struct = builder.item().struct_(info.name)
+        .field("address").ty().usize()
+        .build();
+
+    println!("{}", syntax::print::pprust::item_to_string(&info_struct));
+
+    let items: Vec<P<ast::Item>> = vec![info_struct];
+    syntax::ext::base::MacEager::items(SmallVector::many(items.clone()))
 }

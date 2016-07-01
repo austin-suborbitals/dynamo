@@ -3,8 +3,12 @@
 
 #[cfg(test)]
 mod simple {
+    ioreg!(
+        name => TestingStruct
+    );
+
     #[test]
-    fn adds_struct() {
-        ioreg!()
+    fn struct_is_defined() {
+        let x: TestingStruct;
     }
 }

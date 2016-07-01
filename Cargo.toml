@@ -7,3 +7,4 @@ authors = ["Zach Marcantel <zmarcantel@gmail.com>"]
 plugin = true
 
 [dependencies]
+aster = { version = "*", default_features = false }
