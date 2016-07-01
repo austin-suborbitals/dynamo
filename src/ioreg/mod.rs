@@ -7,9 +7,6 @@ use syntax::codemap::Span;
 use syntax::parse::parser::Parser;
 use syntax::ext::base::{ExtCtxt, MacResult};
 
-// exports
-pub mod tests;  // allow tests to be seen by cargo
-
 // imports
 use ::common;
  
@@ -152,6 +149,7 @@ struct IoRegInfo {
 //
 
 pub fn expand_ioreg(cx: &mut ExtCtxt, sp: Span, args: &[ast::TokenTree]) -> Box<MacResult + 'static> {
+    println!("expanding ioreg");
     let mut parser = cx.new_parser_from_tts(args);
     let ioreg_info = parse_ioreg(&mut parser);
     generate_ioreg(cx, ioreg_info)
@@ -174,5 +172,6 @@ fn parse_ioreg(parser: &mut Parser) -> IoRegInfo {
 //
 
 fn generate_ioreg(cx: &ExtCtxt, info: IoRegInfo) -> Box<MacResult + 'static> {
+    println!("generating ioreg");
     common::MacItems::new(vec!())
 }
