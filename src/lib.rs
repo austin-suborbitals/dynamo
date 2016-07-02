@@ -18,4 +18,5 @@ pub mod cpu;
 #[plugin_registrar]
 pub fn plugin_registrar(reg: &mut Registry) {
     reg.register_macro("ioreg", ioreg::expand_ioreg);
+    reg.register_macro("ioreg_debug", ioreg::expand_ioreg_debug);
 }

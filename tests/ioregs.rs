@@ -4,7 +4,7 @@
 
 #[cfg(test)]
 mod simple {
-    ioreg!(
+    ioreg_debug!(
         // this should not be considered
         name => TestingStruct;      // nor should this
 

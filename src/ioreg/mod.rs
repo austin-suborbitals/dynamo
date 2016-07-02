@@ -158,7 +158,13 @@ struct IoRegInfo {
 pub fn expand_ioreg(cx: &mut ExtCtxt, sp: Span, args: &[ast::TokenTree]) -> Box<MacResult + 'static> {
     let mut parser = cx.new_parser_from_tts(args);
     let ioreg_info = parse_ioreg(&mut parser);
-    generate_ioreg(cx, ioreg_info)
+    generate_ioreg(cx, ioreg_info, false)
+}
+
+pub fn expand_ioreg_debug(cx: &mut ExtCtxt, sp: Span, args: &[ast::TokenTree]) -> Box<MacResult + 'static> {
+    let mut parser = cx.new_parser_from_tts(args);
+    let ioreg_info = parse_ioreg(&mut parser);
+    generate_ioreg(cx, ioreg_info, true)
 }
 
 
@@ -271,15 +277,17 @@ fn parse_ioreg(parser: &mut Parser) -> IoRegInfo {
 // ioreg generation
 //
 
-fn generate_ioreg(cx: &ExtCtxt, info: IoRegInfo) -> Box<MacResult + 'static> {
+fn generate_ioreg(cx: &ExtCtxt, info: IoRegInfo, verbose: bool) -> Box<MacResult + 'static> {
     let builder = aster::AstBuilder::new();
     let info_struct = builder.item().struct_(info.name.clone())
         .field("address").ty().usize()
         .build();
 
-    println!("\n\n=====   Generated: {}   =====\n", info.name);
-    println!("{}", pprust::item_to_string(&info_struct));
-    println!("\n\nFrom: {:?}\n\n", info);
+    if verbose {
+        println!("\n\n=====   Generated: {}   =====\n", info.name);
+        println!("{}", pprust::item_to_string(&info_struct));
+        println!("\n\nFrom:\n    {:?}\n\n", info);
+    }
 
     let items: Vec<P<ast::Item>> = vec![info_struct];
     syntax::ext::base::MacEager::items(SmallVector::many(items.clone()))
