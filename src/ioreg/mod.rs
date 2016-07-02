@@ -132,9 +132,11 @@ extern crate rustc;
 extern crate rustc_plugin;
 extern crate aster;
 
+use std::fmt::Debug;
 
 use syntax::ast;
 use syntax::ptr::P;
+use syntax::print::pprust;
 use syntax::codemap::Span;
 use syntax::parse::token;
 use syntax::parse::parser::Parser;
@@ -142,10 +144,12 @@ use syntax::util::small_vector::SmallVector;
 use syntax::ext::base::{ExtCtxt, MacResult};
 
 
+#[derive(Debug)]
 struct IoRegInfo {
     name: String,
     address: u32,   // TODO: usize?
 }
+
 
 //
 // ioreg expansion
@@ -176,17 +180,89 @@ fn expect_ident(expect: &str, parser: &mut Parser) {
     }
 }
 
+fn expect_semi(parser: &mut Parser) {
+    match parser.expect(&token::Token::Semi) {
+        Ok(i) => {
+            // do nothing
+        }
+        Err(e) => {
+            parser.span_err(parser.span, e.message());
+        }
+    }
+}
+
+fn get_ident(parser: &mut Parser) -> ast::Ident {
+    let curr_span = parser.span;
+    let builder = aster::AstBuilder::new();
+    match parser.parse_ident() {
+        Ok(i) => { i }
+        Err(e) => {
+            parser.span_err(curr_span, e.message());
+            ast::Ident::with_empty_ctxt(builder.name("error"))
+        }
+    }
+}
+
+
+type LitSpan = (ast::Lit, Span);
+
+macro_rules! get_literal {
+    ($lit:ident, $span:ident, $parser:ident) => {
+        let $span = $parser.span;
+        let $lit = match $parser.parse_lit() {
+            Ok(i) => { i }
+            Err(e) => {
+                // place the error
+                $parser.span_err($span, e.message());
+                // make a "default" to be ignored
+                aster::AstBuilder::new().lit().usize(0).unwrap()
+            }
+        }
+    }
+}
+
+fn get_int_literal(parser: &mut Parser) -> ast::Lit {
+    get_literal!(lit, curr_span, parser);
+
+    match lit.node {
+        ast::LitKind::Int(_,_) => {
+            // nothing
+        }
+
+        _ => {
+            parser.span_err(curr_span, "expected an unsigned integral literal");
+        }
+    }
+
+    lit
+}
+
+fn u32_from_lit(lit: ast::LitKind) -> u32 {
+    if let ast::LitKind::Int(value, _) = lit {
+        return value as u32;
+    } else {
+        panic!("not a u32 lit");
+        0
+    }
+}
+
 fn parse_ioreg(parser: &mut Parser) -> IoRegInfo {
-    expect_ident("name", parser);
+    //
+    // parse the basic info
+    //
 
-    // skip the =>
-    parser.eat(&token::FatArrow);
+    // parse the name of the ioreg
+    expect_ident("name", parser);       // expect 'name' literal
+    parser.eat(&token::FatArrow);       // skip the =>
+    let name_str = get_ident(parser);   // get the name for the ioreg
+    expect_semi(parser);
 
-    let name_str = parser.parse_ident().unwrap(); // TODO: error checking
+    // get an address
+    let addr = get_int_literal(parser);
 
     IoRegInfo{
         name: name_str.name.as_str().to_string(),
-        address: 0,
+        address: u32_from_lit(addr.node)
     }
 }
 
@@ -202,8 +278,8 @@ fn generate_ioreg(cx: &ExtCtxt, info: IoRegInfo) -> Box<MacResult + 'static> {
         .build();
 
     println!("\n\n=====   Generated: {}   =====\n", info.name);
-    println!("{}", syntax::print::pprust::item_to_string(&info_struct));
-    println!("\n\n");
+    println!("{}", pprust::item_to_string(&info_struct));
+    println!("\n\nFrom: {:?}\n\n", info);
 
     let items: Vec<P<ast::Item>> = vec![info_struct];
     syntax::ext::base::MacEager::items(SmallVector::many(items.clone()))

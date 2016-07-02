@@ -5,7 +5,11 @@
 #[cfg(test)]
 mod simple {
     ioreg!(
-        name => TestingStruct;
+        // this should not be considered
+        name => TestingStruct;      // nor should this
+
+        0x1000 => {
+        };
     );
 
     #[test]
