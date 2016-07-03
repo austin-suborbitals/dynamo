@@ -52,12 +52,13 @@ macro_rules! parse_uint {
 
 
 pub struct Parser<'a> {
-    parser:     rsparse::Parser<'a>,
-    builder:    aster::AstBuilder,  // used for default value construction
+    pub parser:     rsparse::Parser<'a>,
+        builder:    aster::AstBuilder,  // used for default value construction
 
     // state
-    curr_span:  Span,
-    depth:      usize,
+    pub curr_span:      Span,
+    pub begin_segment:  Span,
+        depth:          usize,
 }
 
 
@@ -69,12 +70,17 @@ impl<'a> Parser<'a> {
             parser: p,
             builder: aster::AstBuilder::new(),
             curr_span: s,
+            begin_segment: s,   // TODO: better initializer
             depth: 0,
         }
     }
 
     pub fn set_err(&mut self, err: &str) {
         self.parser.span_err(self.curr_span, err);
+    }
+
+    pub fn set_segment_err(&mut self, err: &str) {
+        self.parser.span_err(self.begin_segment, err);
     }
 
     pub fn current_depth(&self) -> usize { self.depth }
@@ -85,7 +91,7 @@ impl<'a> Parser<'a> {
     //
 
     fn save_span(&mut self) {
-        self.curr_span = self.parser.span;
+        self.curr_span = self.parser.span.clone();
     }
 
 

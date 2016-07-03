@@ -140,6 +140,8 @@ use syntax::codemap::Span;
 use syntax::util::small_vector::SmallVector;
 use syntax::ext::base::{ExtCtxt, MacResult};
 
+use std::collections::HashMap;
+
 pub mod parser;
 pub mod common;
 
@@ -168,6 +170,7 @@ pub fn expand_ioreg_debug(cx: &mut ExtCtxt, _: Span, args: &[ast::TokenTree]) ->
 fn parse_segment(parser: &mut parser::Parser) -> common::IoRegSegmentInfo {
     // get an address
     let addr = parser.parse_address();          // parse the address
+    parser.begin_segment = parser.curr_span;    // save this segment's span
     parser.expect_fat_arrow();                  // skip the =>
 
     // gather metadata
@@ -205,12 +208,17 @@ fn parse_ioreg(parser: &mut parser::Parser) -> common::IoRegInfo {
     // create the info struct we will parse into
     let mut result = common::IoRegInfo{
         name: name_str,
-        regions: vec!(),
+        regions:HashMap::new()
     };
 
     // the rest of the macro should be segments
     while ! parser.eat(&token::Token::Eof) {
-        result.regions.push(parse_segment(parser));
+        let seg = parse_segment(parser);
+        if ! result.regions.contains_key(seg.name.as_str()) {
+            result.regions.insert(seg.name.clone(), seg);
+        } else {
+            parser.set_segment_err(format!("duplicate section named '{}'", seg.name).as_str());
+        }
     }
 
     result

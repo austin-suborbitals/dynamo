@@ -1,6 +1,8 @@
 #[allow(unused_imports)]
 use std::fmt::{Debug, Formatter, Result};
 
+use std::collections::HashMap;
+
 pub enum RegisterPermissions {
     ReadOnly,
     WriteOnly,
@@ -52,6 +54,6 @@ pub struct IoRegSegmentInfo {
 #[derive(Debug)]
 pub struct IoRegInfo {
     pub name:       String,
-    pub regions:    Vec<IoRegSegmentInfo>,
+    pub regions:    HashMap<String, IoRegSegmentInfo>,
 }
 
