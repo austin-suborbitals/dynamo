@@ -1,6 +1,6 @@
 /*
     Example of an IO Register definition:
-    
+
     ioreg!(
         // comments must be on their own line -- nothing parsed after '//'
         // statements end with a ';'
@@ -124,7 +124,7 @@
                 Unlock => [0xC520, 0xD928];
             }
         }
-    )  
+    )
 */
 
 extern crate syntax;
@@ -132,6 +132,7 @@ extern crate rustc;
 extern crate rustc_plugin;
 extern crate aster;
 
+#[allow(unused_imports)]
 use std::fmt::Debug;
 
 use syntax::ast;
@@ -139,10 +140,10 @@ use syntax::ptr::P;
 use syntax::print::pprust;
 use syntax::codemap::Span;
 use syntax::parse::token;
-use syntax::parse::parser::Parser;
 use syntax::util::small_vector::SmallVector;
 use syntax::ext::base::{ExtCtxt, MacResult};
 
+pub mod parser;
 
 #[derive(Debug)]
 struct IoRegInfo {
@@ -155,14 +156,14 @@ struct IoRegInfo {
 // ioreg expansion
 //
 
-pub fn expand_ioreg(cx: &mut ExtCtxt, sp: Span, args: &[ast::TokenTree]) -> Box<MacResult + 'static> {
-    let mut parser = cx.new_parser_from_tts(args);
+pub fn expand_ioreg(cx: &mut ExtCtxt, _: Span, args: &[ast::TokenTree]) -> Box<MacResult + 'static> {
+    let mut parser = parser::Parser::from(cx, args);
     let ioreg_info = parse_ioreg(&mut parser);
     generate_ioreg(cx, ioreg_info, false)
 }
 
-pub fn expand_ioreg_debug(cx: &mut ExtCtxt, sp: Span, args: &[ast::TokenTree]) -> Box<MacResult + 'static> {
-    let mut parser = cx.new_parser_from_tts(args);
+pub fn expand_ioreg_debug(cx: &mut ExtCtxt, _: Span, args: &[ast::TokenTree]) -> Box<MacResult + 'static> {
+    let mut parser = parser::Parser::from(cx, args);
     let ioreg_info = parse_ioreg(&mut parser);
     generate_ioreg(cx, ioreg_info, true)
 }
@@ -172,103 +173,24 @@ pub fn expand_ioreg_debug(cx: &mut ExtCtxt, sp: Span, args: &[ast::TokenTree]) -
 // ioreg parsing
 //
 
-fn expect_ident(expect: &str, parser: &mut Parser) {
-    let curr_span = parser.span;
-    match parser.parse_ident() {
-        Ok(i) => {
-            if i.name.as_str() != expect {
-                parser.span_err(curr_span, format!("expected '{}' but found '{}'", expect, i.name.as_str()).as_str());
-            }
-        }
-        Err(e) => {
-            parser.span_err(curr_span, e.message())
-        }
-    }
-}
 
-fn expect_semi(parser: &mut Parser) {
-    match parser.expect(&token::Token::Semi) {
-        Ok(i) => {
-            // do nothing
-        }
-        Err(e) => {
-            parser.span_err(parser.span, e.message());
-        }
-    }
-}
-
-fn get_ident(parser: &mut Parser) -> ast::Ident {
-    let curr_span = parser.span;
-    let builder = aster::AstBuilder::new();
-    match parser.parse_ident() {
-        Ok(i) => { i }
-        Err(e) => {
-            parser.span_err(curr_span, e.message());
-            ast::Ident::with_empty_ctxt(builder.name("error"))
-        }
-    }
-}
-
-
-type LitSpan = (ast::Lit, Span);
-
-macro_rules! get_literal {
-    ($lit:ident, $span:ident, $parser:ident) => {
-        let $span = $parser.span;
-        let $lit = match $parser.parse_lit() {
-            Ok(i) => { i }
-            Err(e) => {
-                // place the error
-                $parser.span_err($span, e.message());
-                // make a "default" to be ignored
-                aster::AstBuilder::new().lit().usize(0).unwrap()
-            }
-        }
-    }
-}
-
-fn get_int_literal(parser: &mut Parser) -> ast::Lit {
-    get_literal!(lit, curr_span, parser);
-
-    match lit.node {
-        ast::LitKind::Int(_,_) => {
-            // nothing
-        }
-
-        _ => {
-            parser.span_err(curr_span, "expected an unsigned integral literal");
-        }
-    }
-
-    lit
-}
-
-fn u32_from_lit(lit: ast::LitKind) -> u32 {
-    if let ast::LitKind::Int(value, _) = lit {
-        return value as u32;
-    } else {
-        panic!("not a u32 lit");
-        0
-    }
-}
-
-fn parse_ioreg(parser: &mut Parser) -> IoRegInfo {
+fn parse_ioreg(parser: &mut parser::Parser) -> IoRegInfo {
     //
     // parse the basic info
     //
 
     // parse the name of the ioreg
-    expect_ident("name", parser);       // expect 'name' literal
-    parser.eat(&token::FatArrow);       // skip the =>
-    let name_str = get_ident(parser);   // get the name for the ioreg
-    expect_semi(parser);
+    parser.expect_ident_value("name");       // expect 'name' literal
+    parser.eat(&token::FatArrow);            // skip the =>
+    let name_str = parser.get_ident();       // get the name for the ioreg
+    parser.expect_semi();
 
     // get an address
-    let addr = get_int_literal(parser);
+    let addr = parser.get_int_literal();
 
     IoRegInfo{
         name: name_str.name.as_str().to_string(),
-        address: u32_from_lit(addr.node)
+        address: parser.u32_from_lit(addr.node)
     }
 }
 
@@ -277,7 +199,7 @@ fn parse_ioreg(parser: &mut Parser) -> IoRegInfo {
 // ioreg generation
 //
 
-fn generate_ioreg(cx: &ExtCtxt, info: IoRegInfo, verbose: bool) -> Box<MacResult + 'static> {
+fn generate_ioreg(_: &ExtCtxt, info: IoRegInfo, verbose: bool) -> Box<MacResult + 'static> {
     let builder = aster::AstBuilder::new();
     let info_struct = builder.item().struct_(info.name.clone())
         .field("address").ty().usize()

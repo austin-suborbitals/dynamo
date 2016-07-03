@@ -10,7 +10,6 @@ use rustc_plugin::Registry;
 pub mod ioreg;
 pub mod cpu;
 
-
 //
 // plugin registration
 //
