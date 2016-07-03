@@ -132,24 +132,16 @@ extern crate rustc;
 extern crate rustc_plugin;
 extern crate aster;
 
-#[allow(unused_imports)]
-use std::fmt::Debug;
-
 use syntax::ast;
 use syntax::ptr::P;
+use syntax::parse::token;
 use syntax::print::pprust;
 use syntax::codemap::Span;
-use syntax::parse::token;
 use syntax::util::small_vector::SmallVector;
 use syntax::ext::base::{ExtCtxt, MacResult};
 
 pub mod parser;
-
-#[derive(Debug)]
-struct IoRegInfo {
-    name: String,
-    address: u32,   // TODO: usize?
-}
+pub mod common;
 
 
 //
@@ -173,25 +165,55 @@ pub fn expand_ioreg_debug(cx: &mut ExtCtxt, _: Span, args: &[ast::TokenTree]) ->
 // ioreg parsing
 //
 
+fn parse_segment(parser: &mut parser::Parser) -> common::IoRegSegmentInfo {
+    // get an address
+    let addr = parser.parse_address();          // parse the address
+    parser.expect_fat_arrow();                  // skip the =>
 
-fn parse_ioreg(parser: &mut parser::Parser) -> IoRegInfo {
-    //
-    // parse the basic info
-    //
+    // gather metadata
+    let name = parser.parse_lit_string();       // get the name
+    let width = parser.parse_reg_width();       // get the width
+    let perms = parser.parse_reg_access();      // get read/write type
 
+    // expect the opening of offset blocks
+    parser.expect_open_curly();                 // expect the opening brace
+    
+    // loop until we hit our closing brace
+    while ! parser.eat(&token::Token::CloseDelim(token::DelimToken::Brace)) {
+        // TODO: parse the offsets
+    }
+    
+    // expect the end of offset blocks
+    parser.expect_semi();                       // ends with a semicolon
+    
+    common::IoRegSegmentInfo{
+        name: name,
+        address: addr,
+        reg_width: width,
+        access_perms: perms,
+    }
+}
+
+
+fn parse_ioreg(parser: &mut parser::Parser) -> common::IoRegInfo {
     // parse the name of the ioreg
-    parser.expect_ident_value("name");       // expect 'name' literal
-    parser.eat(&token::FatArrow);            // skip the =>
-    let name_str = parser.get_ident();       // get the name for the ioreg
+    parser.expect_ident_value("name");              // expect 'name' literal
+    parser.expect_fat_arrow();                      // skip the =>
+    let name_str = parser.parse_lit_string();       // get the name for the ioreg
     parser.expect_semi();
 
-    // get an address
-    let addr = parser.get_int_literal();
+    // create the info struct we will parse into
+    let mut result = common::IoRegInfo{
+        name: name_str,
+        regions: vec!(),
+    };
 
-    IoRegInfo{
-        name: name_str.name.as_str().to_string(),
-        address: parser.u32_from_lit(addr.node)
+    // the rest of the macro should be segments
+    while ! parser.eat(&token::Token::Eof) {
+        result.regions.push(parse_segment(parser));
     }
+
+    result
 }
 
 
@@ -199,7 +221,7 @@ fn parse_ioreg(parser: &mut parser::Parser) -> IoRegInfo {
 // ioreg generation
 //
 
-fn generate_ioreg(_: &ExtCtxt, info: IoRegInfo, verbose: bool) -> Box<MacResult + 'static> {
+fn generate_ioreg(_: &ExtCtxt, info: common::IoRegInfo, verbose: bool) -> Box<MacResult + 'static> {
     let builder = aster::AstBuilder::new();
     let info_struct = builder.item().struct_(info.name.clone())
         .field("address").ty().usize()

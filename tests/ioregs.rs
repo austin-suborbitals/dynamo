@@ -8,7 +8,10 @@ mod simple {
         // this should not be considered
         name => TestingStruct;      // nor should this
 
-        0x1000 => {
+        0x1000 => status r16 ro {
+        };
+
+        0x2000 => control r8 wr {
         };
     );
 
