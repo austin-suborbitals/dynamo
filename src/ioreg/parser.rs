@@ -8,47 +8,28 @@ extern crate aster;
 
 use super::common as common;
 
-macro_rules! parse_uint {
-    ($dest:ty, $dest_enum:pat, $dest_max:expr, $dest_str:expr, $lit:ident) => {{
-        if let ast::LitKind::Int(value, ty) = $lit {
-            match ty {
-                // we have a $dest
-                $dest_enum => {
-                    Ok(value as $dest)
-                }
-                // some unspecified int
-                ast::LitIntType::Unsuffixed => {
-                    if value <= ($dest_max as u64) { // TODO: better assertion
-                        Ok(value as $dest)
-                    } else {
-                        Err(format!("found value is larger than {}", $dest_str))
-                    }
-                }
-                // everything else
-                _ => {
-                    Err(format!("expected an {}, but parsed {:?}", $dest_str, ty))
-                }
-            }
-        } else {
-            Err(format!("expected a {}", $dest_str))
-        }
-    }};
 
-    // TODO: better way to do this
-    (u8,  $lit:ident) => {
-        parse_uint!(u8, ast::LitIntType::Unsigned(ast::UintTy::U8),   u8::max_value(), "u8", $lit)
-    };
-    (u16, $lit:ident) => {
-        parse_uint!(u16, ast::LitIntType::Unsigned(ast::UintTy::U16), u16::max_value(), "u16", $lit)
-    };
-    (u32, $lit:ident) => {
-        parse_uint!(u32, ast::LitIntType::Unsigned(ast::UintTy::U32), u32::max_value(), "u32", $lit)
-    };
-    (u64, $lit:ident) => {
-        parse_uint!(u64, ast::LitIntType::Unsigned(ast::UintTy::U64), u64::max_value(), "u64", $lit)
-    };
+pub trait IsIntegral<T> {
+    fn max_value() -> T;
+    fn min_value() -> T;
 }
 
+impl IsIntegral<u8> for u8 {
+    fn max_value() -> u8 { u8::max_value() }
+    fn min_value() -> u8 { u8::min_value() }
+}
+impl IsIntegral<u16> for u16 {
+    fn max_value() -> u16 { u16::max_value() }
+    fn min_value() -> u16 { u16::min_value() }
+}
+impl IsIntegral<u32> for u32 {
+    fn max_value() -> u32 { u32::max_value() }
+    fn min_value() -> u32 { u32::min_value() }
+}
+impl IsIntegral<u64> for u64 {
+    fn max_value() -> u64 { u64::max_value() }
+    fn min_value() -> u64 { u64::min_value() }
+}
 
 
 pub struct Parser<'a> {
@@ -58,7 +39,6 @@ pub struct Parser<'a> {
     // state
     pub curr_span:      Span,
     pub begin_segment:  Span,
-        depth:          usize,
 }
 
 
@@ -66,13 +46,14 @@ impl<'a> Parser<'a> {
     pub fn from(cx: &mut ExtCtxt<'a>, tree: &[ast::TokenTree]) -> Parser<'a> {
         let p = cx.new_parser_from_tts(tree);
         let s = p.span;
-        Parser {
+        let result = Parser {
             parser: p,
             builder: aster::AstBuilder::new(),
             curr_span: s,
             begin_segment: s,   // TODO: better initializer
-            depth: 0,
-        }
+        };
+        result.parser.abort_if_errors();
+        result
     }
 
     pub fn set_err(&mut self, err: &str) {
@@ -83,7 +64,7 @@ impl<'a> Parser<'a> {
         self.parser.span_err(self.begin_segment, err);
     }
 
-    pub fn current_depth(&self) -> usize { self.depth }
+    pub fn raw_parser(&self) -> &rsparse::Parser { &self.parser }
 
 
     //
@@ -106,35 +87,67 @@ impl<'a> Parser<'a> {
         }
     }
 
-    pub fn expect_semi(&mut self) {
+    pub fn expect_semi(&mut self) -> bool {
         self.save_span();
         match self.parser.expect(&token::Token::Semi) {
-            Ok(_) => { }
-            Err(e) => { self.set_err(e.message()); }
+            Ok(_) => { true }
+            Err(e) => { self.set_err(e.message()); false }
         }
     }
 
-    pub fn expect_fat_arrow(&mut self) {
+    pub fn expect_equal(&mut self) -> bool {
+        self.save_span();
+        match self.parser.expect(&token::Token::Eq) {
+            Ok(_) => { true }
+            Err(e) => { self.set_err(e.message()); false }
+        }
+    }
+
+    pub fn expect_fat_arrow(&mut self) -> bool {
         self.save_span();
         match self.parser.eat(&token::FatArrow) {
-            true => {}
-            false => { self.set_err("expected a fat arrow (=>)"); }
+            true => {true }
+            false => { self.set_err("expected a fat arrow (=>)"); false }
         }
     }
 
-    pub fn expect_open_curly(&mut self) {
+    pub fn expect_colon(&mut self) -> bool {
+        self.save_span();
+        match self.parser.eat(&token::Colon) {
+            true => { true }
+            false => { self.set_err("expected a colon"); false }
+        }
+    }
+
+    pub fn expect_open_curly(&mut self) -> bool {
         self.save_span();
         match self.parser.eat(&token::OpenDelim(token::DelimToken::Brace)) {
-            true => { }
-            false => { self.set_err("expected an opening curly brace"); }
+            true => { true }
+            false => { self.set_err("expected an opening curly brace"); false }
         }
     }
 
-    pub fn expect_close_curly(&mut self) {
+    pub fn expect_close_curly(&mut self) -> bool {
         self.save_span();
         match self.parser.eat(&token::CloseDelim(token::DelimToken::Brace)) {
-            true => { }
-            false => { self.set_err("expected a closing curly brace"); }
+            true => { false }
+            false => { self.set_err("expected a closing curly brace"); false }
+        }
+    }
+
+    pub fn expect_open_bracket(&mut self) -> bool {
+        self.save_span();
+        match self.parser.eat(&token::OpenDelim(token::DelimToken::Bracket)) {
+            true => { true }
+            false => { self.set_err("expected an opening bracket"); false }
+        }
+    }
+
+    pub fn expect_close_bracket(&mut self) -> bool {
+        self.save_span();
+        match self.parser.eat(&token::CloseDelim(token::DelimToken::Bracket)) {
+            true => { true }
+            false => { self.set_err("expected a closing bracket"); false }
         }
     }
 
@@ -154,34 +167,84 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn get_literal(&mut self) -> ast::Lit {
+    pub fn get_literal(&mut self) -> Result<ast::Lit, String> {
         self.save_span();
-        let lit = match self.parser.parse_lit() {
-            Ok(i) => { i }
-            Err(e) => {
-                // place the error
-                self.set_err(e.message());
-                // make a "default" to be ignored
-                self.builder.lit().usize(0).unwrap()
+        match self.parser.parse_lit() {
+            Ok(i) => {
+                return Ok(i);
             }
-        };
-
-        lit
+            Err(e) => {
+                return Err(e.message().to_string());
+            }
+        }
     }
-
 
     //
     // value reading
     //
 
-    pub fn parse_address(&mut self) -> u32 {
-        let lit = self.get_literal().node;
-        match parse_uint!(u32, lit) {
-            Ok(i) => { i },
+    // parse and index span
+    // can be a single number (i.e. 3) or a range (i.e. 1..5)
+    // returned as a tuple of (begin, length)
+    // TODO: Result<(u8,u8), _> perhaps?
+    pub fn parse_index(&mut self) -> (u8, u8) {
+        let begin = self.parse_uint::<u8>("u8") as u8;
+        if begin == u8::max_value() {
+            self.set_err("detected error while parsing index");
+            return (0, 0);
+        }
+
+        let mut end = begin;
+        if self.eat(&token::Token::DotDot) {
+            end = self.parse_uint::<u8>("u8") as u8;
+            if end < begin {
+                self.set_err("index ranges are inverted");
+                return (0, 0);
+            } else if end == begin {
+                self.set_err("this should not be a range. indices are equal");
+                return (0, 0);
+            }
+        }
+        return (begin, if begin == end { 1 } else { end - begin });
+    }
+
+    pub fn parse_uint<T: IsIntegral<T> + From<T>>(&mut self, desc: &'static str) -> u64
+        where u64: From<T> {
+
+        match self.checked_parse_uint::<T>(desc) {
+            Ok(i) => { i }
             Err(e) => {
                 self.set_err(e.as_str());
-                u32::max_value()
+                u64::max_value()
             }
+        }
+    }
+
+    // TODO: why can I not cast u64 to T where T is uint < u64
+    pub fn checked_parse_uint<T: IsIntegral<T> + From<T>>(&mut self, desc: &'static str) -> Result<u64, String>
+        where u64: From<T> {
+
+        let lit = match self.get_literal() {
+            Ok(i) => { i.node }
+            Err(e) => { return Err(e); }
+        };
+        if let ast::LitKind::Int(value, ty) = lit {
+            match ty {
+                ast::LitIntType::Unsigned(_) | ast::LitIntType::Unsuffixed => {
+                    // some unsigned or unspecified int
+                    if value <= (u64::from(T::max_value())) { // TODO: better assertion
+                        return Ok(value);
+                    } else {
+                        return Err(format!("found value is larger than {}", desc));
+                    }
+                }
+                // everything else
+                _ => {
+                    return Err(format!("expected {}, but parsed {:?}", desc, ty));
+                }
+            }
+        } else {
+            return Err(format!("expected a {}", desc));
         }
     }
 
@@ -224,6 +287,8 @@ impl<'a> Parser<'a> {
     //
 
     pub fn eat(&mut self, tok: &token::Token) -> bool {
-        self.parser.eat(tok)
+        let r = self.parser.eat(tok);
+        if ! r { self.parser.expected_tokens.pop(); }
+        r
     }
 }

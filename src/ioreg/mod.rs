@@ -145,7 +145,6 @@ use std::collections::HashMap;
 pub mod parser;
 pub mod common;
 
-
 //
 // ioreg expansion
 //
@@ -167,9 +166,129 @@ pub fn expand_ioreg_debug(cx: &mut ExtCtxt, _: Span, args: &[ast::TokenTree]) ->
 // ioreg parsing
 //
 
+macro_rules! read_val_def_value {
+    ($parser:ident, $width:ident) => {{
+        match $width {
+            &common::RegisterWidth::R8 =>    { $parser.checked_parse_uint::<u8>("u8") }
+            &common::RegisterWidth::R16 =>   { $parser.checked_parse_uint::<u16>("u16") }
+            &common::RegisterWidth::R32 =>   { $parser.checked_parse_uint::<u32>("u32") }
+            &common::RegisterWidth::R64 =>   { $parser.checked_parse_uint::<u64>("u64") }
+            &common::RegisterWidth::Unknown => {
+                Err("cannot read value for register of unspecified size".to_string())
+            }
+        }
+    }}
+}
+
+fn parse_func_def(parser: &mut parser::Parser, name: String, width: &common::RegisterWidth) -> common::IoRegFuncDef {
+    parser.expect_fat_arrow();                  // functions must be followed with fat arrow
+    parser.expect_open_bracket();               // expect a series of values
+
+    // until the end of the values
+    let mut vals: Vec<common::FunctionValueType> = vec!();
+    while ! parser.eat(&token::CloseDelim(token::DelimToken::Bracket)) {
+
+        // inspect the token we are currently considering
+        match parser.raw_parser().token {
+            // if we have a literal, we expect it to be an integral, so parse that
+            token::Token::Literal(token::Lit::Integer(_), _) => {  // TODO: consider float
+                match read_val_def_value!(parser, width) {
+                    Ok(i) => { vals.push(common::FunctionValueType::Static(i as usize)); }
+                    Err(e) => {
+                        parser.set_err(e.as_str());
+                        break;  // TODO: better return
+                    }
+                };
+            }
+
+            // otherwise, we expect an ident to reference a defined variable
+            token::Ident(_) => {
+                vals.push(common::FunctionValueType::Reference(parser.parse_lit_string()));
+            }
+
+            // consider everything else an error
+            _ => {
+                parser.set_err("unexepected token type"); // TODO: better error message
+            }
+        }
+
+
+        // TODO: this currently allows [,,,,]
+        parser.eat(&token::Token::Comma);       // skip a comma if there is one
+    }
+    parser.expect_semi();                       // expect a close to the definition
+
+    common::IoRegFuncDef{
+        name: name,
+        values: vals,
+        ty: common::FunctionType::Setter,
+    }
+}
+
+fn parse_val_def(parser: &mut parser::Parser, name: String, width: &common::RegisterWidth) -> common::IoRegValDef {
+    parser.expect_equal();
+    let val = match read_val_def_value!(parser, width) {
+        Ok(i) => { i as usize }
+        Err(e) => {
+            parser.set_err(format!("expected a value but got error: {}", e).as_str());
+            0
+        }
+    };
+    parser.expect_semi();
+
+    common::IoRegValDef{
+        name: name,
+        value: val,
+    }
+}
+
+fn parse_offset(parser: &mut parser::Parser, prefix: &String, width: &common::RegisterWidth)
+    -> Result<common::IoRegOffsetInfo, &'static str> {
+
+    // parse the index width and begin offset
+    let index_width = parser.parse_index();
+
+    // we expect a fat arrow and a curly brace to kick things off
+    parser.expect_fat_arrow();
+    parser.expect_open_curly();
+
+    // loop until we hit our closing bracket
+    let mut val_defs: Vec<common::IoRegValDef> = vec!();
+    let mut func_defs: HashMap<String, common::IoRegFuncDef> = HashMap::new();
+    while ! parser.eat(&token::Token::CloseDelim(token::DelimToken::Brace)) {
+        // get a name and a colon to start the definition
+        let mut name = parser.parse_lit_string();
+        let iter = name.chars().next().expect("expected a non-empty string literal");
+        match iter.is_uppercase() {
+            true => {
+                name = name.to_lowercase();
+                if ! func_defs.contains_key(&name) {
+                    func_defs.insert(name.clone(), parse_func_def(parser, name, width));
+                } else {
+                    return Err("duplicate function definition");
+                }
+            }
+            false => {
+                val_defs.push(parse_val_def(parser, format!("{}_{}", prefix, name), width));
+            }
+        }
+    }
+
+    Ok(common::IoRegOffsetInfo{
+        width: index_width.1,
+        access_perms: common::RegisterPermissions::ReadOnly,
+        const_vals: val_defs,
+        functions: func_defs,
+    })
+}
+
+
+// parse a segment of the register block.
+// these are typically _actual_ registers.... but for code sanity
+// we group them together in logical structs.
 fn parse_segment(parser: &mut parser::Parser) -> common::IoRegSegmentInfo {
     // get an address
-    let addr = parser.parse_address();          // parse the address
+    let addr = parser.parse_uint::<u32>("u32") as u32; // parse the address
     parser.begin_segment = parser.curr_span;    // save this segment's span
     parser.expect_fat_arrow();                  // skip the =>
 
@@ -180,24 +299,31 @@ fn parse_segment(parser: &mut parser::Parser) -> common::IoRegSegmentInfo {
 
     // expect the opening of offset blocks
     parser.expect_open_curly();                 // expect the opening brace
-    
+
     // loop until we hit our closing brace
+    let mut offsets: Vec<common::IoRegOffsetInfo> = vec!();
     while ! parser.eat(&token::Token::CloseDelim(token::DelimToken::Brace)) {
-        // TODO: parse the offsets
+        match parse_offset(parser, &name, &width) {
+            Ok(o) => { offsets.push(o); }
+            Err(e) => {
+                parser.set_err(e);  // TODO: and early escape?
+            }
+        }
     }
-    
+
     // expect the end of offset blocks
     parser.expect_semi();                       // ends with a semicolon
-    
     common::IoRegSegmentInfo{
         name: name,
         address: addr,
         reg_width: width,
         access_perms: perms,
+        offsets: offsets,
     }
 }
 
 
+// entry to the ioreg macro parsing
 fn parse_ioreg(parser: &mut parser::Parser) -> common::IoRegInfo {
     // parse the name of the ioreg
     parser.expect_ident_value("name");              // expect 'name' literal
