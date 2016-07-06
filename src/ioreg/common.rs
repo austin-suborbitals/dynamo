@@ -121,8 +121,7 @@ pub struct IoRegFuncDef {
 
 #[derive(Debug)]
 pub struct IoRegOffsetInfo {
-    pub width:          u8,     // TODO: enum?
-    pub access_perms:   RegisterPermissions,
+    pub width:          u8, // TODO: enum?
     pub functions:      HashMap<String, IoRegFuncDef>,
 }
 
@@ -135,11 +134,16 @@ pub struct IoRegSegmentInfo {
     pub const_vals:     HashMap<String, StaticValue>,
     pub offsets:        Vec<IoRegOffsetInfo>,
 }
+impl IoRegSegmentInfo {
+    pub fn push_offset(&mut self, off: IoRegOffsetInfo) {
+        self.offsets.push(off);
+    }
+}
 
 
 #[derive(Debug)]
 pub struct IoRegInfo {
     pub name:       String,
-    pub regions:    HashMap<String, IoRegSegmentInfo>,
+    pub segments:   HashMap<String, IoRegSegmentInfo>,
     pub const_vals: HashMap<String, StaticValue>,
 }

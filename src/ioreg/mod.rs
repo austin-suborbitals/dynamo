@@ -2,6 +2,8 @@
     Example of an IO Register definition:
 
     ioreg!(
+        NOTE: in the Parser's context, this is the beginning of the "ioreg block"
+
         // name this register WDOG
         name => WDOG;
 
@@ -19,7 +21,6 @@
         // it is named "status" and the name will be used in field/function names on WDOG.
         // it is readable, so we will have a WDOG::read_status() function to read the entire register.
         0x40052000 => status r16 rw {
-
             // we can also create constants on the segment-level.
             // NOTE: these constants will be prefixed with the segment name ("status_{FOO}" in this case).
             //       using these values in the segment definition requires adding the prefix.
@@ -47,9 +48,7 @@
             // will be similar to `*(address) |= val` (not literally, but operating byte-wise as shown).
             0 => {
                 // we also define functions to enable and disable the watchdog by writing
-                // the above values to the register.
-                // NOTE: the capital in the function name will make it a function,
-                //       but will not be capitalized in code.
+                // the values defined above to the register.
                 //       this example would give us:  WDOG.enable() and WDOG.disable()
                 enable => [enabled];
                 disable => [disabled];
@@ -90,7 +89,11 @@
         // it is named "unlock" and will be used in field/function names on WDOG.
         // it is write only, and will get no ::read_unlock() function.
         0x4005200E => unlock r16 wo {
+            NOTE: in the Parser's context, this is the beginning of a "segment block"
+
             0..15 => {
+                NOTE: in the Parser's context, this is the beginning of an "offset block"
+
                 // define the `unlock()` function that writes the given sequence of
                 // values serially to this given register+offset
                 // NOTE: function names must be unique across the register, not just addresses
@@ -140,9 +143,7 @@ pub fn expand_ioreg_debug(cx: &mut ExtCtxt, _: Span, args: &[ast::TokenTree]) ->
 // ioreg parsing
 //
 
-fn parse_offset(parser: &mut parser::Parser, width: &common::RegisterWidth, existing_funcs: &mut HashMap<String, ()>)
-    -> Result<common::IoRegOffsetInfo, &'static str> {
-
+fn parse_offset(parser: &mut parser::Parser, seg: &mut common::IoRegSegmentInfo) -> Result<common::IoRegOffsetInfo, &'static str> {
     // parse the index width and begin offset
     let index_width = parser.parse_index();
 
@@ -151,13 +152,12 @@ fn parse_offset(parser: &mut parser::Parser, width: &common::RegisterWidth, exis
     parser.expect_open_curly();
 
     // loop (parsing function defs) until we hit our closing bracket
-    let mut our_funcs: HashMap<String, common::IoRegFuncDef> = HashMap::new();
+    let mut func_defs =  HashMap::<String, common::IoRegFuncDef>::new();
     while ! parser.eat(&token::Token::CloseDelim(token::DelimToken::Brace)) {
         // get a name and a colon to start the definition
         let name = parser.parse_ident_string();
-        if ! existing_funcs.contains_key(&name) {
-            existing_funcs.insert(name.clone(), ());
-            our_funcs.insert(name.clone(), parser.parse_func_def(name, width));
+        if ! func_defs.contains_key(&name) {    // check the function has not been registered TODO: check globally
+            func_defs.insert(name.clone(), parser.parse_func_def(name, &seg.reg_width));
         } else {
             return Err("duplicate function definition");
         }
@@ -165,9 +165,9 @@ fn parse_offset(parser: &mut parser::Parser, width: &common::RegisterWidth, exis
 
     Ok(common::IoRegOffsetInfo{
         width: index_width.1,
-        access_perms: common::RegisterPermissions::ReadOnly,
-        functions: our_funcs,
+        functions: func_defs,
     })
+
 }
 
 
@@ -197,12 +197,19 @@ fn parse_segment(parser: &mut parser::Parser) -> common::IoRegSegmentInfo {
         _ => { /* do nothing */ }
     }
 
+    let mut result = common::IoRegSegmentInfo{
+        name: name,
+        address: addr,
+        reg_width: width,
+        access_perms: perms,
+        const_vals: val_defs,
+        offsets: vec!(),
+    };
+
     // loop until we hit our closing brace
-    let mut offsets: Vec<common::IoRegOffsetInfo> = vec!();
-    let mut existing_func_defs: HashMap<String, ()> = HashMap::new();
     while ! parser.eat(&token::Token::CloseDelim(token::DelimToken::Brace)) {
-        match parse_offset(parser, &width, &mut existing_func_defs) {
-            Ok(o) => { offsets.push(o); }
+        match parse_offset(parser, &mut result) {
+            Ok(o) => { result.push_offset(o); }
             Err(e) => {
                 parser.set_err(e);  // TODO: and early escape?
             }
@@ -211,14 +218,7 @@ fn parse_segment(parser: &mut parser::Parser) -> common::IoRegSegmentInfo {
 
     // expect the end of offset blocks
     parser.expect_semi();                       // ends with a semicolon
-    common::IoRegSegmentInfo{
-        name: name,
-        address: addr,
-        reg_width: width,
-        access_perms: perms,
-        const_vals: val_defs,
-        offsets: offsets,
-    }
+    result
 }
 
 // entry to the ioreg macro parsing
@@ -243,15 +243,15 @@ fn parse_ioreg(parser: &mut parser::Parser) -> common::IoRegInfo {
     // create the info struct we will parse into
     let mut result = common::IoRegInfo{
         name: name_str,
-        regions: HashMap::new(),
+        segments: HashMap::new(),
         const_vals: const_vals,
     };
 
     // the rest of the macro should be segments
     while ! parser.eat(&token::Token::Eof) {
         let seg = parse_segment(parser);
-        if ! result.regions.contains_key(seg.name.as_str()) {
-            result.regions.insert(seg.name.clone(), seg);
+        if ! result.segments.contains_key(seg.name.as_str()) {
+            result.segments.insert(seg.name.clone(), seg);
         } else {
             parser.set_segment_err(format!("duplicate section named '{}'", seg.name).as_str());
         }
