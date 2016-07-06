@@ -428,11 +428,12 @@ impl<'a> Parser<'a> {
     pub fn parse_func_def(&mut self, name: String, width: &common::RegisterWidth) -> common::IoRegFuncDef {
         self.expect_fat_arrow();                  // functions must be followed with fat arrow
         self.expect_open_bracket();               // expect a series of values
+
+        let span = self.curr_span.clone();
     
         // until the end of the values
         let mut vals: Vec<common::FunctionValueType> = vec!();
         while ! self.eat(&token::CloseDelim(token::DelimToken::Bracket)) {
-    
             // inspect the token we are currently considering
             match self.raw_parser().token {
                 // if we have a literal, we expect it to be an integral, so parse that
@@ -467,6 +468,7 @@ impl<'a> Parser<'a> {
             name: name,
             values: vals,
             ty: common::FunctionType::Setter,
+            span: span,
         }
     }
 

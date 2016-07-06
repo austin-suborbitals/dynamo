@@ -1,6 +1,8 @@
 #[allow(unused_imports)]
 use std::fmt::{Debug, Formatter, Result};
 
+use syntax::codemap::Span;
+
 use std::collections::HashMap;
 
 //
@@ -117,6 +119,7 @@ pub struct IoRegFuncDef {
     pub name:       String,
     pub values:     Vec<FunctionValueType>,
     pub ty:         FunctionType,
+    pub span:       Span,
 }
 
 #[derive(Debug)]
