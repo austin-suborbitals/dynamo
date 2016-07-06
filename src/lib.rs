@@ -1,5 +1,6 @@
 #![feature(rustc_private)]
 #![feature(plugin_registrar)]
+#![feature(core_intrinsics)]
 
 extern crate syntax;
 extern crate rustc;

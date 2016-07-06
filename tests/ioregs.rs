@@ -8,12 +8,22 @@ mod simple {
         // this should not be considered
         name => TestingStruct;      // nor should this
 
-        0x1000 => status r16 ro {
-            0 => {
-                some_val = 0x0100;
+        // define some "root-level" constants (unprefixed) on the base struct
+        constants => {
+            something_important = 0xFFAA;
+            less_crucial = 1.123;
+            and_a_string = "some super critical string";
+        };
 
-                Using_static => [0x1234, 0x5678, 0x9ABC];
-                Using_reference => [some_val];
+        0x1000 => status r16 ro {
+            // define some status-related constants. these are prefixed and exist on the segment struct
+            constants => {
+                some_val = 0x0100;
+            };
+
+            0 => {
+                using_static => [0x1234, 0x5678, 0x9ABC];
+                using_reference => [some_val];
             }
 
             1 => {

@@ -41,6 +41,31 @@ impl Debug for FunctionType {
 }
 
 //
+// static value type
+//
+
+// TODO: 32bit limitation imposed here
+pub enum StaticValue {
+    Int(i32, String),
+    Uint(u32, String),
+    Float(f32, String),
+    Str(String, String),
+    Error(String),
+}
+
+impl Debug for StaticValue {
+    fn fmt(&self, f: &mut Formatter) -> Result {
+        match self {
+            &StaticValue::Int(i, ref n) => { write!(f, "({}:int) {}", n, i) }
+            &StaticValue::Uint(i, ref n) => { write!(f, "({}:uint) {}", n, i) }
+            &StaticValue::Float(i, ref n) => { write!(f, "({}:float) {}", n, i) }
+            &StaticValue::Str(ref s, ref n) => { write!(f, "({}:str) {}", n, s) }
+            &StaticValue::Error(ref e) => { write!(f, "(PARSER ERROR) {}", e) }
+        }
+    }
+}
+
+//
 // register access permissions
 //
 
@@ -88,12 +113,6 @@ impl Debug for RegisterWidth {
 
 
 #[derive(Debug)]
-pub struct IoRegValDef {
-    pub name:       String,
-    pub value:      usize,  // TODO: generic? convert in the func def?
-}
-
-#[derive(Debug)]
 pub struct IoRegFuncDef {
     pub name:       String,
     pub values:     Vec<FunctionValueType>,
@@ -104,7 +123,6 @@ pub struct IoRegFuncDef {
 pub struct IoRegOffsetInfo {
     pub width:          u8,     // TODO: enum?
     pub access_perms:   RegisterPermissions,
-    pub const_vals:     Vec<IoRegValDef>,
     pub functions:      HashMap<String, IoRegFuncDef>,
 }
 
@@ -114,6 +132,7 @@ pub struct IoRegSegmentInfo {
     pub address:        u32, // TODO: usize?
     pub reg_width:      RegisterWidth,
     pub access_perms:   RegisterPermissions,
+    pub const_vals:     HashMap<String, StaticValue>,
     pub offsets:        Vec<IoRegOffsetInfo>,
 }
 
@@ -122,4 +141,5 @@ pub struct IoRegSegmentInfo {
 pub struct IoRegInfo {
     pub name:       String,
     pub regions:    HashMap<String, IoRegSegmentInfo>,
+    pub const_vals: HashMap<String, StaticValue>,
 }
