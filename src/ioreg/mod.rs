@@ -111,7 +111,6 @@ extern crate aster;
 
 use syntax::ast;
 use syntax::parse::token;
-use syntax::print::pprust;
 use syntax::codemap::Span;
 use syntax::util::small_vector::SmallVector;
 use syntax::ext::base::{ExtCtxt, MacResult};
@@ -266,18 +265,9 @@ fn parse_ioreg(parser: &mut parser::Parser) -> common::IoRegInfo {
 //
 
 fn generate_ioreg(_: &ExtCtxt, info: common::IoRegInfo, verbose: bool) -> Box<MacResult + 'static> {
-    let mut build = builder::Builder::new();
+    let mut build = builder::Builder::new(verbose);
 
     // now, generate code from the struct and get back Vec<ast::Item> to add to the token tree
     let items = build.consume(&info);
-
-    if verbose {
-        println!("\n\n=====   Generated: {}   =====\n", info.name);
-        for i in &items {
-            println!("{}\n", pprust::item_to_string(&i));
-        }
-        println!("\n\nFrom:\n    {:?}\n\n", info);
-    }
-
     syntax::ext::base::MacEager::items(SmallVector::many(items.clone()))
 }

@@ -2,6 +2,7 @@ extern crate aster;
 
 use syntax::ast;
 use syntax::ptr::P;
+use syntax::print::pprust;
 
 use std::collections::HashMap;
 
@@ -10,12 +11,14 @@ use ::ioreg::common;
 type ImplBuilder = aster::item::ItemImplBuilder<aster::invoke::Identity>;
 
 pub struct Builder {
+    verbose: bool,
     base_builder: aster::AstBuilder,
 }
 
 impl Builder {
-    pub fn new() -> Builder {
+    pub fn new(verbose: bool) -> Builder {
         Builder {
+            verbose: verbose,
             base_builder: aster::AstBuilder::new(),
         }
     }
@@ -23,6 +26,8 @@ impl Builder {
     // TODO: better name?
     // TODO: better return?
     pub fn consume(&mut self, ioreg: &common::IoRegInfo) -> Vec<P<ast::Item>> {
+        if self.verbose { println!("\n\n=====   Generating: {}   =====\n", ioreg.name); }
+
         let mut items: Vec<P<ast::Item>> = vec!();
 
         // generate the base struct
@@ -41,7 +46,9 @@ impl Builder {
         }
 
         // push the impl definition
-        items.push(impl_build.ty().id(ioreg.name.clone()));
+        let impl_item = impl_build.ty().id(ioreg.name.clone());
+        if self.verbose { println!("{}", pprust::item_to_string(&impl_item)); }
+        items.push(impl_item);
 
         items
     }
