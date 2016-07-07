@@ -1,7 +1,7 @@
 extern crate aster;
 
 use syntax::ast;
-use syntax::ptr::P;
+use syntax::ptr;
 use syntax::print::pprust;
 
 use std::collections::HashMap;
@@ -25,10 +25,10 @@ impl Builder {
 
     // TODO: better name?
     // TODO: better return?
-    pub fn consume(&mut self, ioreg: &common::IoRegInfo) -> Vec<P<ast::Item>> {
+    pub fn consume(&mut self, ioreg: &common::IoRegInfo) -> Vec<ptr::P<ast::Item>> {
         if self.verbose { println!("\n\n=====   Generating: {}   =====\n", ioreg.name); }
 
-        let mut items: Vec<P<ast::Item>> = vec!();
+        let mut items: Vec<ptr::P<ast::Item>> = vec!();
 
         // generate the base struct
         items.push(
@@ -40,9 +40,14 @@ impl Builder {
         let mut impl_build = self.base_builder.item().impl_();
         impl_build = self.build_const_vals(&ioreg.const_vals, impl_build);
 
-        // now do the same for the segments
+        // now build the segments
         for s in &ioreg.segments {
             impl_build = self.build_const_vals(&s.1.const_vals, impl_build);
+
+            if s.1.can_read() {
+                // build ::read_foo()
+                impl_build = self.build_getter(&s.1, impl_build);
+            }
         }
 
         // push the impl definition
@@ -79,6 +84,77 @@ impl Builder {
                 }
             }
         }
+
+        builder
+    }
+
+    fn build_getter(&mut self, seg: &common::IoRegSegmentInfo, prev_builder: ImplBuilder) -> ImplBuilder {
+        let mut builder = prev_builder;
+        let fn_bldr = builder.method(format!("read_{}", seg.name)).fn_decl();
+        match seg.reg_width {
+            common::RegisterWidth::R8 => {
+                builder = fn_bldr.return_().u8().block()
+                    .expr().block().unsafe_()
+                        .expr().call().id("volatile_load")
+                            .arg().build_expr_kind(ast::ExprKind::Cast(
+                                self.base_builder.expr().lit().u32(seg.address),
+                                self.base_builder.ty().build_ty_kind(
+                                    ast::TyKind::Ptr(ast::MutTy{
+                                        ty: self.base_builder.ty().u8(),
+                                        mutbl: ast::Mutability::Mutable
+                                    })
+                                )
+                            )).build();
+            }
+            common::RegisterWidth::R16 => {
+                builder = fn_bldr.return_().u16().block()
+                    .expr().block().unsafe_()
+                        .expr().call().id("volatile_load")
+                            .arg().build_expr_kind(ast::ExprKind::Cast(
+                                self.base_builder.expr().lit().u32(seg.address),
+                                self.base_builder.ty().build_ty_kind(
+                                    ast::TyKind::Ptr(ast::MutTy{
+                                        ty: self.base_builder.ty().u16(),
+                                        mutbl: ast::Mutability::Mutable
+                                    })
+                                )
+                            ))
+                        .build();
+            }
+            common::RegisterWidth::R32 => {
+                builder = fn_bldr.return_().u32().block()
+                    .expr().block().unsafe_()
+                        .expr().call().id("volatile_load")
+                            .arg().build_expr_kind(ast::ExprKind::Cast(
+                                self.base_builder.expr().lit().u32(seg.address),
+                                self.base_builder.ty().build_ty_kind(
+                                    ast::TyKind::Ptr(ast::MutTy{
+                                        ty: self.base_builder.ty().u32(),
+                                        mutbl: ast::Mutability::Mutable
+                                    })
+                                )
+                            ))
+                        .build();
+            }
+            common::RegisterWidth::R64 => {
+                builder = fn_bldr.return_().u64().block()
+                    .expr().block().unsafe_()
+                        .expr().call().id("volatile_load")
+                            .arg().build_expr_kind(ast::ExprKind::Cast(
+                                self.base_builder.expr().lit().u32(seg.address),
+                                self.base_builder.ty().build_ty_kind(
+                                    ast::TyKind::Ptr(ast::MutTy{
+                                        ty: self.base_builder.ty().u64(),
+                                        mutbl: ast::Mutability::Mutable
+                                    })
+                                )
+                            ))
+                        .build();
+            }
+            common::RegisterWidth::Unknown => {
+                panic!("encountered register of unknown size!"); // TODO: no panic
+            }
+        };
 
         builder
     }

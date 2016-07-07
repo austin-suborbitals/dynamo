@@ -142,6 +142,20 @@ impl IoRegSegmentInfo {
     pub fn push_offset(&mut self, off: IoRegOffsetInfo) {
         self.offsets.push(off);
     }
+
+    pub fn can_read(&self) -> bool {
+        match self.access_perms {
+            RegisterPermissions::ReadOnly | RegisterPermissions::ReadWrite  => { true }
+            _ => { false }
+        }
+    }
+
+    pub fn can_write(&self) -> bool {
+        match self.access_perms {
+            RegisterPermissions::WriteOnly | RegisterPermissions::ReadWrite  => { true }
+            _ => { false }
+        }
+    }
 }
 
 

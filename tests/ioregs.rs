@@ -1,4 +1,5 @@
 #![feature(plugin)]
+#![feature(core_intrinsics)]
 #![feature(associated_consts)]
 
 #![plugin(dynamo)]
@@ -7,6 +8,9 @@
 
 #[cfg(test)]
 mod simple {
+    extern crate core;
+    use self::core::intrinsics::volatile_load;
+
     ioreg_debug!(
         // this should not be considered
         name => TestingStruct;      // nor should this
