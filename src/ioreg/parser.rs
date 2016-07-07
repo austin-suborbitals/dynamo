@@ -78,7 +78,7 @@ fn fits_into(val: &common::StaticValue, width: &common::RegisterWidth) -> bool {
                 &common::RegisterWidth::Unknown => { false }
             }
         }
-        &common::StaticValue::Float(f, _) => {
+        &common::StaticValue::Float(f, _, _) => {
             match width {
                 &common::RegisterWidth::R8 | &common::RegisterWidth::R16 => { false } // TODO: what to do about f8 and f16
                 &common::RegisterWidth::R32 => { f <= std::f32::MAX }
@@ -316,6 +316,7 @@ impl<'a> Parser<'a> {
 
 
     fn parse_constant_literal(&mut self, name: &String) -> common::StaticValue {
+        self.save_span();
         match self.curr_token() {
             // parse an integer literal value
             &token::Token::Literal(token::Lit::Integer(_), _) => {
@@ -341,7 +342,7 @@ impl<'a> Parser<'a> {
                                     return common::StaticValue::Error(conv.unwrap_err().to_string());
                                 }
     
-                                return common::StaticValue::Float(conv.unwrap() as f32, name.clone());
+                                return common::StaticValue::Float(conv.unwrap() as f32, s, name.clone());
                             }
                             _ => { return common::StaticValue::Error("could not be parsed as a float".to_string()); }
                         }
@@ -366,7 +367,15 @@ impl<'a> Parser<'a> {
                     }
                 }
             }
-        
+
+            // TODO: we need to handle negative ints
+            /*
+            &token::Token::BinOp(token::BinOpToken::Minus) => {
+                self.eat(&token::Token::BinOp(token::BinOpToken::Minus));
+                return self.parse_constant_literal(name);
+            }
+            */
+
             _ => {
                 return common::StaticValue::Error("unexpected token. expected a static literal".to_string());
             }

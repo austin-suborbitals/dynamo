@@ -110,7 +110,6 @@ extern crate aster;
 
 
 use syntax::ast;
-use syntax::ptr::P;
 use syntax::parse::token;
 use syntax::print::pprust;
 use syntax::codemap::Span;
@@ -121,6 +120,7 @@ use std::collections::HashMap;
 
 pub mod parser;
 pub mod common;
+pub mod builder;
 
 //
 // ioreg expansion
@@ -266,17 +266,18 @@ fn parse_ioreg(parser: &mut parser::Parser) -> common::IoRegInfo {
 //
 
 fn generate_ioreg(_: &ExtCtxt, info: common::IoRegInfo, verbose: bool) -> Box<MacResult + 'static> {
-    let builder = aster::AstBuilder::new();
-    let info_struct = builder.item().struct_(info.name.clone())
-        .field("address").ty().usize()
-        .build();
+    let mut build = builder::Builder::new();
+
+    // now, generate code from the struct and get back Vec<ast::Item> to add to the token tree
+    let items = build.consume(&info);
 
     if verbose {
         println!("\n\n=====   Generated: {}   =====\n", info.name);
-        println!("{}", pprust::item_to_string(&info_struct));
+        for i in &items {
+            println!("{}\n", pprust::item_to_string(&i));
+        }
         println!("\n\nFrom:\n    {:?}\n\n", info);
     }
 
-    let items: Vec<P<ast::Item>> = vec![info_struct];
     syntax::ext::base::MacEager::items(SmallVector::many(items.clone()))
 }

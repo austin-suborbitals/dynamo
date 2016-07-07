@@ -1,6 +1,7 @@
 #[allow(unused_imports)]
 use std::fmt::{Debug, Formatter, Result};
 
+use syntax::parse::token;
 use syntax::codemap::Span;
 
 use std::collections::HashMap;
@@ -50,7 +51,7 @@ impl Debug for FunctionType {
 pub enum StaticValue {
     Int(i32, String),
     Uint(u32, String),
-    Float(f32, String),
+    Float(f32, token::InternedString, String), // TODO: avoid carrying the interned string around
     Str(String, String),
     Error(String),
 }
@@ -60,7 +61,7 @@ impl Debug for StaticValue {
         match self {
             &StaticValue::Int(i, ref n) => { write!(f, "({}:int) {}", n, i) }
             &StaticValue::Uint(i, ref n) => { write!(f, "({}:uint) {}", n, i) }
-            &StaticValue::Float(i, ref n) => { write!(f, "({}:float) {}", n, i) }
+            &StaticValue::Float(i, _, ref n) => { write!(f, "({}:float) {}", n, i) }
             &StaticValue::Str(ref s, ref n) => { write!(f, "({}:str) {}", n, s) }
             &StaticValue::Error(ref e) => { write!(f, "(PARSER ERROR) {}", e) }
         }

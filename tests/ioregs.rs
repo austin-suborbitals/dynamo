@@ -1,5 +1,8 @@
 #![feature(plugin)]
+#![feature(associated_consts)]
+
 #![plugin(dynamo)]
+
 #[allow(dead_code)]
 
 #[cfg(test)]
@@ -10,6 +13,7 @@ mod simple {
 
         // define some "root-level" constants (unprefixed) on the base struct
         constants => {
+            // something_signed = -128;     // TODO: need signed ints
             something_important = 0xFFAA;
             less_crucial = 1.123;
             and_a_string = "some super critical string";
@@ -45,5 +49,14 @@ mod simple {
     #[allow(unused_variables)]
     fn struct_is_defined() {
         let x: TestingStruct;
+    }
+
+    #[test]
+    fn constants_associated_with_type() {
+        //assert_eq!(TestingStruct::SOMETHING_SIGNED, -1);
+        assert_eq!(TestingStruct::SOMETHING_IMPORTANT, 0xFFAA);
+        assert_eq!(TestingStruct::LESS_CRUCIAL, 1.123);
+        assert_eq!(TestingStruct::AND_A_STRING, "some super critical string");
+        assert_eq!(TestingStruct::STATUS_SOME_VAL, 0x0100);
     }
 }
