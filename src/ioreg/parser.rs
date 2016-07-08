@@ -247,11 +247,11 @@ impl<'a> Parser<'a> {
     // can be a single number (i.e. 3) or a range (i.e. 1..5)
     // returned as a tuple of (begin, length)
     // TODO: Result<(u8,u8), _> perhaps?
-    pub fn parse_index(&mut self) -> (u8, u8) {
+    pub fn parse_index(&mut self) -> common::IoRegOffsetIndexInfo {
         let begin = self.parse_uint::<u8>() as u8;
         if begin == u8::max_value() {
             self.set_err("detected error while parsing index");
-            return (0, 0);
+            return common::IoRegOffsetIndexInfo{offset: 0, width: 0};
         }
 
         let mut end = begin;
@@ -259,13 +259,16 @@ impl<'a> Parser<'a> {
             end = self.parse_uint::<u8>() as u8;
             if end < begin {
                 self.set_err("index ranges are inverted");
-                return (0, 0);
+                return common::IoRegOffsetIndexInfo{offset: 0, width: 0};
             } else if end == begin {
                 self.set_err("this should not be a range. indices are equal");
-                return (0, 0);
+                return common::IoRegOffsetIndexInfo{offset: 0, width: 0};
             }
         }
-        return (begin, if begin == end { 1 } else { end - begin });
+        return common::IoRegOffsetIndexInfo{
+            offset: begin,
+            width: if begin == end { 1 } else { end - begin }
+        };
     }
 
     pub fn parse_uint<T: IsNumeric<T> + From<T>>(&mut self) -> u64
@@ -504,7 +507,7 @@ impl<'a> Parser<'a> {
         match self.parse_ident_string().as_str() {
             "ro" => { common::RegisterPermissions::ReadOnly },
             "wo" => { common::RegisterPermissions::WriteOnly },
-            "wr" => { common::RegisterPermissions::ReadWrite },
+            "rw" => { common::RegisterPermissions::ReadWrite },
             _ => {
                 self.set_err("unknown register access keyword");
                 common::RegisterPermissions::Unknown

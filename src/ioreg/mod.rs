@@ -144,7 +144,7 @@ pub fn expand_ioreg_debug(cx: &mut ExtCtxt, _: Span, args: &[ast::TokenTree]) ->
 
 fn parse_offset(parser: &mut parser::Parser, seg: &mut common::IoRegSegmentInfo) -> Result<common::IoRegOffsetInfo, &'static str> {
     // parse the index width and begin offset
-    let index_width = parser.parse_index();
+    let offset_index = parser.parse_index();
 
     // we expect a fat arrow and a curly brace to kick things off
     parser.expect_fat_arrow();
@@ -163,7 +163,7 @@ fn parse_offset(parser: &mut parser::Parser, seg: &mut common::IoRegSegmentInfo)
     }
 
     Ok(common::IoRegOffsetInfo{
-        width: index_width.1,
+        index: offset_index,
         functions: func_defs,
     })
 
@@ -265,9 +265,9 @@ fn parse_ioreg(parser: &mut parser::Parser) -> common::IoRegInfo {
 //
 
 fn generate_ioreg(_: &ExtCtxt, info: common::IoRegInfo, verbose: bool) -> Box<MacResult + 'static> {
-    let mut build = builder::Builder::new(verbose);
+    let builder = builder::Builder::new(info, verbose);
 
     // now, generate code from the struct and get back Vec<ast::Item> to add to the token tree
-    let items = build.consume(&info);
+    let items = builder.build();
     syntax::ext::base::MacEager::items(SmallVector::many(items.clone()))
 }

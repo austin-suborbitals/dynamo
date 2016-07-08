@@ -9,7 +9,7 @@
 #[cfg(test)]
 mod simple {
     extern crate core;
-    use self::core::intrinsics::volatile_load;
+    use self::core::intrinsics::{volatile_load, volatile_store};
 
     ioreg_debug!(
         // this should not be considered
@@ -23,7 +23,7 @@ mod simple {
             and_a_string = "some super critical string";
         };
 
-        0x1000 => status r16 ro {
+        0x1000 => status r16 rw {
             // define some status-related constants. these are prefixed and exist on the segment struct
             constants => {
                 some_val = 0x0100;
@@ -43,7 +43,7 @@ mod simple {
             }
         };
 
-        0x2000 => control r8 wr {
+        0x2000 => control r8 ro {
             0..15 => {
             }
         };

@@ -114,6 +114,16 @@ impl Debug for RegisterWidth {
     }
 }
 
+//
+// register offset index info
+//
+
+#[derive(Debug)]
+pub struct IoRegOffsetIndexInfo {
+    pub offset: u8,
+    pub width: u8,
+}
+
 
 #[derive(Debug)]
 pub struct IoRegFuncDef {
@@ -125,7 +135,7 @@ pub struct IoRegFuncDef {
 
 #[derive(Debug)]
 pub struct IoRegOffsetInfo {
-    pub width:          u8, // TODO: enum?
+    pub index:          IoRegOffsetIndexInfo,
     pub functions:      HashMap<String, IoRegFuncDef>,
 }
 
