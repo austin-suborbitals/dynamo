@@ -9,6 +9,17 @@ use std::collections::HashMap;
 use ::ioreg::common;
 
 type ImplBuilder = aster::item::ItemImplBuilder<aster::invoke::Identity>;
+type FnInternalBlockBuilder = aster::block::BlockBuilder<
+    aster::expr::ExprBuilder<
+        aster::block::BlockBuilder<
+            aster::item::ItemImplMethodBuilder<
+                aster::item::ItemImplBuilder<aster::invoke::Identity>
+            >
+        >
+    >
+>;
+type FnArgsBuilder = aster::expr::ExprCallArgsBuilder<aster::stmt::StmtExprBuilder<aster::invoke::Identity>>;
+
 
 pub struct Builder {
     verbose: bool,
@@ -97,6 +108,7 @@ impl Builder {
         builder
     }
 
+    // TODO: user newer `build_read_register`
     fn build_getter(&self, seg: &common::IoRegSegmentInfo, prev_builder: ImplBuilder) -> ImplBuilder {
         let mut builder = prev_builder;
         let fn_bldr = builder.method(format!("read_{}", seg.name)).fn_decl();
@@ -145,21 +157,6 @@ impl Builder {
                             ))
                         .build();
             }
-            common::RegisterWidth::R64 => {
-                builder = fn_bldr.return_().u64().block()
-                    .expr().block().unsafe_()
-                        .expr().call().id("volatile_load")
-                            .arg().build_expr_kind(ast::ExprKind::Cast(
-                                self.base_builder.expr().lit().u32(seg.address),
-                                self.base_builder.ty().build_ty_kind(
-                                    ast::TyKind::Ptr(ast::MutTy{
-                                        ty: self.base_builder.ty().u64(),
-                                        mutbl: ast::Mutability::Mutable
-                                    })
-                                )
-                            ))
-                        .build();
-            }
             common::RegisterWidth::Unknown => {
                 panic!("encountered register of unknown size!"); // TODO: no panic
             }
@@ -168,81 +165,145 @@ impl Builder {
         builder
     }
 
-    fn build_write_u8(&self, fn_def: &common::IoRegFuncDef, seg: &common::IoRegSegmentInfo, offset: u8, width: u8,  prev: ImplBuilder)
-        -> ImplBuilder {
+    fn build_impl_unsafe_fn_block(&self, bldr: ImplBuilder, fn_def: &common::IoRegFuncDef) -> FnInternalBlockBuilder {
+        bldr.method(fn_def.name.clone()).fn_decl().span(fn_def.span)
+            .default_return().block()
+            .expr().block().unsafe_()
+    }
 
-        let bldr = prev;
+    // TODO: assumes u32 address space
+    fn build_read_register<T>(&self, addr: u32) -> ptr::P<ast::Expr>
+        where T: common::ToTypeOrLitOrArg<T>
+    {
+        // volatile_load(addr as *u8)
+        self.base_builder.expr().call().id("volatile_load")
+            .arg().build_expr_kind(ast::ExprKind::Cast(
+                self.base_builder.expr().lit().u32(addr),
+                self.base_builder.ty().build_ty_kind(
+                    ast::TyKind::Ptr(ast::MutTy{
+                        ty: T::to_type(),
+                        mutbl: ast::Mutability::Immutable
+                    })
+                )
+            ))
+            .build()
+    }
 
-        // build a mask to null the read value so we can OR our value into it
-        let mut mask = 0u8;
-        for i in 0..width {
-            mask |= 1 << (offset + if i > 0 { (i-1) } else { 0 });
+    fn build_volatile_store_base<T>(&self, addr: u32) -> FnArgsBuilder
+        where T: common::ToTypeOrLitOrArg<T>
+    {
+        self.base_builder.stmt().expr().call().id("volatile_store")
+            .arg().build_expr_kind(ast::ExprKind::Cast(
+                self.base_builder.expr().lit().u32(addr),    // TODO: assumes 32bit address
+                self.base_builder.ty().build_ty_kind(
+                    ast::TyKind::Ptr(ast::MutTy{
+                        ty: T::to_type(),
+                        mutbl: ast::Mutability::Mutable
+                    })
+                )
+            ))
+    }
+
+    fn get_uint_const_val<T>(&self, v: &common::FunctionValueType, seg: &common::IoRegSegmentInfo) -> ptr::P<ast::Expr>
+        where T: common::ToTypeOrLitOrArg<T> + common::Narrow<u32>
+    {
+        match v {
+            &common::FunctionValueType::Static(val) => { T::to_lit(T::narrow(val)) }
+            &common::FunctionValueType::Reference(ref name) => {
+                match self.lookup_const_val(name, seg) {
+                    Ok(v) => {
+                        match v {
+                            &common::StaticValue::Uint(u, _) => { T::to_lit(T::narrow(u)) }
+                            _ => {
+                                panic!("expected a static value after lookup up constant value definition");
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        panic!(e);
+                    }
+                }
+            }
         }
-        mask = !mask;
+    }
+
+    // TODO: remove code duplication if possible
+    fn get_masked_uint_const_val<T>(&self, v: &common::FunctionValueType, mask_id: &str, seg: &common::IoRegSegmentInfo)
+        -> ptr::P<ast::Expr>
+        where T: common::ToTypeOrLitOrArg<T> + common::Narrow<u32>
+    {
+        let lit = match v {
+            &common::FunctionValueType::Static(val) => { T::to_lit(T::narrow(val)) }
+            &common::FunctionValueType::Reference(ref name) => {
+                match self.lookup_const_val(name, seg) {
+                    Ok(v) => {
+                        match v {
+                            &common::StaticValue::Uint(u, _) => { T::to_lit(T::narrow(u)) }
+                            _ => {
+                                panic!("expected a static value after lookup up constant value definition");
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        panic!(e);
+                    }
+                }
+            }
+        };
+
+        self.base_builder.expr().build_bit_or(
+            self.base_builder.expr().id(mask_id),
+            lit
+        )
+    }
 
 
-        // make a base func decl
-        let mut fn_decl = bldr.method(fn_def.name.clone()).fn_decl().span(fn_def.span)
-                .default_return().block()
-                .expr().block().unsafe_()
-                    .stmt().let_id("masked_val")                                    // let masked_val = 
-                    .bit_and()                                                      // (we will AND the following)
-                        .call().id("volatile_load")                                 // volatile_load(addr as *u8)
-                            .arg().build_expr_kind(ast::ExprKind::Cast(
-                                self.base_builder.expr().lit().u32(seg.address),
-                                self.base_builder.ty().build_ty_kind(
-                                    ast::TyKind::Ptr(ast::MutTy{
-                                        ty: self.base_builder.ty().u8(),
-                                        mutbl: ast::Mutability::Immutable
-                                    })
-                                )
-                            ))
-                            .build()
-                        .lit().u8(mask);                                            // our mask literal (this is the rhs of AND)
+    fn build_setter<T>(&self, fn_def: &common::IoRegFuncDef, seg: &common::IoRegSegmentInfo, offset: u8, width: u8,  prev: ImplBuilder)
+        -> ImplBuilder
+        where T: common::ToTypeOrLitOrArg<T> + common::Narrow<u32>
+    {
+        println!("creating function'{}' for width={} for reg_width={:?}", fn_def.name, width, seg.reg_width);
+        // make an unsafe block for this function
+        let mut fn_block = self.build_impl_unsafe_fn_block(prev, fn_def);
+        let entire_reg = seg.reg_width.is_entire_register(width);
 
+        // save a common name for the ident we use to store the current value
+        let mask_id = "fetched";
+
+        // TODO: how to handle PARTIAL writes to WriteOnly registers?
+        if ! entire_reg && seg.access_perms == common::RegisterPermissions::WriteOnly {
+            panic!("partial writes to WriteOnly register indices is currently not supported");
+        }
+
+        // if writing to a partial register, add a statement that says `let fetched = volatile_load(addr as *const T)`
+        // we will mask this value and then do a `volatile_store(addr as *mut T, masked | val)`
+        let mut mask: u32 = 0;
+        if ! entire_reg {
+            for i in 0..width {
+                mask |= 1 << (offset + if i > 0 { (i-1) } else { 0 });
+            }
+            mask = !mask;
+
+            fn_block = fn_block.stmt()
+                .let_()
+                    .id(mask_id.clone())
+                    .expr().build_bit_and(
+                        self.build_read_register::<T>(seg.address),
+                        T::to_lit(T::narrow(mask))
+                    );
+        }
+
+        // for every value, do a write
         for v in &fn_def.values {
-            let fn_arg: u8 = match v {
-                &common::FunctionValueType::Static(val) => {
-                    val as u8
-                }
-                &common::FunctionValueType::Reference(ref name) => {
-                    let actual_name = format!("{}_{}", seg.name, name);
-                    let mut val = self.reg.const_vals.get(actual_name.as_str());    // check for global def
-                    if val.is_none() {
-                        val = seg.const_vals.get(actual_name.as_str());             // check for local def
-                    }
-                    if val.is_none() {
-                        panic!(format!("no definition of '{}' in scope", name))     // TODO: keep calm
-                    };
+            let store_base = self.build_volatile_store_base::<T>(seg.address);
 
-                    match val.unwrap() {
-                        &common::StaticValue::Uint(u, _) => {
-                            u as u8
-                        }
-                        _ => {
-                            panic!("cannot write to register with non-uint value"); // TODO: keep calm
-                        }
-                    }
-                }
+            if entire_reg {
+                fn_block = fn_block.with_stmt(store_base.with_arg(self.get_uint_const_val::<T>(v, seg)).build());
+            } else {
+                fn_block = fn_block.with_stmt(store_base.with_arg(self.get_masked_uint_const_val::<T>(v, mask_id, seg)).build());
             };
-
-            fn_decl = fn_decl.stmt().expr().call().id("volatile_store")                    // volatile_load(addr as *u8)
-                .arg().build_expr_kind(ast::ExprKind::Cast(
-                    self.base_builder.expr().lit().u32(seg.address),
-                    self.base_builder.ty().build_ty_kind(
-                        ast::TyKind::Ptr(ast::MutTy{
-                            ty: self.base_builder.ty().u8(),
-                            mutbl: ast::Mutability::Mutable
-                        })
-                    )
-                ))
-                .arg().bit_or()
-                    .id("masked_val")
-                    .lit().u8(fn_arg)
-                .build();
-        }
-
-        fn_decl.build()
+        };
+        fn_block.build()
     }
 
     fn build_setters(&self, off: &common::IoRegOffsetInfo, seg: &common::IoRegSegmentInfo, prev: ImplBuilder)
@@ -252,26 +313,40 @@ impl Builder {
         for f in &off.functions {
             // we know how many bits we need to operate on, but we can only address bytes...
             // so, if we have less than 8 bits, operate on a byte, otherwise get the pow_2 >= width
-            let op_width = if off.index.width < 8 { 8 } else { off.index.width.next_power_of_two() };
 
-            bldr = match op_width {
-                8 => {
-                    self.build_write_u8(&f.1, seg, off.index.offset, off.index.width, bldr)
+            bldr = match seg.reg_width {
+                common::RegisterWidth::R8 => {
+                    self.build_setter::<u8>(&f.1, seg, off.index.offset, off.index.width, bldr)
                 }
-                /*
-                16 => {
+                common::RegisterWidth::R16 => {
+                    self.build_setter::<u16>(&f.1, seg, off.index.offset, off.index.width, bldr)
                 }
-                32 => {
+                common::RegisterWidth::R32 => {
+                    self.build_setter::<u32>(&f.1, seg, off.index.offset, off.index.width, bldr)
                 }
-                64 => {
-                }
-                */
                 _ => {
                     // TODO: proper error
-                    panic!("register operation width ({})is either too large or non power of 2", op_width);
+                    panic!(format!("unknown register width to create setter function in segment '{}'", seg.name));
                 }
             };
         }
         bldr
+    }
+
+    fn lookup_const_val<'a>(&'a self, name: &str, seg: &'a common::IoRegSegmentInfo) -> Result<&common::StaticValue, String> {
+        // first, check for global def
+        let mut val = self.reg.const_vals.get(name);
+        if val.is_some() {
+            return Ok(val.unwrap());
+        }
+
+        // now check the segment for the scoped name
+        let scoped_name: String = format!("{}_{}", seg.name, name);
+        val = seg.const_vals.get(scoped_name.as_str());
+        if val.is_some() {
+            return Ok(val.unwrap());
+        };
+
+        Err(format!("could not find definition for '{}' or '{}'", name.to_string(), scoped_name))
     }
 }

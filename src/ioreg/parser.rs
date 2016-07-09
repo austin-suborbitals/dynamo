@@ -29,17 +29,9 @@ impl IsNumeric<u32> for u32 {
     fn max_value() -> u32 { u32::max_value() }
     fn min_value() -> u32 { u32::min_value() }
 }
-impl IsNumeric<u64> for u64 {
-    fn max_value() -> u64 { u64::max_value() }
-    fn min_value() -> u64 { u64::min_value() }
-}
 impl IsNumeric<f32> for f32 {
     fn max_value() -> f32 { std::f32::MAX }
     fn min_value() -> f32 { std::f32::MIN }
-}
-impl IsNumeric<f64> for f64 {
-    fn max_value() -> f64 { std::f64::MAX }
-    fn min_value() -> f64 { std::f64::MIN }
 }
 
 macro_rules! read_uint_for_register {
@@ -48,7 +40,6 @@ macro_rules! read_uint_for_register {
             &common::RegisterWidth::R8 =>    { $parser.checked_parse_uint::<u8>() }
             &common::RegisterWidth::R16 =>   { $parser.checked_parse_uint::<u16>() }
             &common::RegisterWidth::R32 =>   { $parser.checked_parse_uint::<u32>() }
-            &common::RegisterWidth::R64 =>   { $parser.checked_parse_uint::<u64>() }
             &common::RegisterWidth::Unknown => {
                 Err("cannot read value for register of unspecified size".to_string())
             }
@@ -65,7 +56,6 @@ fn fits_into(val: &common::StaticValue, width: &common::RegisterWidth) -> bool {
                 &common::RegisterWidth::R8 => { i <= (i8::max_value() as i32) }
                 &common::RegisterWidth::R16 => { i <= (i16::max_value() as i32) }
                 &common::RegisterWidth::R32 => { i <= (i32::max_value()) }
-                &common::RegisterWidth::R64 => { true } // TODO: this seems wrong wrong wrong, but so do 64bit registers
                 &common::RegisterWidth::Unknown => { false }
             }
         }
@@ -74,7 +64,6 @@ fn fits_into(val: &common::StaticValue, width: &common::RegisterWidth) -> bool {
                 &common::RegisterWidth::R8 => { i <= (u8::max_value() as u32) }
                 &common::RegisterWidth::R16 => { i <= (u16::max_value() as u32) }
                 &common::RegisterWidth::R32 => { i <= (u32::max_value()) }
-                &common::RegisterWidth::R64 => { true } // TODO: this seems wrong wrong wrong, but so do 64bit registers
                 &common::RegisterWidth::Unknown => { false }
             }
         }
@@ -82,7 +71,6 @@ fn fits_into(val: &common::StaticValue, width: &common::RegisterWidth) -> bool {
             match width {
                 &common::RegisterWidth::R8 | &common::RegisterWidth::R16 => { false } // TODO: what to do about f8 and f16
                 &common::RegisterWidth::R32 => { f <= std::f32::MAX }
-                &common::RegisterWidth::R64 => { true } // TODO: this seems wrong wrong wrong, but so do 64bit registers
                 &common::RegisterWidth::Unknown => { false }
             }
         }
@@ -265,9 +253,16 @@ impl<'a> Parser<'a> {
                 return common::IoRegOffsetIndexInfo{offset: 0, width: 0};
             }
         }
+
+        // get the width of the region
+        let mut w = if begin == end { 1 } else { end - begin };
+
+        // if we started by a zero-index, and it is a range, add 1 to fix 0-indexing
+        if begin == 0 && begin != end { w += 1; }
+
         return common::IoRegOffsetIndexInfo{
             offset: begin,
-            width: if begin == end { 1 } else { end - begin }
+            width: w,
         };
     }
 
@@ -284,6 +279,7 @@ impl<'a> Parser<'a> {
     }
 
     // TODO: why can I not cast u64 to T where T is uint < u64
+    // TODO: use the new common::Narrow trait
     pub fn checked_parse_uint<T: IsNumeric<T> + From<T>>(&mut self) -> Result<u64, String>
         where u64: From<T> {
 
@@ -340,12 +336,12 @@ impl<'a> Parser<'a> {
                         match l.node {
                             // TODO: do we care about type? stored as f64....
                             ast::LitKind::Float(s, _) | ast::LitKind::FloatUnsuffixed(s) => {
-                                let conv = s.parse::<f64>();
+                                let conv = s.parse::<f32>();
                                 if conv.is_err() {
                                     return common::StaticValue::Error(conv.unwrap_err().to_string());
                                 }
     
-                                return common::StaticValue::Float(conv.unwrap() as f32, s, name.clone());
+                                return common::StaticValue::Float(conv.unwrap(), s, name.clone());
                             }
                             _ => { return common::StaticValue::Error("could not be parsed as a float".to_string()); }
                         }
@@ -451,7 +447,7 @@ impl<'a> Parser<'a> {
                 // if we have a literal, we expect it to be an integral, so parse that
                 token::Token::Literal(token::Lit::Integer(_), _) => {  // TODO: consider float
                     match read_uint_for_register!(self, width) {
-                        Ok(i) => { vals.push(common::FunctionValueType::Static(i as usize)); }
+                        Ok(i) => { vals.push(common::FunctionValueType::Static(i as u32)); }
                         Err(e) => {
                             self.set_err(e.as_str());
                             break;  // TODO: better return
@@ -495,7 +491,6 @@ impl<'a> Parser<'a> {
             "r8" => { common::RegisterWidth::R8 },
             "r16" => { common::RegisterWidth::R16 },
             "r32" => { common::RegisterWidth::R32 },
-            "r64" => { common::RegisterWidth::R64 },
             _ => {
                 self.set_err("unknown register width keyword");
                 common::RegisterWidth::Unknown

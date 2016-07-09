@@ -1,17 +1,69 @@
+extern crate aster;
+
 #[allow(unused_imports)]
 use std::fmt::{Debug, Formatter, Result};
 
+use syntax::ast;
+use syntax::ptr;
 use syntax::parse::token;
 use syntax::codemap::Span;
 
 use std::collections::HashMap;
+
+
+//
+// narrow from u32 to u8 and u16
+//
+pub trait Narrow<T> {
+    fn narrow(u: T) -> Self;
+}
+impl Narrow<u32> for u8 {
+    fn narrow(u: u32) -> Self { (u & 0xFFFF) as u8 }
+}
+impl Narrow<u32> for u16 {
+    fn narrow(u: u32) -> Self { (u & 0xFFFF) as u16 }
+}
+impl Narrow<u32> for u32 {
+    fn narrow(u: u32) -> Self { u }
+}
+
+
+//
+// primitive type to_type and to_lit trait
+//
+
+pub trait ToTypeOrLitOrArg<T> {
+    fn to_type() -> ptr::P<ast::Ty>;
+    fn to_lit(val: T) -> ptr::P<ast::Expr>;
+    fn to_arg(val: T) -> ptr::P<ast::Expr>;
+}
+
+// TODO: do not require a new builder
+impl ToTypeOrLitOrArg<u8> for u8 {
+    fn to_type() -> ptr::P<ast::Ty> { aster::AstBuilder::new().ty().u8() }
+    fn to_lit(val: u8) -> ptr::P<ast::Expr> { aster::AstBuilder::new().expr().lit().u8(val) }
+    fn to_arg(val: u8) -> ptr::P<ast::Expr> { aster::AstBuilder::new().expr().lit().u8(val) }
+}
+// TODO: do not require a new builder
+impl ToTypeOrLitOrArg<u16> for u16 {
+    fn to_type() -> ptr::P<ast::Ty> { aster::AstBuilder::new().ty().u16() }
+    fn to_lit(val: u16) -> ptr::P<ast::Expr> { aster::AstBuilder::new().expr().lit().u16(val) }
+    fn to_arg(val: u16) -> ptr::P<ast::Expr> { aster::AstBuilder::new().expr().lit().u16(val) }
+}
+// TODO: do not require a new builder
+impl ToTypeOrLitOrArg<u32> for u32 {
+    fn to_type() -> ptr::P<ast::Ty> { aster::AstBuilder::new().ty().u32() }
+    fn to_lit(val: u32) -> ptr::P<ast::Expr> { aster::AstBuilder::new().expr().lit().u32(val) }
+    fn to_arg(val: u32) -> ptr::P<ast::Expr> { aster::AstBuilder::new().expr().lit().u32(val) }
+}
+
 
 //
 // function value type
 //
 
 pub enum FunctionValueType {
-    Static(usize),   // TODO: generic? convert in the func def?
+    Static(u32),   // TODO: generic? convert in the func def?
     Reference(String),
 }
 
@@ -29,6 +81,7 @@ impl Debug for FunctionValueType {
 // function type
 //
 
+#[derive(PartialEq)]
 pub enum FunctionType {
     Getter,
     Setter,
@@ -72,6 +125,7 @@ impl Debug for StaticValue {
 // register access permissions
 //
 
+#[derive(PartialEq)]
 pub enum RegisterPermissions {
     ReadOnly,
     WriteOnly,
@@ -98,8 +152,18 @@ pub enum RegisterWidth {
     R8,
     R16,
     R32,
-    R64,
     Unknown,
+}
+
+impl RegisterWidth {
+    pub fn is_entire_register(&self, len: u8) -> bool {
+        match self {
+            &RegisterWidth::R8 => { len == 8 }
+            &RegisterWidth::R16 => { len == 16 }
+            &RegisterWidth::R32 => { len == 32 }
+            &RegisterWidth::Unknown => { false }    // TODO: should this BE an error, got just get caught?
+        }
+    }
 }
 
 impl Debug for RegisterWidth {
@@ -108,7 +172,6 @@ impl Debug for RegisterWidth {
             RegisterWidth::R8 => { write!(f, " r8") }
             RegisterWidth::R16 => { write!(f, "r16") }
             RegisterWidth::R32 => { write!(f, "r32") }
-            RegisterWidth::R64 => { write!(f, "r64") }
             RegisterWidth::Unknown => { write!(f, "???") }
         }
     }

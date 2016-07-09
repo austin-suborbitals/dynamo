@@ -43,7 +43,13 @@ mod simple {
             }
         };
 
-        0x2000 => control r8 ro {
+        0x2000 => control r16 wo {
+            0..15 => {
+                unlock => [0x00FF, 0x1100];
+            }
+        };
+
+        0x2000 => accum r16 ro {
             0..15 => {
             }
         };

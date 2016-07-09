@@ -145,6 +145,18 @@ pub fn expand_ioreg_debug(cx: &mut ExtCtxt, _: Span, args: &[ast::TokenTree]) ->
 fn parse_offset(parser: &mut parser::Parser, seg: &mut common::IoRegSegmentInfo) -> Result<common::IoRegOffsetInfo, &'static str> {
     // parse the index width and begin offset
     let offset_index = parser.parse_index();
+    match seg.reg_width {   // TODO: lots of duplication
+        common::RegisterWidth::R8 => {
+            if offset_index.width > 8 {parser.set_err(format!("width ({}) cannot fit in segment", offset_index.width).as_str());}
+        }
+        common::RegisterWidth::R16 => {
+            if offset_index.width > 16 {parser.set_err(format!("width ({}) cannot fit in segment", offset_index.width).as_str());}
+        }
+        common::RegisterWidth::R32 => {
+            if offset_index.width > 32 {parser.set_err(format!("width ({}) cannot fit in segment", offset_index.width).as_str());}
+        }
+        common::RegisterWidth::Unknown => { parser.set_err("attempt to parse index of register with unknown width"); }
+    };
 
     // we expect a fat arrow and a curly brace to kick things off
     parser.expect_fat_arrow();
@@ -156,7 +168,12 @@ fn parse_offset(parser: &mut parser::Parser, seg: &mut common::IoRegSegmentInfo)
         // get a name and a colon to start the definition
         let name = parser.parse_ident_string();
         if ! func_defs.contains_key(&name) {    // check the function has not been registered TODO: check globally
-            func_defs.insert(name.clone(), parser.parse_func_def(name, &seg.reg_width));
+            let func = parser.parse_func_def(name.clone(), &seg.reg_width);
+            if func.ty == common::FunctionType::Setter && seg.access_perms == common::RegisterPermissions::ReadOnly {
+                return Err("cannot create setter function on read only segment");
+            }
+
+            func_defs.insert(name, func);
         } else {
             return Err("duplicate function definition");
         }
