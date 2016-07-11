@@ -254,15 +254,9 @@ impl<'a> Parser<'a> {
             }
         }
 
-        // get the width of the region
-        let mut w = if begin == end { 1 } else { end - begin };
-
-        // if we started by a zero-index, and it is a range, add 1 to fix 0-indexing
-        if begin == 0 && begin != end { w += 1; }
-
         return common::IoRegOffsetIndexInfo{
             offset: begin,
-            width: w,
+            width: (end-begin)+1, // add one to account for zero indexing
         };
     }
 

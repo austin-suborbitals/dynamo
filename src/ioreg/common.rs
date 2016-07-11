@@ -187,6 +187,21 @@ pub struct IoRegOffsetIndexInfo {
     pub width: u8,
 }
 
+impl IoRegOffsetIndexInfo {
+    pub fn width_is_byte_aligned(&self) -> bool {
+        self.width.is_power_of_two() && self.width >= 8
+    }
+
+    pub fn offset_is_byte_aligned(&self) -> bool {
+           self.offset == 0
+        || (self.offset >= 8 && self.offset.is_power_of_two())
+    }
+
+    pub fn is_fully_byte_aligned(&self) -> bool {
+        self.offset_is_byte_aligned() && self.width_is_byte_aligned()
+    }
+}
+
 
 #[derive(Debug)]
 pub struct IoRegFuncDef {
@@ -237,4 +252,38 @@ pub struct IoRegInfo {
     pub name:       String,
     pub segments:   HashMap<String, IoRegSegmentInfo>,
     pub const_vals: HashMap<String, StaticValue>,
+}
+
+
+#[cfg(test)]
+mod tests {
+    mod offset_index {
+        #[test]
+        fn width_pow_of_two_at_index_zero() {
+            for i in vec![8u8, 16, 32] {
+                let off = super::super::IoRegOffsetIndexInfo{
+                    offset: 0,
+                    width: i,
+                };
+
+                assert!(off.width_is_byte_aligned());
+                assert!(off.is_fully_byte_aligned());
+            }
+        }
+
+        #[test]
+        fn width_pow_of_two_at_index_pow_two() {
+            for i in vec![8u8, 16, 32] {
+                for w in vec![8u8, 16] {
+                    let off = super::super::IoRegOffsetIndexInfo{
+                        offset: i,
+                        width: w,
+                    };
+
+                    assert!(off.width_is_byte_aligned());
+                    assert!(off.is_fully_byte_aligned());
+                }
+            }
+        }
+    }
 }

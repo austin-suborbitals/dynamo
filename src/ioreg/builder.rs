@@ -3,6 +3,7 @@ extern crate aster;
 use syntax::ast;
 use syntax::ptr;
 use syntax::print::pprust;
+use syntax::codemap::Spanned;
 
 use std::collections::HashMap;
 
@@ -108,7 +109,6 @@ impl Builder {
         builder
     }
 
-    // TODO: user newer `build_read_register`
     fn build_getter(&self, seg: &common::IoRegSegmentInfo, prev_builder: ImplBuilder) -> ImplBuilder {
         let mut builder = prev_builder;
         let fn_bldr = builder.method(format!("read_{}", seg.name)).fn_decl();
@@ -116,46 +116,17 @@ impl Builder {
             common::RegisterWidth::R8 => {
                 builder = fn_bldr.return_().u8().block()
                     .expr().block().unsafe_()
-                        .expr().call().id("volatile_load")
-                            .arg().build_expr_kind(ast::ExprKind::Cast(
-                                self.base_builder.expr().lit().u32(seg.address),
-                                self.base_builder.ty().build_ty_kind(
-                                    ast::TyKind::Ptr(ast::MutTy{
-                                        ty: self.base_builder.ty().u8(),
-                                        mutbl: ast::Mutability::Mutable
-                                    })
-                                )
-                            )).build();
+                        .build_expr(self.build_read_register::<u8>(seg.address));
             }
             common::RegisterWidth::R16 => {
                 builder = fn_bldr.return_().u16().block()
                     .expr().block().unsafe_()
-                        .expr().call().id("volatile_load")
-                            .arg().build_expr_kind(ast::ExprKind::Cast(
-                                self.base_builder.expr().lit().u32(seg.address),
-                                self.base_builder.ty().build_ty_kind(
-                                    ast::TyKind::Ptr(ast::MutTy{
-                                        ty: self.base_builder.ty().u16(),
-                                        mutbl: ast::Mutability::Mutable
-                                    })
-                                )
-                            ))
-                        .build();
+                        .build_expr(self.build_read_register::<u16>(seg.address));
             }
             common::RegisterWidth::R32 => {
                 builder = fn_bldr.return_().u32().block()
                     .expr().block().unsafe_()
-                        .expr().call().id("volatile_load")
-                            .arg().build_expr_kind(ast::ExprKind::Cast(
-                                self.base_builder.expr().lit().u32(seg.address),
-                                self.base_builder.ty().build_ty_kind(
-                                    ast::TyKind::Ptr(ast::MutTy{
-                                        ty: self.base_builder.ty().u32(),
-                                        mutbl: ast::Mutability::Mutable
-                                    })
-                                )
-                            ))
-                        .build();
+                        .build_expr(self.build_read_register::<u32>(seg.address));
             }
             common::RegisterWidth::Unknown => {
                 panic!("encountered register of unknown size!"); // TODO: no panic
@@ -227,82 +198,92 @@ impl Builder {
         }
     }
 
-    // TODO: remove code duplication if possible
-    fn get_masked_uint_const_val<T>(&self, v: &common::FunctionValueType, mask_id: &str, seg: &common::IoRegSegmentInfo)
-        -> ptr::P<ast::Expr>
+    fn optimize_setter<T>(&self, off: &common::IoRegOffsetIndexInfo, val: &common::FunctionValueType, mask_id: &str, seg: &common::IoRegSegmentInfo)
+        -> Vec<Spanned<ast::StmtKind>>
         where T: common::ToTypeOrLitOrArg<T> + common::Narrow<u32>
     {
-        let lit = match v {
-            &common::FunctionValueType::Static(val) => { T::to_lit(T::narrow(val)) }
-            &common::FunctionValueType::Reference(ref name) => {
-                match self.lookup_const_val(name, seg) {
-                    Ok(v) => {
-                        match v {
-                            &common::StaticValue::Uint(u, _) => { T::to_lit(T::narrow(u)) }
-                            _ => {
-                                panic!("expected a static value after lookup up constant value definition");
-                            }
-                        }
-                    }
-                    Err(e) => {
-                        panic!(e);
-                    }
-                }
+        let mut result: Vec<Spanned<ast::StmtKind>> = vec!();
+
+        // if we are not writing the entire width, we cannot reliable set a portion of the register with a
+        // single binop. so instead, we read the current value and mask out the region we will be writing.
+        // now we can write the entire register and simply OR the needed value into the mask
+        let write_val = match off.offset {
+            0 => {
+                self.get_uint_const_val::<T>(val, seg)
+            }
+            _ => {
+                self.base_builder.expr().build_shl(
+                    self.get_uint_const_val::<T>(val, seg),
+                    self.base_builder.expr().lit().u8(off.offset)
+                )
             }
         };
 
-        self.base_builder.expr().build_bit_or(
-            self.base_builder.expr().id(mask_id),
-            lit
-        )
+        let store_base = self.build_volatile_store_base::<T>(seg.address);
+
+        result.push(
+            store_base.with_arg(
+                self.base_builder.expr().build_bit_or(
+                    self.base_builder.expr().id(mask_id),
+                    write_val
+                )
+            ).build()
+        );
+
+        result
     }
 
-
-    fn build_setter<T>(&self, fn_def: &common::IoRegFuncDef, seg: &common::IoRegSegmentInfo, offset: u8, width: u8,  prev: ImplBuilder)
+    fn build_setter<T>(&self, fn_def: &common::IoRegFuncDef, seg: &common::IoRegSegmentInfo, off: &common::IoRegOffsetIndexInfo,  prev: ImplBuilder)
         -> ImplBuilder
         where T: common::ToTypeOrLitOrArg<T> + common::Narrow<u32>
     {
-        println!("creating function'{}' for width={} for reg_width={:?}", fn_def.name, width, seg.reg_width);
         // make an unsafe block for this function
-        let mut fn_block = self.build_impl_unsafe_fn_block(prev, fn_def);
-        let entire_reg = seg.reg_width.is_entire_register(width);
-
-        // save a common name for the ident we use to store the current value
-        let mask_id = "fetched";
+        let mut fn_block = self.build_impl_unsafe_fn_block(prev, fn_def).span(fn_def.span);
 
         // TODO: how to handle PARTIAL writes to WriteOnly registers?
-        if ! entire_reg && seg.access_perms == common::RegisterPermissions::WriteOnly {
+        if ! off.is_fully_byte_aligned() && seg.access_perms == common::RegisterPermissions::WriteOnly {
             panic!("partial writes to WriteOnly register indices is currently not supported");
         }
 
-        // if writing to a partial register, add a statement that says `let fetched = volatile_load(addr as *const T)`
-        // we will mask this value and then do a `volatile_store(addr as *mut T, masked | val)`
-        let mut mask: u32 = 0;
-        if ! entire_reg {
-            for i in 0..width {
-                mask |= 1 << (offset + if i > 0 { (i-1) } else { 0 });
+        match off.is_fully_byte_aligned() {
+            true => {
+                // if we are setting the entire register, or byte aligned length and index, then write the whole thing blindly :)
+                for v in &fn_def.values {
+                    let store_base = self.build_volatile_store_base::<T>(seg.address);
+                    fn_block = fn_block.with_stmt(store_base.with_arg(self.get_uint_const_val::<T>(v, seg)).build());
+                }
             }
-            mask = !mask;
+            false => {
+                // if writing to a partial register, add a statement that says `let fetched = volatile_load(addr as *const T)`
+                // we will mask this value and then do a `volatile_store(addr as *mut T, masked | val)`
+                let mut mask: u32 = 0;
+                for i in 0..off.width {
+                    mask |= 1 << (off.offset + if i > 0 { (i-1) } else { 0 });
+                }
+                mask = !mask;
 
-            fn_block = fn_block.stmt()
-                .let_()
-                    .id(mask_id.clone())
-                    .expr().build_bit_and(
-                        self.build_read_register::<T>(seg.address),
-                        T::to_lit(T::narrow(mask))
-                    );
+                // save a common name for the ident we use to store the current value
+                let mask_id = "fetched";
+
+                // add a statement that reads the current value and ANDs it with our mask
+                // i.e.: let mask_id = volatile_load(addr as *const T) & mask;
+                fn_block = fn_block.stmt()
+                    .let_()
+                        .id(mask_id.clone())
+                        .expr().build_bit_and(
+                            self.build_read_register::<T>(seg.address),
+                            T::to_lit(T::narrow(mask))
+                        );
+
+                for v in &fn_def.values {
+                    // if not, optimize the setter based on how many bits and where the bits are
+                    for s in self.optimize_setter::<T>(off, v, mask_id, seg) {
+                        fn_block = fn_block.with_stmt(s);
+                    }
+                }
+            }
         }
 
-        // for every value, do a write
-        for v in &fn_def.values {
-            let store_base = self.build_volatile_store_base::<T>(seg.address);
-
-            if entire_reg {
-                fn_block = fn_block.with_stmt(store_base.with_arg(self.get_uint_const_val::<T>(v, seg)).build());
-            } else {
-                fn_block = fn_block.with_stmt(store_base.with_arg(self.get_masked_uint_const_val::<T>(v, mask_id, seg)).build());
-            };
-        };
         fn_block.build()
     }
 
@@ -315,15 +296,9 @@ impl Builder {
             // so, if we have less than 8 bits, operate on a byte, otherwise get the pow_2 >= width
 
             bldr = match seg.reg_width {
-                common::RegisterWidth::R8 => {
-                    self.build_setter::<u8>(&f.1, seg, off.index.offset, off.index.width, bldr)
-                }
-                common::RegisterWidth::R16 => {
-                    self.build_setter::<u16>(&f.1, seg, off.index.offset, off.index.width, bldr)
-                }
-                common::RegisterWidth::R32 => {
-                    self.build_setter::<u32>(&f.1, seg, off.index.offset, off.index.width, bldr)
-                }
+                common::RegisterWidth::R8 => { self.build_setter::<u8>(&f.1, seg, &off.index, bldr) }
+                common::RegisterWidth::R16 => { self.build_setter::<u16>(&f.1, seg, &off.index, bldr) }
+                common::RegisterWidth::R32 => { self.build_setter::<u32>(&f.1, seg, &off.index, bldr) }
                 _ => {
                     // TODO: proper error
                     panic!(format!("unknown register width to create setter function in segment '{}'", seg.name));

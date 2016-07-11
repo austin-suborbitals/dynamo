@@ -39,7 +39,8 @@ mod simple {
             }
 
             8..15 => {
-
+                lock_mode => [0x1234, 0x5678, 0x9ABC];
+                unlock_mode => [some_val];
             }
         };
 
