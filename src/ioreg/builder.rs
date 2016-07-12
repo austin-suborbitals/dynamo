@@ -249,8 +249,19 @@ impl Builder {
             true => {
                 // if we are setting the entire register, or byte aligned length and index, then write the whole thing blindly :)
                 for v in &fn_def.values {
-                    let store_base = self.build_volatile_store_base::<T>(seg.address);
-                    fn_block = fn_block.with_stmt(store_base.with_arg(self.get_uint_const_val::<T>(v, seg)).build());
+                    let (fn_base, fn_value) = match off.width {
+                        8 => {
+                            (self.build_volatile_store_base::<u8>(seg.address), self.get_uint_const_val::<u8>(v, seg))
+                        }
+                        16 => {
+                            (self.build_volatile_store_base::<u16>(seg.address), self.get_uint_const_val::<u16>(v, seg))
+                        }
+                        32 => {
+                            (self.build_volatile_store_base::<u32>(seg.address), self.get_uint_const_val::<u32>(v, seg))
+                        }
+                        _ => { panic!("cannot create volatile store function base for sizes > 32bit"); }
+                    };
+                    fn_block = fn_block.with_stmt(fn_base.with_arg(fn_value).build());
                 }
             }
             false => {
