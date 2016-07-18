@@ -107,6 +107,10 @@ impl<'a> Parser<'a> {
         self.parser.span_err(self.curr_span, err);
     }
 
+    pub fn set_fatal_err(&mut self, err: &str) {
+        self.parser.span_fatal(self.curr_span, err).emit();
+    }
+
     pub fn set_segment_err(&mut self, err: &str) {
         self.parser.span_err(self.begin_segment, err);
     }

@@ -248,7 +248,10 @@ fn parse_ioreg(parser: &mut parser::Parser) -> common::IoRegInfo {
     // check if we have a constants definition block
     let mut const_vals: HashMap<String, common::StaticValue> = HashMap::new();
     match parser.curr_token() {
-        &token::Token::Ident(_) => {
+        &token::Token::Ident(ident) => {
+            if ident.name.as_str() != "constants" {
+                parser.set_fatal_err(format!("expected a 'constants' block here, but found ident '{}'", ident.name.as_str()).as_str());
+            }
             // NOTE: constants at this level have no prefix
             // TODO: this assumes a 32bit arch, and that constants on this level would not have a limit
             parser.parse_constants_block(&"".to_string(), &mut const_vals, &common::RegisterWidth::R32);
