@@ -23,7 +23,7 @@ mod simple {
             and_a_string = "some super critical string";
         };
 
-        0x1000 => status r16 rw {
+        0x0000 => status r16 rw {
             // define some status-related constants. these are prefixed and exist on the segment struct
             constants => {
                 some_val = 0x0100;
@@ -44,13 +44,13 @@ mod simple {
             }
         };
 
-        0x2000 => control r16 wo {
+        0x0010 => control r16 wo {
             0..15 => {
                 unlock => [0x00FF, 0x1100];
             }
         };
 
-        0x2000 => accum r16 ro {
+        0x0020 => accum r16 ro {
             0..15 => {
             }
         };
@@ -58,7 +58,7 @@ mod simple {
 
     #[test]
     #[allow(unused_variables)]
-    fn struct_is_defined() {
+    fn type_is_defined() {
         let x: TestingStruct;
     }
 
@@ -69,5 +69,25 @@ mod simple {
         assert_eq!(TestingStruct::LESS_CRUCIAL, 1.123);
         assert_eq!(TestingStruct::AND_A_STRING, "some super critical string");
         assert_eq!(TestingStruct::STATUS_SOME_VAL, 0x0100);
+    }
+
+    #[test]
+    fn can_read() {
+        let reg_mem: [u8; 4096] = [0; 4096];
+        let t = TestingStruct(&reg_mem as *const u8);
+        assert_eq!(t.read_status(), 0);
+    }
+
+    #[test]
+    fn can_write_and_read() {
+        let reg_mem: [u8; 4096] = [0; 4096];
+        let t = TestingStruct(&reg_mem as *const u8);
+        assert_eq!(0, t.read_status());     // good begin state
+
+        t.using_static();
+        assert_eq!(0x0001, t.read_status());
+
+        t.lock_mode();
+        assert_eq!(0x9A01, t.read_status());
     }
 }

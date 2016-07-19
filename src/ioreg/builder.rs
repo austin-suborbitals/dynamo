@@ -22,6 +22,32 @@ type FnInternalBlockBuilder = aster::block::BlockBuilder<
 type FnArgsBuilder = aster::expr::ExprCallArgsBuilder<aster::stmt::StmtExprBuilder<aster::invoke::Identity>>;
 
 
+macro_rules! ptr_type {
+    ($ty:expr, true) => { ptr_type!($ty, ast::Mutability::Mutable) };
+    ($ty:expr, false) => { ptr_type!($ty, ast::Mutability::Immutable) };
+
+    ($ty:expr, $mutbl:expr) => {
+        aster::AstBuilder::new().ty().build_ty_kind(
+            ast::TyKind::Ptr(ast::MutTy{
+                ty: $ty,
+                mutbl: $mutbl
+            })
+        )
+    };
+}
+
+macro_rules! ptr_cast {
+    ($lhs:expr, $rhs:expr, true) => { ptr_cast!($lhs, $rhs, ast::Mutability::Mutable) };
+    ($lhs:expr, $rhs:expr, false) => { ptr_cast!($lhs, $rhs, ast::Mutability::Immutable) };
+
+    ($lhs:expr, $rhs:expr, $mutbl:expr) => {
+        aster::AstBuilder::new().expr().build_expr_kind(
+            ast::ExprKind::Cast( $lhs, ptr_type!($rhs, $mutbl) )
+        )
+    };
+}
+
+
 pub struct Builder {
     verbose: bool,
     reg: common::IoRegInfo,
@@ -44,11 +70,12 @@ impl Builder {
 
         let mut items: Vec<ptr::P<ast::Item>> = vec!();
 
-        // generate the base struct
-        items.push(
-            self.base_builder.item().pub_().struct_(self.reg.name.clone())
-                .build()
-        );
+        // generate the base "struct" pointer.
+        let type_def = self.base_builder.item()
+            .pub_().tuple_struct(self.reg.name.clone())
+                .with_tys(vec![ ptr_type!(self.base_builder.ty().u8(), false) ]) // false = immutable
+            .build();
+        items.push(type_def);
 
         // grab the root-level constants to start the impl block
         let mut impl_build = self.base_builder.item().impl_();
@@ -71,10 +98,13 @@ impl Builder {
             }
         }
 
-        // push the impl definition
+        // print and push the impl definition
         let impl_item = impl_build.ty().id(self.reg.name.clone());
-        if self.verbose { println!("{}", pprust::item_to_string(&impl_item)); }
         items.push(impl_item);
+
+        if self.verbose {
+            for i in &items { println!("{}\n", pprust::item_to_string(i)); }
+        }
 
         items
     }
@@ -111,7 +141,7 @@ impl Builder {
 
     fn build_getter(&self, seg: &common::IoRegSegmentInfo, prev_builder: ImplBuilder) -> ImplBuilder {
         let mut builder = prev_builder;
-        let fn_bldr = builder.method(format!("read_{}", seg.name)).fn_decl();
+        let fn_bldr = builder.method(format!("read_{}", seg.name)).fn_decl().self_().ref_();
         match seg.reg_width {
             common::RegisterWidth::R8 => {
                 builder = fn_bldr.return_().u8().block()
@@ -138,6 +168,7 @@ impl Builder {
 
     fn build_impl_unsafe_fn_block(&self, bldr: ImplBuilder, fn_def: &common::IoRegFuncDef) -> FnInternalBlockBuilder {
         bldr.method(fn_def.name.clone()).fn_decl().span(fn_def.span)
+            .self_().ref_()
             .default_return().block()
             .expr().block().unsafe_()
     }
@@ -146,33 +177,28 @@ impl Builder {
     fn build_read_register<T>(&self, addr: u32) -> ptr::P<ast::Expr>
         where T: common::ToTypeOrLitOrArg<T>
     {
-        // volatile_load(addr as *u8)
+        let self_offset = self.base_builder.expr()
+            .method_call("offset").tup_field(0).self_()
+            .arg().lit().isize(addr as isize)
+            .build();
+
+        // volatile_load(self.0.offset(0x1234) as *T)
         self.base_builder.expr().call().id("volatile_load")
-            .arg().build_expr_kind(ast::ExprKind::Cast(
-                self.base_builder.expr().lit().u32(addr),
-                self.base_builder.ty().build_ty_kind(
-                    ast::TyKind::Ptr(ast::MutTy{
-                        ty: T::to_type(),
-                        mutbl: ast::Mutability::Immutable
-                    })
-                )
-            ))
+            .with_arg(  ptr_cast!(self_offset, T::to_type(), false)  ) // immutable
             .build()
     }
 
     fn build_volatile_store_base<T>(&self, addr: u32) -> FnArgsBuilder
         where T: common::ToTypeOrLitOrArg<T>
     {
+        let self_offset = self.base_builder.expr()
+            .method_call("offset").tup_field(0).self_()
+            .arg().lit().isize(addr as isize)
+            .build();
+
+        // volatile_store(self.0.offset(0x1234) as *T, 0x1234)
         self.base_builder.stmt().expr().call().id("volatile_store")
-            .arg().build_expr_kind(ast::ExprKind::Cast(
-                self.base_builder.expr().lit().u32(addr),    // TODO: assumes 32bit address
-                self.base_builder.ty().build_ty_kind(
-                    ast::TyKind::Ptr(ast::MutTy{
-                        ty: T::to_type(),
-                        mutbl: ast::Mutability::Mutable
-                    })
-                )
-            ))
+            .with_arg(ptr_cast!(self_offset, T::to_type(), true)) // mutable
     }
 
     fn get_uint_const_val<T>(&self, v: &common::FunctionValueType, seg: &common::IoRegSegmentInfo) -> ptr::P<ast::Expr>
