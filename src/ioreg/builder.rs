@@ -3,11 +3,12 @@ extern crate aster;
 use syntax::ast;
 use syntax::ptr;
 use syntax::print::pprust;
-use syntax::codemap::Spanned;
 
+use std::ops::BitAnd;
 use std::collections::HashMap;
 
 use ::ioreg::common;
+use ioreg::common::ToTypeOrLitOrArg;
 
 type ImplBuilder = aster::item::ItemImplBuilder<aster::invoke::Identity>;
 type FnInternalBlockBuilder = aster::block::BlockBuilder<
@@ -201,16 +202,16 @@ impl Builder {
             .with_arg(ptr_cast!(self_offset, T::to_type(), true)) // mutable
     }
 
-    fn get_uint_const_val<T>(&self, v: &common::FunctionValueType, seg: &common::IoRegSegmentInfo) -> ptr::P<ast::Expr>
+    fn get_uint_const_val<T>(&self, v: &common::FunctionValueType, seg: &common::IoRegSegmentInfo) -> T
         where T: common::ToTypeOrLitOrArg<T> + common::Narrow<u32>
     {
         match v {
-            &common::FunctionValueType::Static(val) => { T::to_lit(T::narrow(val)) }
+            &common::FunctionValueType::Static(val) => { T::narrow(val) }
             &common::FunctionValueType::Reference(ref name) => {
                 match self.lookup_const_val(name, seg) {
                     Ok(v) => {
                         match v {
-                            &common::StaticValue::Uint(u, _) => { T::to_lit(T::narrow(u)) }
+                            &common::StaticValue::Uint(u, _) => { T::narrow(u) }
                             _ => {
                                 panic!("expected a static value after lookup up constant value definition");
                             }
@@ -224,40 +225,74 @@ impl Builder {
         }
     }
 
-    fn optimize_setter<T>(&self, off: &common::IoRegOffsetIndexInfo, val: &common::FunctionValueType, mask_id: &str, seg: &common::IoRegSegmentInfo)
-        -> Vec<Spanned<ast::StmtKind>>
-        where T: common::ToTypeOrLitOrArg<T> + common::Narrow<u32>
+
+    fn optimize_write<T>(&self,
+        fn_def: &common::IoRegFuncDef, fn_prev: FnInternalBlockBuilder,
+        off: &common::IoRegOffsetIndexInfo, seg: &common::IoRegSegmentInfo
+    )
+        -> FnInternalBlockBuilder
+        where T: common::ToTypeOrLitOrArg<T> + common::Narrow<u32> + BitAnd<T> // + Shl<T>
     {
-        let mut result: Vec<Spanned<ast::StmtKind>> = vec!();
+        //
+        // partial register writes
+        //
+        // if writing to a partial register, add a statement that says `let fetched = volatile_load(addr as *const T)`
+        // we will mask this value and then do a `volatile_store(addr as *mut T, masked | val)`
 
-        // if we are not writing the entire width, we cannot reliable set a portion of the register with a
-        // single binop. so instead, we read the current value and mask out the region we will be writing.
-        // now we can write the entire register and simply OR the needed value into the mask
-        let write_val = match off.offset {
-            0 => {
-                self.get_uint_const_val::<T>(val, seg)
-            }
-            _ => {
-                self.base_builder.expr().build_shl(
-                    self.get_uint_const_val::<T>(val, seg),
-                    self.base_builder.expr().lit().u8(off.offset)
-                )
-            }
-        };
+        // make a mask for the value as well based on the width of the partial register.
+        // if you give the value 0xFF to a setter of a 3bit partial, we only take the lowest 3 bits i.e.
+        //      (0xFF & 0b0111) == 0x05
+        let mut val_mask: u32 = 0;
+        for i in 0..off.width { val_mask |= 1 << i; }
 
-        let store_base = self.build_volatile_store_base::<T>(seg.address);
+        // this is what we will use to mask our "canvas" out of the read register
+        let mask: T = T::narrow( !(val_mask << off.offset) );
+        
+        // save a common name for the ident we use to store the current value
+        let mask_id = "fetched";
+        
+        // add a statement that reads the current value and ANDs it with our mask
+        // i.e.: let mask_id = volatile_load(addr as *const T) & mask;
+        let mut fn_block = fn_prev.stmt()
+            .let_()
+                .id(mask_id.clone())
+                .expr().build_bit_and(
+                    self.build_read_register::<T>(seg.address),
+                    T::to_lit(mask)
+                );
+        
+        for v in &fn_def.values {
+            // if we are not writing the entire width, we cannot reliable set a portion of the register with a
+            // single binop. so instead, we read the current value and mask out the region we will be writing.
+            // now we can write the entire register and simply OR the needed value into the mask
+            let write_val = match off.offset {
+                0 => {
+                    T::to_lit(self.get_uint_const_val::<T>(v, seg))
+                }
+                _ => {
+                    self.base_builder.expr().paren().build_shl(
+                        T::to_lit( T::narrow( self.get_uint_const_val::<u32>(v, seg) & val_mask )),
+                        self.base_builder.expr().lit().u8(off.offset)
+                    )
+                }
+            };
+        
+            fn_block = fn_block.with_stmt(
+                self.build_volatile_store_base::<T>(seg.address)
+                    .with_arg(
+                        self.base_builder.expr().build_bit_or(
+                            self.base_builder.expr().id(mask_id),
+                            write_val
+                        )
+                    )
+                    .build()
+            );
+        }
 
-        result.push(
-            store_base.with_arg(
-                self.base_builder.expr().build_bit_or(
-                    self.base_builder.expr().id(mask_id),
-                    write_val
-                )
-            ).build()
-        );
-
-        result
+        fn_block
     }
+
+
 
     fn build_setter<T>(&self, fn_def: &common::IoRegFuncDef, seg: &common::IoRegSegmentInfo, off: &common::IoRegOffsetIndexInfo,  prev: ImplBuilder)
         -> ImplBuilder
@@ -271,53 +306,44 @@ impl Builder {
             panic!("partial writes to WriteOnly register indices is currently not supported");
         }
 
-        match off.is_fully_byte_aligned() {
-            true => {
-                // if we are setting the entire register, or byte aligned length and index, then write the whole thing blindly :)
-                for v in &fn_def.values {
-                    let (fn_base, fn_value) = match off.width {
-                        8 => {
-                            (self.build_volatile_store_base::<u8>(seg.address), self.get_uint_const_val::<u8>(v, seg))
-                        }
-                        16 => {
-                            (self.build_volatile_store_base::<u16>(seg.address), self.get_uint_const_val::<u16>(v, seg))
-                        }
-                        32 => {
-                            (self.build_volatile_store_base::<u32>(seg.address), self.get_uint_const_val::<u32>(v, seg))
-                        }
-                        _ => { panic!("cannot create volatile store function base for sizes > 32bit"); }
-                    };
-                    fn_block = fn_block.with_stmt(fn_base.with_arg(fn_value).build());
+        //
+        // byte aligned writes
+        //
+
+        // if we are setting the entire register, or byte aligned length and index, then write the whole thing blindly :)
+        if off.is_fully_byte_aligned() {
+            for v in &fn_def.values {
+                match off.width {
+                    8 => {
+                        fn_block = fn_block.with_stmt(
+                            self.build_volatile_store_base::<u8>(seg.address)
+                                .with_arg( u8::to_lit(self.get_uint_const_val::<u8>(v, seg))  )
+                                .build()
+                            );
+                    }
+                    16 => {
+                        fn_block = fn_block.with_stmt(
+                            self.build_volatile_store_base::<u16>(seg.address)
+                                .with_arg( u16::to_lit(self.get_uint_const_val::<u16>(v, seg))  )
+                                .build()
+                            );
+                    }
+                    32 => {
+                        fn_block = fn_block.with_stmt(
+                            self.build_volatile_store_base::<u32>(seg.address)
+                                .with_arg( u32::to_lit(self.get_uint_const_val::<u32>(v, seg))  )
+                                .build()
+                            );
+                    }
+                    _ => { panic!("found non-aligned width despite alignment check"); }
                 }
             }
-            false => {
-                // if writing to a partial register, add a statement that says `let fetched = volatile_load(addr as *const T)`
-                // we will mask this value and then do a `volatile_store(addr as *mut T, masked | val)`
-                let mut mask: u32 = 0;
-                for i in 0..off.width {
-                    mask |= 1 << (off.offset + if i > 0 { (i-1) } else { 0 });
-                }
-                mask = !mask;
-
-                // save a common name for the ident we use to store the current value
-                let mask_id = "fetched";
-
-                // add a statement that reads the current value and ANDs it with our mask
-                // i.e.: let mask_id = volatile_load(addr as *const T) & mask;
-                fn_block = fn_block.stmt()
-                    .let_()
-                        .id(mask_id.clone())
-                        .expr().build_bit_and(
-                            self.build_read_register::<T>(seg.address),
-                            T::to_lit(T::narrow(mask))
-                        );
-
-                for v in &fn_def.values {
-                    // if not, optimize the setter based on how many bits and where the bits are
-                    for s in self.optimize_setter::<T>(off, v, mask_id, seg) {
-                        fn_block = fn_block.with_stmt(s);
-                    }
-                }
+        } else {
+            match off.width {
+                1...8 => { fn_block = self.optimize_write::<u8>(fn_def, fn_block, off, seg); }
+                9...16 => { fn_block = self.optimize_write::<u16>(fn_def, fn_block, off, seg); }
+                17...32 => { fn_block = self.optimize_write::<u32>(fn_def, fn_block, off, seg); }
+                _ => { panic!("unknown size for write optimization"); }
             }
         }
 
