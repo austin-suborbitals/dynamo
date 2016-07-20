@@ -48,14 +48,6 @@ macro_rules! ptr_cast {
     };
 }
 
-macro_rules! addr_offset_to_addr {
-    ($addr:expr, $offset:expr) => ({
-        let num_bytes: u32 = (($offset as u32) - (($offset % 8) as u32)) / 8;
-        $addr + num_bytes
-    })
-}
-
-
 pub struct Builder {
     verbose: bool,
     reg: common::IoRegInfo,
@@ -243,9 +235,10 @@ impl Builder {
         off: &common::IoRegOffsetIndexInfo, seg: &common::IoRegSegmentInfo
     )
         -> FnInternalBlockBuilder
-        where T: common::ToTypeOrLitOrArg<T> + common::Narrow<u32> + BitAnd<T> // + Shl<T>
+        where T: common::ToTypeOrLitOrArg<T> + common::Narrow<u32> + BitAnd<T>
     {
-        let write_address = addr_offset_to_addr!(seg.address, off.offset);
+        let write_address = seg.address + off.offset_in_bytes();
+        let shift_offset = off.offset % 8;
 
         // make a mask for the value as well based on the width of the partial register.
         // if you give the value 0xFF to a setter of a 3bit partial, we only take the lowest 3 bits i.e.
@@ -255,8 +248,6 @@ impl Builder {
 
         // this is what we will use to mask our "canvas" out of the read register
         let mask: T = T::narrow( !(val_mask << off.offset) );
-
-        // save a common name for the ident we use to store the current value
         let mask_id = "fetched";
 
         // add a statement that reads the current value and ANDs it with our mask
@@ -275,12 +266,12 @@ impl Builder {
             // now we can write the entire register and simply OR the needed value into the mask
             let write_val = match off.offset {
                 0 => {
-                    T::to_lit(self.get_uint_const_val::<T>(v, seg))
+                    T::to_lit(T::narrow( self.get_uint_const_val::<u32>(v, seg) & val_mask ))
                 }
                 _ => {
                     self.base_builder.expr().paren().build_shl(
                         T::to_lit( T::narrow( self.get_uint_const_val::<u32>(v, seg) & val_mask )),
-                        self.base_builder.expr().lit().u8(off.offset)
+                        self.base_builder.expr().lit().u8(shift_offset)
                     )
                 }
             };
@@ -316,7 +307,7 @@ impl Builder {
 
         // if we are setting the entire register, or byte aligned length and index, then write the whole thing blindly :)
         if off.is_fully_byte_aligned() {
-            let write_address = addr_offset_to_addr!(seg.address, off.offset);
+            let write_address = seg.address + off.offset_in_bytes();
             for v in &fn_def.values {
                 match off.width {
                     8 => {

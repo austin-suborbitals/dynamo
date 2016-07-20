@@ -209,6 +209,10 @@ impl IoRegOffsetIndexInfo {
     pub fn is_fully_byte_aligned(&self) -> bool {
         self.offset_is_byte_aligned() && self.width_is_byte_aligned()
     }
+
+    pub fn offset_in_bytes(&self) -> u32 {
+        ((self.offset as u32) - ((self.offset % 8) as u32)) / 8
+    }
 }
 
 

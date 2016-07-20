@@ -129,7 +129,9 @@ mod write {
     ioreg!(
         name => TestingStruct;
 
-        // implicitly testing optional constants{} block
+        constants => {
+            glbl_large_constant = 0x12345678;
+        };
 
         // TODO: make this 'wo' so we have partial writes on a write only register
         0x0000 => split_byte r8 rw {
@@ -162,6 +164,34 @@ mod write {
         0x0020 => two_full_bytes r16 rw {
             0..7 =>  { low_byte => [0x12]; }
             8..15 => { high_byte => [0x34]; }
+        };
+
+        0x0030 => two_odd_bytes r16 rw {
+            0..9 =>   { first_ten_bits => [ 0x8734 ]; }
+            10..15 => { last_six_bits => [ 0xFF ]; }
+        };
+
+        0x0040 => double_u16 r32 rw {
+            0..15 =>  { first_u16 =>  [0xBEEF]; }
+            16..31 => { second_u16 => [0xDEAD]; }
+        };
+
+        0x0050 => with_24_bits r32 rw {
+            0..23 =>  { set_24_bits => [ 0xDEADBEEF ]; }
+        };
+
+        0x0060 => all_but_one_bit r32 rw {
+            0..30 =>  { set_31_bits => [ 0xDEADBEEF ]; }
+        };
+
+        0x0070 => test_constants r32 rw {
+            constants => {
+                local_large_constant = 0xDEADBEEF;
+            };
+
+            0..7 =>  { glbl_gets_u8_narrowed => [glbl_large_constant]; }
+            8..23 =>  { glbl_gets_u16_narrowed => [glbl_large_constant]; }
+            24..31 => { local_gets_u8_narrowed => [local_large_constant]; }
         };
     );
 
@@ -265,5 +295,136 @@ mod write {
 
         t.high_byte(); t.low_byte();
         assert_eq!(0x3412, t.read_two_full_bytes());
+    }
+
+
+    //
+    // two odd bytes
+    //
+
+    #[test]
+    fn set_low_gt_byte() {
+        let reg_mem: [u8; 4096] = [0; 4096];
+        let t = TestingStruct(&reg_mem as *const u8);
+
+        t.first_ten_bits();
+        assert_eq!(0x0334, t.read_two_odd_bytes());     // only the lower 2 bits of the upper byte
+    }
+
+    #[test]
+    fn set_high_gt_byte() {
+        let reg_mem: [u8; 4096] = [0; 4096];
+        let t = TestingStruct(&reg_mem as *const u8);
+
+        t.last_six_bits();
+        assert_eq!(0xFC00, t.read_two_odd_bytes());     // F -> C as we capture only high 2 bits
+    }
+
+    #[test]
+    fn set_two_unaligned_adjacent_offsets() {
+        let reg_mem: [u8; 4096] = [0; 4096];
+        let t = TestingStruct(&reg_mem as *const u8);
+
+        t.first_ten_bits(); t.last_six_bits();
+        assert_eq!(0xFF34, t.read_two_odd_bytes());
+    }
+
+
+    //
+    // two u16 in a r32
+    //
+
+    #[test]
+    fn set_low_two_bytes() {
+        let reg_mem: [u8; 4096] = [0; 4096];
+        let t = TestingStruct(&reg_mem as *const u8);
+
+        t.first_u16();
+        assert_eq!(0xBEEF, t.read_double_u16());
+    }
+
+    #[test]
+    fn set_high_two_bytes() {
+        let reg_mem: [u8; 4096] = [0; 4096];
+        let t = TestingStruct(&reg_mem as *const u8);
+
+        t.second_u16();
+        assert_eq!(0xDEAD0000, t.read_double_u16());
+    }
+
+    #[test]
+    fn set_both_u16() {
+        let reg_mem: [u8; 4096] = [0; 4096];
+        let t = TestingStruct(&reg_mem as *const u8);
+
+        t.first_u16(); t.second_u16();
+        assert_eq!(0xDEADBEEF, t.read_double_u16());
+    }
+
+
+    //
+    // with 24 bits
+    //
+
+    #[test]
+    fn set_24_bit_region() {
+        let reg_mem: [u8; 4096] = [0; 4096];
+        let t = TestingStruct(&reg_mem as *const u8);
+
+        t.set_24_bits();
+        assert_eq!(0x00ADBEEF, t.read_with_24_bits());
+    }
+
+
+
+    //
+    // all but one bit
+    //
+
+    #[test]
+    fn set_31_bit_region() {
+        let reg_mem: [u8; 4096] = [0; 4096];
+        let t = TestingStruct(&reg_mem as *const u8);
+
+        t.set_31_bits();
+        assert_eq!(0x5EADBEEF, t.read_all_but_one_bit());
+    }
+
+
+    //
+    // constants usage in setter
+    //
+
+    #[test]
+    fn global_constant_u8_narrowed() {
+        let reg_mem: [u8; 4096] = [0; 4096];
+        let t = TestingStruct(&reg_mem as *const u8);
+
+        t.glbl_gets_u8_narrowed();
+        let expect = TestingStruct::GLBL_LARGE_CONSTANT & 0xFF;
+        assert_eq!(0x78, expect);
+        assert_eq!(expect, t.read_test_constants());
+    }
+
+    #[test]
+    fn global_constant_u16_narrowed() {
+        let reg_mem: [u8; 4096] = [0; 4096];
+        let t = TestingStruct(&reg_mem as *const u8);
+
+        t.glbl_gets_u16_narrowed();
+        let expect = (TestingStruct::GLBL_LARGE_CONSTANT & 0xFFFF) << 8;
+        assert_eq!(0x567800, expect);
+        assert_eq!(expect, t.read_test_constants());
+    }
+
+    #[test]
+    fn local_constant_u8_narrowed() {
+        let reg_mem: [u8; 4096] = [0; 4096];
+        let t = TestingStruct(&reg_mem as *const u8);
+
+        t.local_gets_u8_narrowed();
+        let expect = TestingStruct::TEST_CONSTANTS_LOCAL_LARGE_CONSTANT << 24;
+        assert_eq!(0xEF000000, expect);
+        assert_eq!(expect, t.read_test_constants());
     }
 }
