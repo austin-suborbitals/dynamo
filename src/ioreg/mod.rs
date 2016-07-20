@@ -145,18 +145,11 @@ pub fn expand_ioreg_debug(cx: &mut ExtCtxt, _: Span, args: &[ast::TokenTree]) ->
 fn parse_offset(parser: &mut parser::Parser, seg: &mut common::IoRegSegmentInfo) -> Result<common::IoRegOffsetInfo, &'static str> {
     // parse the index width and begin offset
     let offset_index = parser.parse_index();
-    match seg.reg_width {   // TODO: lots of duplication
-        common::RegisterWidth::R8 => {
-            if offset_index.width > 8 {parser.set_err(format!("width ({}) cannot fit in segment", offset_index.width).as_str());}
-        }
-        common::RegisterWidth::R16 => {
-            if offset_index.width > 16 {parser.set_err(format!("width ({}) cannot fit in segment", offset_index.width).as_str());}
-        }
-        common::RegisterWidth::R32 => {
-            if offset_index.width > 32 {parser.set_err(format!("width ({}) cannot fit in segment", offset_index.width).as_str());}
-        }
-        common::RegisterWidth::Unknown => { parser.set_err("attempt to parse index of register with unknown width"); }
-    };
+    let last_bit = offset_index.offset + offset_index.width;
+    if last_bit > seg.reg_width.as_u8() {
+        parser.set_err(format!("index ({}) + width ({}) = {} cannot fit in register of size {}",
+            offset_index.offset, offset_index.width, last_bit, seg.reg_width.as_u8()).as_str());
+    }
 
     // we expect a fat arrow and a curly brace to kick things off
     parser.expect_fat_arrow();

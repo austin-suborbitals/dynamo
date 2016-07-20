@@ -48,6 +48,13 @@ macro_rules! ptr_cast {
     };
 }
 
+macro_rules! addr_offset_to_addr {
+    ($addr:expr, $offset:expr) => ({
+        let num_bytes: u32 = (($offset as u32) - (($offset % 8) as u32)) / 8;
+        $addr + num_bytes
+    })
+}
+
 
 pub struct Builder {
     verbose: bool,
@@ -226,6 +233,11 @@ impl Builder {
     }
 
 
+    // if writing to a partial register, add a statement that says `let fetched = volatile_load(addr as *const T)`
+    // we will mask this value and then do a `volatile_store(addr as *mut T, masked | val)`
+    //
+    // TODO: this function is a little heavy duty to be done in a loop -- same responsibilities, but
+    //       perhaps pass in the mask and address so their "expensive" calculations can be reduced
     fn optimize_write<T>(&self,
         fn_def: &common::IoRegFuncDef, fn_prev: FnInternalBlockBuilder,
         off: &common::IoRegOffsetIndexInfo, seg: &common::IoRegSegmentInfo
@@ -233,11 +245,7 @@ impl Builder {
         -> FnInternalBlockBuilder
         where T: common::ToTypeOrLitOrArg<T> + common::Narrow<u32> + BitAnd<T> // + Shl<T>
     {
-        //
-        // partial register writes
-        //
-        // if writing to a partial register, add a statement that says `let fetched = volatile_load(addr as *const T)`
-        // we will mask this value and then do a `volatile_store(addr as *mut T, masked | val)`
+        let write_address = addr_offset_to_addr!(seg.address, off.offset);
 
         // make a mask for the value as well based on the width of the partial register.
         // if you give the value 0xFF to a setter of a 3bit partial, we only take the lowest 3 bits i.e.
@@ -247,20 +255,20 @@ impl Builder {
 
         // this is what we will use to mask our "canvas" out of the read register
         let mask: T = T::narrow( !(val_mask << off.offset) );
-        
+
         // save a common name for the ident we use to store the current value
         let mask_id = "fetched";
-        
+
         // add a statement that reads the current value and ANDs it with our mask
         // i.e.: let mask_id = volatile_load(addr as *const T) & mask;
         let mut fn_block = fn_prev.stmt()
             .let_()
                 .id(mask_id.clone())
                 .expr().build_bit_and(
-                    self.build_read_register::<T>(seg.address),
+                    self.build_read_register::<T>(write_address),
                     T::to_lit(mask)
                 );
-        
+
         for v in &fn_def.values {
             // if we are not writing the entire width, we cannot reliable set a portion of the register with a
             // single binop. so instead, we read the current value and mask out the region we will be writing.
@@ -276,9 +284,9 @@ impl Builder {
                     )
                 }
             };
-        
+
             fn_block = fn_block.with_stmt(
-                self.build_volatile_store_base::<T>(seg.address)
+                self.build_volatile_store_base::<T>(write_address)
                     .with_arg(
                         self.base_builder.expr().build_bit_or(
                             self.base_builder.expr().id(mask_id),
@@ -306,31 +314,28 @@ impl Builder {
             panic!("partial writes to WriteOnly register indices is currently not supported");
         }
 
-        //
-        // byte aligned writes
-        //
-
         // if we are setting the entire register, or byte aligned length and index, then write the whole thing blindly :)
         if off.is_fully_byte_aligned() {
+            let write_address = addr_offset_to_addr!(seg.address, off.offset);
             for v in &fn_def.values {
                 match off.width {
                     8 => {
                         fn_block = fn_block.with_stmt(
-                            self.build_volatile_store_base::<u8>(seg.address)
+                            self.build_volatile_store_base::<u8>(write_address)
                                 .with_arg( u8::to_lit(self.get_uint_const_val::<u8>(v, seg))  )
                                 .build()
                             );
                     }
                     16 => {
                         fn_block = fn_block.with_stmt(
-                            self.build_volatile_store_base::<u16>(seg.address)
+                            self.build_volatile_store_base::<u16>(write_address)
                                 .with_arg( u16::to_lit(self.get_uint_const_val::<u16>(v, seg))  )
                                 .build()
                             );
                     }
                     32 => {
                         fn_block = fn_block.with_stmt(
-                            self.build_volatile_store_base::<u32>(seg.address)
+                            self.build_volatile_store_base::<u32>(write_address)
                                 .with_arg( u32::to_lit(self.get_uint_const_val::<u32>(v, seg))  )
                                 .build()
                             );

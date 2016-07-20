@@ -164,6 +164,15 @@ impl RegisterWidth {
             &RegisterWidth::Unknown => { false }    // TODO: should this BE an error, got just get caught?
         }
     }
+
+    pub fn as_u8(&self) -> u8 {
+        match self {
+            &RegisterWidth::R8 => { 8 }
+            &RegisterWidth::R16 => { 16 }
+            &RegisterWidth::R32 => { 32 }
+            &RegisterWidth::Unknown => { 0xFF }
+        }
+    }
 }
 
 impl Debug for RegisterWidth {

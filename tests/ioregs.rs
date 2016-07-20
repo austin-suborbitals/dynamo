@@ -54,7 +54,7 @@ mod constants {
 #[cfg(test)]
 mod read {
     extern crate core;
-    use self::core::intrinsics::volatile_load;
+    use self::core::intrinsics::{volatile_store, volatile_load};
 
     ioreg!(
         name => TestingStruct;
@@ -72,8 +72,11 @@ mod read {
     );
 
     macro_rules! set_correct_val {
-        ($reg:ident, $off:expr, $ty:ty, $val:expr) => {
-            unsafe { *((&mut $reg[$off] as *mut u8) as *mut $ty) = $val; }
+        ($reg:expr, $off:expr, $ty:ty, $val:expr) => {
+            unsafe { volatile_store(
+                (&mut $reg[0] as *mut u8).offset($off) as *mut $ty,     // ((ptr to [0]) + offset) as *mut $ty
+                $val
+            )};
         }
     }
 
@@ -156,16 +159,11 @@ mod write {
             }
         };
 
-        // TODO: all the fun testing
+        0x0020 => two_full_bytes r16 rw {
+            0..7 =>  { low_byte => [0x12]; }
+            8..15 => { high_byte => [0x34]; }
+        };
     );
-
-    macro_rules! setup_test {
-        ($init_val:expr) => ({
-            let reg_mem: [u8; 4096] = [$init_val; 4096];
-            let t = TestingStruct(&reg_mem as *const u8);
-            t
-        })
-    }
 
 
     //
@@ -174,7 +172,8 @@ mod write {
 
     #[test]
     fn set_and_clear_bit() {
-        let t = setup_test!(0);
+        let reg_mem: [u8; 4096] = [0; 4096];
+        let t = TestingStruct(&reg_mem as *const u8);
 
         t.set_bit();
         assert_eq!(1, t.read_split_byte());
@@ -185,7 +184,8 @@ mod write {
 
     #[test]
     fn inset_and_odd_sized() {
-        let t = setup_test!(0);
+        let reg_mem: [u8; 4096] = [0; 4096];
+        let t = TestingStruct(&reg_mem as *const u8);
 
         t.inset_and_odd_size();
         assert_eq!(0x0E, t.read_split_byte());
@@ -193,7 +193,8 @@ mod write {
 
     #[test]
     fn inset_and_nibble_and_odd_size() {
-        let t = setup_test!(0);
+        let reg_mem: [u8; 4096] = [0; 4096];
+        let t = TestingStruct(&reg_mem as *const u8);
 
         t.inset_a_nibble();
         assert_eq!(0x20, t.read_split_byte());
@@ -201,7 +202,8 @@ mod write {
 
     #[test]
     fn set_and_clear_high_bit() {
-        let t = setup_test!(0);
+        let reg_mem: [u8; 4096] = [0; 4096];
+        let t = TestingStruct(&reg_mem as *const u8);
 
         t.set_high_bit();
         assert_eq!(0x80, t.read_split_byte());
@@ -217,15 +219,51 @@ mod write {
 
     #[test]
     fn set_full_byte() {
-        let t = setup_test!(0);
+        let reg_mem: [u8; 4096] = [0; 4096];
+        let t = TestingStruct(&reg_mem as *const u8);
+
         t.entire_byte();
         assert_eq!(0x12, t.read_full_byte());
     }
 
     #[test]
     fn set_repeated_full_byte() {
-        let t = setup_test!(0);
+        let reg_mem: [u8; 4096] = [0; 4096];
+        let t = TestingStruct(&reg_mem as *const u8);
+
         t.repeated_entire_byte();
         assert_eq!(0x56, t.read_full_byte());
+    }
+
+
+    //
+    // two full bytes
+    //
+
+    #[test]
+    fn set_low_byte() {
+        let reg_mem: [u8; 4096] = [0; 4096];
+        let t = TestingStruct(&reg_mem as *const u8);
+
+        t.low_byte();
+        assert_eq!(0x0012, t.read_two_full_bytes());
+    }
+
+    #[test]
+    fn set_high_byte() {
+        let reg_mem: [u8; 4096] = [0; 4096];
+        let t = TestingStruct(&reg_mem as *const u8);
+
+        t.high_byte();
+        assert_eq!(0x3400, t.read_two_full_bytes());
+    }
+
+    #[test]
+    fn set_both_bytes() {
+        let reg_mem: [u8; 4096] = [0; 4096];
+        let t = TestingStruct(&reg_mem as *const u8);
+
+        t.high_byte(); t.low_byte();
+        assert_eq!(0x3412, t.read_two_full_bytes());
     }
 }
