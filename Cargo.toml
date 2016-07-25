@@ -7,6 +7,6 @@ authors = ["Zach Marcantel <zmarcantel@gmail.com>"]
 plugin = true
 
 [dependencies]
-aster = { version = "*" }
+aster = { version = "0.21.1" }
 
 [dev-dependencies]
