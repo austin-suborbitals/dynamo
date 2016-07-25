@@ -1,6 +1,7 @@
 extern crate aster;
 
 use syntax::ast;
+use syntax::tokenstream;
 use syntax::parse::token;
 use syntax::codemap::Span;
 use syntax::ext::base::ExtCtxt;
@@ -91,7 +92,7 @@ pub struct Parser<'a> {
 
 
 impl<'a> Parser<'a> {
-    pub fn from(cx: &mut ExtCtxt<'a>, tree: &[ast::TokenTree]) -> Parser<'a> {
+    pub fn from(cx: &mut ExtCtxt<'a>, tree: &[tokenstream::TokenTree]) -> Parser<'a> {
         let p = cx.new_parser_from_tts(tree);
         let s = p.span;
         let result = Parser {

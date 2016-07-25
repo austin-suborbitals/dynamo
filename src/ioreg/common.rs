@@ -280,6 +280,7 @@ mod tests {
                 };
 
                 assert!(off.width_is_byte_aligned());
+                assert!(off.offset_is_byte_aligned());
                 assert!(off.is_fully_byte_aligned());
             }
         }
@@ -294,9 +295,21 @@ mod tests {
                     };
 
                     assert!(off.width_is_byte_aligned());
+                    assert!(off.offset_is_byte_aligned());
                     assert!(off.is_fully_byte_aligned());
                 }
             }
+        }
+
+        #[test]
+        fn width_but_not_offset_is_aligned() {
+            let off = super::super::IoRegOffsetIndexInfo{
+                offset: 7,
+                width: 8,
+            };
+            assert_eq!(true, off.width_is_byte_aligned());
+            assert_eq!(false, off.offset_is_byte_aligned());
+            assert_eq!(false, off.is_fully_byte_aligned());
         }
     }
 }

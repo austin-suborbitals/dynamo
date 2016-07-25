@@ -109,7 +109,7 @@ extern crate rustc_plugin;
 extern crate aster;
 
 
-use syntax::ast;
+use syntax::tokenstream;
 use syntax::parse::token;
 use syntax::codemap::Span;
 use syntax::util::small_vector::SmallVector;
@@ -125,13 +125,13 @@ pub mod builder;
 // ioreg expansion
 //
 
-pub fn expand_ioreg(cx: &mut ExtCtxt, _: Span, args: &[ast::TokenTree]) -> Box<MacResult + 'static> {
+pub fn expand_ioreg(cx: &mut ExtCtxt, _: Span, args: &[tokenstream::TokenTree]) -> Box<MacResult + 'static> {
     let mut parser = parser::Parser::from(cx, args);
     let ioreg_info = parse_ioreg(&mut parser);
     generate_ioreg(cx, ioreg_info, false)
 }
 
-pub fn expand_ioreg_debug(cx: &mut ExtCtxt, _: Span, args: &[ast::TokenTree]) -> Box<MacResult + 'static> {
+pub fn expand_ioreg_debug(cx: &mut ExtCtxt, _: Span, args: &[tokenstream::TokenTree]) -> Box<MacResult + 'static> {
     let mut parser = parser::Parser::from(cx, args);
     let ioreg_info = parse_ioreg(&mut parser);
     generate_ioreg(cx, ioreg_info, true)
