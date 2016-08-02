@@ -32,26 +32,26 @@ impl Narrow<u32> for u32 {
 // primitive type to_type and to_lit trait
 //
 
-pub trait ToTypeOrLitOrArg<T> {
+pub trait ToAstType<T> {
     fn to_type() -> ptr::P<ast::Ty>;
     fn to_lit(val: T) -> ptr::P<ast::Expr>;
     fn to_arg(val: T) -> ptr::P<ast::Expr>;
 }
 
 // TODO: do not require a new builder
-impl ToTypeOrLitOrArg<u8> for u8 {
+impl ToAstType<u8> for u8 {
     fn to_type() -> ptr::P<ast::Ty> { aster::AstBuilder::new().ty().u8() }
     fn to_lit(val: u8) -> ptr::P<ast::Expr> { aster::AstBuilder::new().expr().lit().u8(val) }
     fn to_arg(val: u8) -> ptr::P<ast::Expr> { aster::AstBuilder::new().expr().lit().u8(val) }
 }
 // TODO: do not require a new builder
-impl ToTypeOrLitOrArg<u16> for u16 {
+impl ToAstType<u16> for u16 {
     fn to_type() -> ptr::P<ast::Ty> { aster::AstBuilder::new().ty().u16() }
     fn to_lit(val: u16) -> ptr::P<ast::Expr> { aster::AstBuilder::new().expr().lit().u16(val) }
     fn to_arg(val: u16) -> ptr::P<ast::Expr> { aster::AstBuilder::new().expr().lit().u16(val) }
 }
 // TODO: do not require a new builder
-impl ToTypeOrLitOrArg<u32> for u32 {
+impl ToAstType<u32> for u32 {
     fn to_type() -> ptr::P<ast::Ty> { aster::AstBuilder::new().ty().u32() }
     fn to_lit(val: u32) -> ptr::P<ast::Expr> { aster::AstBuilder::new().expr().lit().u32(val) }
     fn to_arg(val: u32) -> ptr::P<ast::Expr> { aster::AstBuilder::new().expr().lit().u32(val) }
@@ -102,21 +102,21 @@ impl Debug for FunctionType {
 
 // TODO: 32bit limitation imposed here
 pub enum StaticValue {
-    Int(i32, String),
-    Uint(u32, String),
-    Float(f32, token::InternedString, String), // TODO: avoid carrying the interned string around
-    Str(String, String),
-    Error(String),
+    Int(i32, String, Span),
+    Uint(u32, String, Span),
+    Float(f32, token::InternedString, String, Span), // TODO: avoid carrying the interned string around
+    Str(String, String, Span),
+    Error(String, Span),
 }
 
 impl Debug for StaticValue {
     fn fmt(&self, f: &mut Formatter) -> Result {
         match self {
-            &StaticValue::Int(i, ref n) => { write!(f, "({}:int) {}", n, i) }
-            &StaticValue::Uint(i, ref n) => { write!(f, "({}:uint) {}", n, i) }
-            &StaticValue::Float(i, _, ref n) => { write!(f, "({}:float) {}", n, i) }
-            &StaticValue::Str(ref s, ref n) => { write!(f, "({}:str) {}", n, s) }
-            &StaticValue::Error(ref e) => { write!(f, "(PARSER ERROR) {}", e) }
+            &StaticValue::Int(i, ref n, _) => { write!(f, "({}:int) {}", n, i) }
+            &StaticValue::Uint(i, ref n, _) => { write!(f, "({}:uint) {}", n, i) }
+            &StaticValue::Float(i, _, ref n, _) => { write!(f, "({}:float) {}", n, i) }
+            &StaticValue::Str(ref s, ref n, _) => { write!(f, "({}:str) {}", n, s) }
+            &StaticValue::Error(ref e, _) => { write!(f, "(PARSER ERROR) {}", e) }
         }
     }
 }
@@ -193,7 +193,8 @@ impl Debug for RegisterWidth {
 #[derive(Debug)]
 pub struct IoRegOffsetIndexInfo {
     pub offset: u8,
-    pub width: u8,
+    pub width:  u8,
+    pub span:   Span,
 }
 
 impl IoRegOffsetIndexInfo {
@@ -228,6 +229,7 @@ pub struct IoRegFuncDef {
 pub struct IoRegOffsetInfo {
     pub index:          IoRegOffsetIndexInfo,
     pub functions:      HashMap<String, IoRegFuncDef>,
+    pub span:           Span,
 }
 
 #[derive(Debug)]
@@ -238,6 +240,7 @@ pub struct IoRegSegmentInfo {
     pub access_perms:   RegisterPermissions,
     pub const_vals:     HashMap<String, StaticValue>,
     pub offsets:        Vec<IoRegOffsetInfo>,
+    pub span:           Span,
 }
 impl IoRegSegmentInfo {
     pub fn push_offset(&mut self, off: IoRegOffsetInfo) {
@@ -265,18 +268,22 @@ pub struct IoRegInfo {
     pub name:       String,
     pub segments:   HashMap<String, IoRegSegmentInfo>,
     pub const_vals: HashMap<String, StaticValue>,
+    pub span:       Span,
 }
 
 
 #[cfg(test)]
 mod tests {
     mod offset_index {
+        use syntax::ext::quote::rt::DUMMY_SP;
+
         #[test]
         fn width_pow_of_two_at_index_zero() {
             for i in vec![8u8, 16, 32] {
                 let off = super::super::IoRegOffsetIndexInfo{
                     offset: 0,
                     width: i,
+                    span: DUMMY_SP,
                 };
 
                 assert!(off.width_is_byte_aligned());
@@ -292,6 +299,7 @@ mod tests {
                     let off = super::super::IoRegOffsetIndexInfo{
                         offset: i,
                         width: w,
+                        span: DUMMY_SP,
                     };
 
                     assert!(off.width_is_byte_aligned());
@@ -306,6 +314,7 @@ mod tests {
             let off = super::super::IoRegOffsetIndexInfo{
                 offset: 7,
                 width: 8,
+                span: DUMMY_SP,
             };
             assert_eq!(true, off.width_is_byte_aligned());
             assert_eq!(false, off.offset_is_byte_aligned());

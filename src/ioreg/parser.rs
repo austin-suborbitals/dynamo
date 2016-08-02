@@ -13,24 +13,24 @@ use std::collections::HashMap;
 use ::ioreg::common;
 
 
-pub trait IsNumeric<T> {
+pub trait HasMinMax<T> {
     fn max_value() -> T;
     fn min_value() -> T;
 }
 
-impl IsNumeric<u8> for u8 {
+impl HasMinMax<u8> for u8 {
     fn max_value() -> u8 { u8::max_value() }
     fn min_value() -> u8 { u8::min_value() }
 }
-impl IsNumeric<u16> for u16 {
+impl HasMinMax<u16> for u16 {
     fn max_value() -> u16 { u16::max_value() }
     fn min_value() -> u16 { u16::min_value() }
 }
-impl IsNumeric<u32> for u32 {
+impl HasMinMax<u32> for u32 {
     fn max_value() -> u32 { u32::max_value() }
     fn min_value() -> u32 { u32::min_value() }
 }
-impl IsNumeric<f32> for f32 {
+impl HasMinMax<f32> for f32 {
     fn max_value() -> f32 { std::f32::MAX }
     fn min_value() -> f32 { std::f32::MIN }
 }
@@ -51,8 +51,8 @@ macro_rules! read_uint_for_register {
 // determine if a given common::StaticValue can fit in the needed register
 fn fits_into(val: &common::StaticValue, width: &common::RegisterWidth) -> bool {
     match val {
-        &common::StaticValue::Error(_) => { false }
-        &common::StaticValue::Int(i,_) => {
+        &common::StaticValue::Error(_, _) => { false }
+        &common::StaticValue::Int(i, _, _) => {
             match width {
                 &common::RegisterWidth::R8 => { i <= (i8::max_value() as i32) }
                 &common::RegisterWidth::R16 => { i <= (i16::max_value() as i32) }
@@ -60,7 +60,7 @@ fn fits_into(val: &common::StaticValue, width: &common::RegisterWidth) -> bool {
                 &common::RegisterWidth::Unknown => { false }
             }
         }
-        &common::StaticValue::Uint(i, _) => {
+        &common::StaticValue::Uint(i, _, _) => {
             match width {
                 &common::RegisterWidth::R8 => { i <= (u8::max_value() as u32) }
                 &common::RegisterWidth::R16 => { i <= (u16::max_value() as u32) }
@@ -68,14 +68,14 @@ fn fits_into(val: &common::StaticValue, width: &common::RegisterWidth) -> bool {
                 &common::RegisterWidth::Unknown => { false }
             }
         }
-        &common::StaticValue::Float(f, _, _) => {
+        &common::StaticValue::Float(f, _, _, _) => {
             match width {
                 &common::RegisterWidth::R8 | &common::RegisterWidth::R16 => { false } // TODO: what to do about f8 and f16
                 &common::RegisterWidth::R32 => { f <= std::f32::MAX }
                 &common::RegisterWidth::Unknown => { false }
             }
         }
-        &common::StaticValue::Str(_, _) => { true } // TODO: this is because we "don't care" but perhaps we should?
+        &common::StaticValue::Str(_, _, _) => { true } // TODO: this is because we "don't care" but perhaps we should?
     }
 }
 
@@ -241,10 +241,11 @@ impl<'a> Parser<'a> {
     // returned as a tuple of (begin, length)
     // TODO: Result<(u8,u8), _> perhaps?
     pub fn parse_index(&mut self) -> common::IoRegOffsetIndexInfo {
+        let start_span = self.curr_span;
         let begin = self.parse_uint::<u8>() as u8;
         if begin == u8::max_value() {
             self.set_err("detected error while parsing index");
-            return common::IoRegOffsetIndexInfo{offset: 0, width: 0};
+            return common::IoRegOffsetIndexInfo{offset: 0, width: 0, span: start_span};
         }
 
         let mut end = begin;
@@ -252,20 +253,21 @@ impl<'a> Parser<'a> {
             end = self.parse_uint::<u8>() as u8;
             if end < begin {
                 self.set_err("index ranges are inverted");
-                return common::IoRegOffsetIndexInfo{offset: 0, width: 0};
+                return common::IoRegOffsetIndexInfo{offset: 0, width: 0, span: start_span};
             } else if end == begin {
                 self.set_err("this should not be a range. indices are equal");
-                return common::IoRegOffsetIndexInfo{offset: 0, width: 0};
+                return common::IoRegOffsetIndexInfo{offset: 0, width: 0, span: start_span};
             }
         }
 
         return common::IoRegOffsetIndexInfo{
             offset: begin,
             width: (end-begin)+1, // add one to account for zero indexing
+            span: start_span,
         };
     }
 
-    pub fn parse_uint<T: IsNumeric<T> + From<T>>(&mut self) -> u64
+    pub fn parse_uint<T: HasMinMax<T> + From<T>>(&mut self) -> u64
         where u64: From<T> {
 
         match self.checked_parse_uint::<T>() {
@@ -279,7 +281,7 @@ impl<'a> Parser<'a> {
 
     // TODO: why can I not cast u64 to T where T is uint < u64
     // TODO: use the new common::Narrow trait
-    pub fn checked_parse_uint<T: IsNumeric<T> + From<T>>(&mut self) -> Result<u64, String>
+    pub fn checked_parse_uint<T: HasMinMax<T> + From<T>>(&mut self) -> Result<u64, String>
         where u64: From<T> {
 
         let t_as_str = unsafe { std::intrinsics::type_name::<T>() };
@@ -315,15 +317,16 @@ impl<'a> Parser<'a> {
 
     fn parse_constant_literal(&mut self, name: &String) -> common::StaticValue {
         self.save_span();
+        let curr_span = self.curr_span;
         match self.curr_token() {
             // parse an integer literal value
             &token::Token::Literal(token::Lit::Integer(_), _) => {
                 match self.checked_parse_uint::<u32>() {
                     Ok(i) => {
-                        return common::StaticValue::Uint(i as u32, name.clone());
+                        return common::StaticValue::Uint(i as u32, name.clone(), curr_span);
                     }
                     Err(e) => {
-                        return common::StaticValue::Error(e);
+                        return common::StaticValue::Error(e, curr_span);
                     }
                 }
             }
@@ -337,15 +340,15 @@ impl<'a> Parser<'a> {
                             ast::LitKind::Float(s, _) | ast::LitKind::FloatUnsuffixed(s) => {
                                 let conv = s.parse::<f32>();
                                 if conv.is_err() {
-                                    return common::StaticValue::Error(conv.unwrap_err().to_string());
+                                    return common::StaticValue::Error(conv.unwrap_err().to_string(), curr_span);
                                 }
     
-                                return common::StaticValue::Float(conv.unwrap(), s, name.clone());
+                                return common::StaticValue::Float(conv.unwrap(), s, name.clone(), curr_span);
                             }
-                            _ => { return common::StaticValue::Error("could not be parsed as a float".to_string()); }
+                            _ => { return common::StaticValue::Error("could not be parsed as a float".to_string(), curr_span); }
                         }
                     }
-                    Err(e) => { return common::StaticValue::Error(e); }
+                    Err(e) => { return common::StaticValue::Error(e, curr_span); }
                 }
             }
     
@@ -355,13 +358,13 @@ impl<'a> Parser<'a> {
                     Ok(l) => {
                         match l.node {
                             ast::LitKind::Str(s, _) => {
-                                return common::StaticValue::Str(s.to_string(), name.clone());
+                                return common::StaticValue::Str(s.to_string(), name.clone(), curr_span);
                             }
-                            _ => { return common::StaticValue::Error("expected a string literal".to_string()); }
+                            _ => { return common::StaticValue::Error("expected a string literal".to_string(), curr_span); }
                         }
                     }
                     Err(e) => {
-                        return common::StaticValue::Error(e);
+                        return common::StaticValue::Error(e, curr_span);
                     }
                 }
             }
@@ -375,7 +378,7 @@ impl<'a> Parser<'a> {
             */
 
             _ => {
-                return common::StaticValue::Error("unexpected token. expected a static literal".to_string());
+                return common::StaticValue::Error("unexpected token. expected a static literal".to_string(), curr_span);
             }
         }
     }
@@ -411,7 +414,7 @@ impl<'a> Parser<'a> {
             let parsed_val = self.parse_constant_literal(&const_name);
             match parsed_val {
                 // if error, set the error
-                common::StaticValue::Error(e) => { self.set_err(e.as_str()); }
+                common::StaticValue::Error(e,_) => { self.set_err(e.as_str()); }
                 // otherwise, push the value
                 _ => {
                     if fits_into(&parsed_val, width) {

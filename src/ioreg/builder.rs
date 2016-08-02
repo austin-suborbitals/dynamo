@@ -2,13 +2,14 @@ extern crate aster;
 
 use syntax::ast;
 use syntax::ptr;
+use syntax::codemap::Span;
 use syntax::print::pprust;
 
 use std::ops::BitAnd;
 use std::collections::HashMap;
 
 use ::ioreg::common;
-use ioreg::common::ToTypeOrLitOrArg;
+use ioreg::common::ToAstType;
 
 type ImplBuilder = aster::item::ItemImplBuilder<aster::invoke::Identity>;
 type FnInternalBlockBuilder = aster::block::BlockBuilder<
@@ -71,14 +72,14 @@ impl Builder {
         let mut items: Vec<ptr::P<ast::Item>> = vec!();
 
         // generate the base "struct" pointer.
-        let type_def = self.base_builder.item()
+        let type_def = self.base_builder.item().span(self.reg.span)
             .pub_().tuple_struct(self.reg.name.clone())
                 .with_tys(vec![ ptr_type!(self.base_builder.ty().u8(), false) ]) // false = immutable
             .build();
         items.push(type_def);
 
         // grab the root-level constants to start the impl block
-        let mut impl_build = self.base_builder.item().impl_();
+        let mut impl_build = self.base_builder.item().span(self.reg.span).impl_();
         impl_build = self.build_const_vals(&self.reg.const_vals, impl_build);
 
         // now build the segments
@@ -98,8 +99,8 @@ impl Builder {
             }
         }
 
-        // print and push the impl definition
-        let impl_item = impl_build.ty().id(self.reg.name.clone());
+        // push the impl definition
+        let impl_item = impl_build.ty().span(self.reg.span).id(self.reg.name.clone());
         items.push(impl_item);
 
         if self.verbose {
@@ -115,21 +116,21 @@ impl Builder {
         for v in vals {
             let name = v.0.to_uppercase();
             match v.1 {
-                &common::StaticValue::Int(i, _) => {
-                    builder = builder.item(name).const_().expr().i32(i).ty().i32();
+                &common::StaticValue::Int(i, _, sp) => {
+                    builder = builder.item(name).span(sp).const_().expr().i32(i).ty().i32();
                 }
-                &common::StaticValue::Uint(u, _) => {
-                    builder = builder.item(name).const_().expr().u32(u).ty().u32();
+                &common::StaticValue::Uint(u, _, sp) => {
+                    builder = builder.item(name).span(sp).const_().expr().u32(u).ty().u32();
                 }
-                &common::StaticValue::Float(_, ref s, _) => {
-                    builder = builder.item(name).const_().expr().f32(s).ty().f32();
+                &common::StaticValue::Float(_, ref s, _, sp) => {
+                    builder = builder.item(name).span(sp).const_().expr().f32(s).ty().f32();
                 }
-                &common::StaticValue::Str(ref s, _) => {
-                    builder = builder.item(name).const_().expr()
+                &common::StaticValue::Str(ref s, _, sp) => {
+                    builder = builder.item(name).span(sp).const_().expr()
                         .str(s.clone().as_str())
                         .ty().ref_().lifetime("'static").ty().path().id("str").build();
                 }
-                &common::StaticValue::Error(ref e) => {
+                &common::StaticValue::Error(ref e, _) => {
                     // TODO: what should we do here?
                     panic!("encountered error while building const_val getter: {}", e);
                 }
@@ -141,22 +142,22 @@ impl Builder {
 
     fn build_getter(&self, seg: &common::IoRegSegmentInfo, prev_builder: ImplBuilder) -> ImplBuilder {
         let mut builder = prev_builder;
-        let fn_bldr = builder.method(format!("read_{}", seg.name)).fn_decl().self_().ref_();
+        let fn_bldr = builder.method(format!("read_{}", seg.name)).span(seg.span).fn_decl().self_().ref_();
         match seg.reg_width {
             common::RegisterWidth::R8 => {
                 builder = fn_bldr.return_().u8().block()
                     .expr().block().unsafe_()
-                        .build_expr(self.build_read_register::<u8>(seg.address));
+                        .build_expr(self.build_read_register::<u8>(seg.address, seg.span));
             }
             common::RegisterWidth::R16 => {
                 builder = fn_bldr.return_().u16().block()
                     .expr().block().unsafe_()
-                        .build_expr(self.build_read_register::<u16>(seg.address));
+                        .build_expr(self.build_read_register::<u16>(seg.address, seg.span));
             }
             common::RegisterWidth::R32 => {
                 builder = fn_bldr.return_().u32().block()
                     .expr().block().unsafe_()
-                        .build_expr(self.build_read_register::<u32>(seg.address));
+                        .build_expr(self.build_read_register::<u32>(seg.address, seg.span));
             }
             common::RegisterWidth::Unknown => {
                 panic!("encountered register of unknown size!"); // TODO: no panic
@@ -167,42 +168,42 @@ impl Builder {
     }
 
     fn build_impl_unsafe_fn_block(&self, bldr: ImplBuilder, fn_def: &common::IoRegFuncDef) -> FnInternalBlockBuilder {
-        bldr.method(fn_def.name.clone()).fn_decl().span(fn_def.span)
+        bldr.method(fn_def.name.clone()).span(fn_def.span).fn_decl()
             .self_().ref_()
             .default_return().block()
             .expr().block().unsafe_()
     }
 
     // TODO: assumes u32 address space
-    fn build_read_register<T>(&self, addr: u32) -> ptr::P<ast::Expr>
-        where T: common::ToTypeOrLitOrArg<T>
+    fn build_read_register<T>(&self, addr: u32, sp: Span) -> ptr::P<ast::Expr>
+        where T: common::ToAstType<T>
     {
-        let self_offset = self.base_builder.expr()
+        let self_offset = self.base_builder.expr().span(sp)
             .method_call("offset").tup_field(0).self_()
             .arg().lit().isize(addr as isize)
             .build();
 
         // volatile_load(self.0.offset(0x1234) as *T)
-        self.base_builder.expr().call().id("volatile_load")
+        self.base_builder.expr().span(sp).call().id("volatile_load")
             .with_arg(  ptr_cast!(self_offset, T::to_type(), false)  ) // immutable
             .build()
     }
 
-    fn build_volatile_store_base<T>(&self, addr: u32) -> FnArgsBuilder
-        where T: common::ToTypeOrLitOrArg<T>
+    fn build_volatile_store_base<T>(&self, addr: u32, sp: Span) -> FnArgsBuilder
+        where T: common::ToAstType<T>
     {
-        let self_offset = self.base_builder.expr()
+        let self_offset = self.base_builder.expr().span(sp)
             .method_call("offset").tup_field(0).self_()
             .arg().lit().isize(addr as isize)
             .build();
 
         // volatile_store(self.0.offset(0x1234) as *T, 0x1234)
-        self.base_builder.stmt().expr().call().id("volatile_store")
+        self.base_builder.stmt().expr().span(sp).call().id("volatile_store")
             .with_arg(ptr_cast!(self_offset, T::to_type(), true)) // mutable
     }
 
     fn get_uint_const_val<T>(&self, v: &common::FunctionValueType, seg: &common::IoRegSegmentInfo) -> T
-        where T: common::ToTypeOrLitOrArg<T> + common::Narrow<u32>
+        where T: common::ToAstType<T> + common::Narrow<u32>
     {
         match v {
             &common::FunctionValueType::Static(val) => { T::narrow(val) }
@@ -210,7 +211,7 @@ impl Builder {
                 match self.lookup_const_val(name, seg) {
                     Ok(v) => {
                         match v {
-                            &common::StaticValue::Uint(u, _) => { T::narrow(u) }
+                            &common::StaticValue::Uint(u, _, _) => { T::narrow(u) }
                             _ => {
                                 panic!("expected a static value after lookup up constant value definition");
                             }
@@ -235,7 +236,7 @@ impl Builder {
         off: &common::IoRegOffsetIndexInfo, seg: &common::IoRegSegmentInfo
     )
         -> FnInternalBlockBuilder
-        where T: common::ToTypeOrLitOrArg<T> + common::Narrow<u32> + BitAnd<T>
+        where T: common::ToAstType<T> + common::Narrow<u32> + BitAnd<T>
     {
         let write_address = seg.address + off.offset_in_bytes();
         let shift_offset = off.offset % 8;
@@ -252,11 +253,11 @@ impl Builder {
 
         // add a statement that reads the current value and ANDs it with our mask
         // i.e.: let mask_id = volatile_load(addr as *const T) & mask;
-        let mut fn_block = fn_prev.stmt()
+        let mut fn_block = fn_prev.stmt().span(fn_def.span)
             .let_()
                 .id(mask_id.clone())
                 .expr().build_bit_and(
-                    self.build_read_register::<T>(write_address),
+                    self.build_read_register::<T>(write_address, fn_def.span),
                     T::to_lit(mask)
                 );
 
@@ -271,16 +272,16 @@ impl Builder {
                 _ => {
                     self.base_builder.expr().paren().build_shl(
                         T::to_lit( T::narrow( self.get_uint_const_val::<u32>(v, seg) & val_mask )),
-                        self.base_builder.expr().lit().u8(shift_offset)
+                        self.base_builder.expr().span(fn_def.span).lit().u8(shift_offset)
                     )
                 }
             };
 
             fn_block = fn_block.with_stmt(
-                self.build_volatile_store_base::<T>(write_address)
+                self.build_volatile_store_base::<T>(write_address, fn_def.span)
                     .with_arg(
-                        self.base_builder.expr().build_bit_or(
-                            self.base_builder.expr().id(mask_id),
+                        self.base_builder.expr().span(fn_def.span).build_bit_or(
+                            self.base_builder.expr().span(fn_def.span).id(mask_id),
                             write_val
                         )
                     )
@@ -295,7 +296,7 @@ impl Builder {
 
     fn build_setter<T>(&self, fn_def: &common::IoRegFuncDef, seg: &common::IoRegSegmentInfo, off: &common::IoRegOffsetIndexInfo,  prev: ImplBuilder)
         -> ImplBuilder
-        where T: common::ToTypeOrLitOrArg<T> + common::Narrow<u32>
+        where T: common::ToAstType<T> + common::Narrow<u32>
     {
         // make an unsafe block for this function
         let mut fn_block = self.build_impl_unsafe_fn_block(prev, fn_def).span(fn_def.span);
@@ -312,21 +313,21 @@ impl Builder {
                 match off.width {
                     8 => {
                         fn_block = fn_block.with_stmt(
-                            self.build_volatile_store_base::<u8>(write_address)
+                            self.build_volatile_store_base::<u8>(write_address, fn_def.span)
                                 .with_arg( u8::to_lit(self.get_uint_const_val::<u8>(v, seg))  )
                                 .build()
                             );
                     }
                     16 => {
                         fn_block = fn_block.with_stmt(
-                            self.build_volatile_store_base::<u16>(write_address)
+                            self.build_volatile_store_base::<u16>(write_address, fn_def.span)
                                 .with_arg( u16::to_lit(self.get_uint_const_val::<u16>(v, seg))  )
                                 .build()
                             );
                     }
                     32 => {
                         fn_block = fn_block.with_stmt(
-                            self.build_volatile_store_base::<u32>(write_address)
+                            self.build_volatile_store_base::<u32>(write_address, fn_def.span)
                                 .with_arg( u32::to_lit(self.get_uint_const_val::<u32>(v, seg))  )
                                 .build()
                             );

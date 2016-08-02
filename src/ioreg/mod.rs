@@ -143,6 +143,8 @@ pub fn expand_ioreg_debug(cx: &mut ExtCtxt, _: Span, args: &[tokenstream::TokenT
 //
 
 fn parse_offset(parser: &mut parser::Parser, seg: &mut common::IoRegSegmentInfo) -> Result<common::IoRegOffsetInfo, &'static str> {
+    let start_span = parser.curr_span;
+
     // parse the index width and begin offset
     let offset_index = parser.parse_index();
     let last_bit = offset_index.offset + offset_index.width;
@@ -175,6 +177,7 @@ fn parse_offset(parser: &mut parser::Parser, seg: &mut common::IoRegSegmentInfo)
     Ok(common::IoRegOffsetInfo{
         index: offset_index,
         functions: func_defs,
+        span: start_span,
     })
 
 }
@@ -184,6 +187,8 @@ fn parse_offset(parser: &mut parser::Parser, seg: &mut common::IoRegSegmentInfo)
 // these are typically _actual_ registers.... but for code sanity
 // we group them together in logical structs.
 fn parse_segment(parser: &mut parser::Parser) -> common::IoRegSegmentInfo {
+    let start_span = parser.curr_span;
+
     // get an address
     let addr = parser.parse_uint::<u32>() as u32; // parse the address
     parser.begin_segment = parser.curr_span;    // save this segment's span
@@ -213,6 +218,7 @@ fn parse_segment(parser: &mut parser::Parser) -> common::IoRegSegmentInfo {
         access_perms: perms,
         const_vals: val_defs,
         offsets: vec!(),
+        span: start_span,
     };
 
     // loop until we hit our closing brace
@@ -232,6 +238,8 @@ fn parse_segment(parser: &mut parser::Parser) -> common::IoRegSegmentInfo {
 
 // entry to the ioreg macro parsing
 fn parse_ioreg(parser: &mut parser::Parser) -> common::IoRegInfo {
+    let start_span = parser.curr_span;
+
     // parse the name of the ioreg
     parser.expect_ident_value("name");              // expect 'name' literal
     parser.expect_fat_arrow();                      // skip the =>
@@ -257,6 +265,7 @@ fn parse_ioreg(parser: &mut parser::Parser) -> common::IoRegInfo {
         name: name_str,
         segments: HashMap::new(),
         const_vals: const_vals,
+        span: start_span,
     };
 
     // the rest of the macro should be segments
