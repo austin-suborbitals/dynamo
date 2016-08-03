@@ -70,7 +70,7 @@ pub enum FunctionValueType {
 impl Debug for FunctionValueType {
     fn fmt(&self, f: &mut Formatter) -> Result {
         match self {
-            &FunctionValueType::Static(ref i) => { write!(f, "{:X}", i) }
+            &FunctionValueType::Static(ref i) => { write!(f, "0x{:X}", i) }
             &FunctionValueType::Reference(ref r) => { write!(f, "{}", r) }
         }
     }
