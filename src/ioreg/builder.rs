@@ -54,13 +54,13 @@ macro_rules! setter_doc {
         match $func.values.len() {
             1 => {
                 format!(
-                    "Writes the value (pre-masking) {:?} to the {} register at address {:X} and offset {} bits.",
+                    "/// Writes the value (pre-masking) {:?} to the {} register at address {:X} and offset {} bits.",
                     $func.values[0], $seg.name, $seg.address, $off.index.offset
                 )
             }
             _ => {
                 format!(
-                    "Writes the values (pre-masking) {:?} to the {} register at address {:X} and offset {} bits.",
+                    "/// Writes the values (pre-masking) {:?} to the {} register at address {:X} and offset {} bits.",
                     $func.values, $seg.name, $seg.address, $off.index.offset
                 )
             }
