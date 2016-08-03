@@ -166,7 +166,7 @@ impl Builder {
         let mut builder = prev_builder;
         let fn_bldr = builder
             .item(format!("read_{}", seg.name)).attr().doc(
-                format!("/// Reads the contents (as {}) of the {} register at address 0x{:X}",
+                format!("/// Reads the contents (as {}) of the {} register at relative address 0x{:X}",
                     seg.reg_width.to_type_string(), seg.name, seg.address
             ).as_str())
             .pub_().method().span(seg.span).fn_decl().self_().ref_();
