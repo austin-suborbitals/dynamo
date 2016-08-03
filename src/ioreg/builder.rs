@@ -92,6 +92,9 @@ impl Builder {
 
         // generate the base "struct" pointer.
         let type_def = self.base_builder.item().span(self.reg.span)
+            .attr().doc(
+                format!("/// Pointer wrapper that implements the {} operations", self.reg.name).as_str()
+            )
             .pub_().tuple_struct(self.reg.name.clone())
                 .with_tys(vec![ ptr_type!(self.base_builder.ty().u8(), false) ]) // false = immutable
             .build();
@@ -163,10 +166,10 @@ impl Builder {
         let mut builder = prev_builder;
         let fn_bldr = builder
             .item(format!("read_{}", seg.name)).attr().doc(
-                format!("Reads the contents (as {}) of the {} register at address {}",
+                format!("/// Reads the contents (as {}) of the {} register at address {}",
                     seg.reg_width.to_type_string(), seg.name, seg.address
             ).as_str())
-            .method().span(seg.span).fn_decl().self_().ref_();
+            .pub_().method().span(seg.span).fn_decl().self_().ref_();
         match seg.reg_width {
             common::RegisterWidth::R8 => {
                 builder = fn_bldr.return_().u8().block()
@@ -373,7 +376,7 @@ impl Builder {
 
             let ctx = bldr.item(f.1.name.clone())
                 .attr().doc(setter_doc!(f.1, seg, off).as_str())
-                .method().span(f.1.span).fn_decl()
+                .pub_().method().span(f.1.span).fn_decl()
                     .self_().ref_()
                     .default_return().block()
                     .expr().block().unsafe_();
