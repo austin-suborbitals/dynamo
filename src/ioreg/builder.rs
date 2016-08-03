@@ -60,7 +60,7 @@ macro_rules! setter_doc {
             }
             _ => {
                 format!(
-                    "/// Writes the values (pre-masking) {:?} to the {} register at address 0x{:X} and offset {} bits.",
+                    "/// Consecutively writes the values (pre-masking) {:?} to the {} register at address 0x{:X} and offset {} bits.",
                     $func.values, $seg.name, $seg.address, $off.index.offset
                 )
             }
