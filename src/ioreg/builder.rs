@@ -49,6 +49,25 @@ macro_rules! ptr_cast {
     };
 }
 
+macro_rules! setter_doc {
+    ($func:expr, $seg:ident, $off:expr) => {
+        match $func.values.len() {
+            1 => {
+                format!(
+                    "Writes the value (pre-masking) {:?} to the {} register at address {:X} and offset {} bits.",
+                    $func.values[0], $seg.name, $seg.address, $off.index.offset
+                )
+            }
+            _ => {
+                format!(
+                    "Writes the values (pre-masking) {:?} to the {} register at address {:X} and offset {} bits.",
+                    $func.values, $seg.name, $seg.address, $off.index.offset
+                )
+            }
+        }
+    }
+}
+
 pub struct Builder {
     verbose: bool,
     reg: common::IoRegInfo,
@@ -142,7 +161,12 @@ impl Builder {
 
     fn build_getter(&self, seg: &common::IoRegSegmentInfo, prev_builder: ImplBuilder) -> ImplBuilder {
         let mut builder = prev_builder;
-        let fn_bldr = builder.method(format!("read_{}", seg.name)).span(seg.span).fn_decl().self_().ref_();
+        let fn_bldr = builder
+            .item(format!("read_{}", seg.name)).attr().doc(
+                format!("Reads the contents (as {}) of the {} register at address {}",
+                    seg.reg_width.to_type_string(), seg.name, seg.address
+            ).as_str())
+            .method().span(seg.span).fn_decl().self_().ref_();
         match seg.reg_width {
             common::RegisterWidth::R8 => {
                 builder = fn_bldr.return_().u8().block()
@@ -165,13 +189,6 @@ impl Builder {
         };
 
         builder
-    }
-
-    fn build_impl_unsafe_fn_block(&self, bldr: ImplBuilder, fn_def: &common::IoRegFuncDef) -> FnInternalBlockBuilder {
-        bldr.method(fn_def.name.clone()).span(fn_def.span).fn_decl()
-            .self_().ref_()
-            .default_return().block()
-            .expr().block().unsafe_()
     }
 
     // TODO: assumes u32 address space
@@ -294,12 +311,11 @@ impl Builder {
 
 
 
-    fn build_setter<T>(&self, fn_def: &common::IoRegFuncDef, seg: &common::IoRegSegmentInfo, off: &common::IoRegOffsetIndexInfo,  prev: ImplBuilder)
+    fn build_setter<T>(&self, fn_def: &common::IoRegFuncDef, seg: &common::IoRegSegmentInfo, off: &common::IoRegOffsetIndexInfo,  fn_sig: FnInternalBlockBuilder)
         -> ImplBuilder
         where T: common::ToAstType<T> + common::Narrow<u32>
     {
-        // make an unsafe block for this function
-        let mut fn_block = self.build_impl_unsafe_fn_block(prev, fn_def).span(fn_def.span);
+        let mut fn_block = fn_sig;
 
         // TODO: how to handle PARTIAL writes to WriteOnly registers?
         if ! off.is_fully_byte_aligned() && seg.access_perms == common::RegisterPermissions::WriteOnly {
@@ -355,10 +371,17 @@ impl Builder {
             // we know how many bits we need to operate on, but we can only address bytes...
             // so, if we have less than 8 bits, operate on a byte, otherwise get the pow_2 >= width
 
+            let ctx = bldr.item(f.1.name.clone())
+                .attr().doc(setter_doc!(f.1, seg, off).as_str())
+                .method().span(f.1.span).fn_decl()
+                    .self_().ref_()
+                    .default_return().block()
+                    .expr().block().unsafe_();
+
             bldr = match seg.reg_width {
-                common::RegisterWidth::R8 => { self.build_setter::<u8>(&f.1, seg, &off.index, bldr) }
-                common::RegisterWidth::R16 => { self.build_setter::<u16>(&f.1, seg, &off.index, bldr) }
-                common::RegisterWidth::R32 => { self.build_setter::<u32>(&f.1, seg, &off.index, bldr) }
+                common::RegisterWidth::R8 => { self.build_setter::<u8>(&f.1, seg, &off.index, ctx) }
+                common::RegisterWidth::R16 => { self.build_setter::<u16>(&f.1, seg, &off.index, ctx) }
+                common::RegisterWidth::R32 => { self.build_setter::<u32>(&f.1, seg, &off.index, ctx) }
                 _ => {
                     // TODO: proper error
                     panic!(format!("unknown register width to create setter function in segment '{}'", seg.name));

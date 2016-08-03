@@ -70,7 +70,7 @@ pub enum FunctionValueType {
 impl Debug for FunctionValueType {
     fn fmt(&self, f: &mut Formatter) -> Result {
         match self {
-            &FunctionValueType::Static(ref i) => { write!(f, "{}", i.to_string()) }
+            &FunctionValueType::Static(ref i) => { write!(f, "{:X}", i) }
             &FunctionValueType::Reference(ref r) => { write!(f, "{}", r) }
         }
     }
@@ -171,6 +171,15 @@ impl RegisterWidth {
             &RegisterWidth::R16 => { 16 }
             &RegisterWidth::R32 => { 32 }
             &RegisterWidth::Unknown => { 0xFF }
+        }
+    }
+
+    pub fn to_type_string(&self) -> &'static str {
+        match self {
+            &RegisterWidth::R8 => { "u8" }
+            &RegisterWidth::R16 => { "u16" }
+            &RegisterWidth::R32 => { "u32" }
+            &RegisterWidth::Unknown => { "unknown" }
         }
     }
 }
