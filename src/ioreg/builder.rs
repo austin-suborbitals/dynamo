@@ -6,7 +6,7 @@ use syntax::codemap::Span;
 use syntax::print::pprust;
 
 use std::ops::BitAnd;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 use ::ioreg::common;
 use ioreg::common::ToAstType;
@@ -52,27 +52,38 @@ macro_rules! ptr_cast {
 macro_rules! setter_doc {
     ($func:expr, $seg:ident, $off:expr) => {{
         let mut mask_qual = "";
+        let mut actual_vals: Vec<String> = vec!();
         for i in &$func.values {
             match i {
-                &common::FunctionValueType::Static(_) => {
-                    mask_qual = "\n\n**NOTE**: all values are as defined _before_ any masking.";
-                    break;
+                &common::FunctionValueType::Static(val) => {
+                    // if we will be using a static value, and the qualifier has not been set, set it.
+                    if mask_qual.len() == 0 {
+                        mask_qual = "\n\n**NOTE**: all values are as defined _before_ any masking.";
+                    }
+                    actual_vals.push(format!("0x{:X}", val));
                 }
-                _ => { /* do nothing */ }
+                &common::FunctionValueType::Reference(ref name) => {
+                    let scoped_name = format!("{}_{}", $seg.name, name);
+                    if $seg.const_vals.contains_key(&scoped_name) {
+                        actual_vals.push(scoped_name.to_uppercase());
+                    } else {
+                        actual_vals.push(name.to_uppercase());
+                    }
+                }
             }
         }
 
-        match $func.values.len() {
+        match actual_vals.len() {
             1 => {
                 format!(
-                    "/// Writes the value `{:?}` to the `{}` register at relative address 0x{:X} and offset {} bits.{}",
-                    $func.values[0], $seg.name, $seg.address, $off.index.offset, mask_qual
+                    "/// Writes the value `{}` to the `{}` register at relative address 0x{:X} and offset {} bits.{}",
+                    actual_vals[0], $seg.name, $seg.address, $off.index.offset, mask_qual
                 )
             }
             _ => {
                 format!(
                     "/// Consecutively writes the values `{:?}` to the `{}` register at relative address 0x{:X} and offset {} bits.{}",
-                    $func.values, $seg.name, $seg.address, $off.index.offset, mask_qual
+                    actual_vals, $seg.name, $seg.address, $off.index.offset, mask_qual
                 )
             }
         }
@@ -151,7 +162,7 @@ impl Builder {
         items
     }
 
-    fn build_const_vals(&self, vals: &HashMap<String, common::StaticValue>, prev_build: ImplBuilder) -> ImplBuilder {
+    fn build_const_vals(&self, vals: &BTreeMap<String, common::StaticValue>, prev_build: ImplBuilder) -> ImplBuilder {
         let mut builder = prev_build;
         // generate associated constants in the impl block
         for v in vals {

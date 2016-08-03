@@ -8,7 +8,7 @@ use syntax::ext::base::ExtCtxt;
 use syntax::parse::parser as rsparse;
 
 use std;
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 use ::ioreg::common;
 
@@ -399,7 +399,7 @@ impl<'a> Parser<'a> {
 
     // parse an entire `constants => { ... }` block into the given hash map
     pub fn parse_constants_block(
-        &mut self, prefix: &String, into: &mut HashMap<String, common::StaticValue>, width: &common::RegisterWidth
+        &mut self, prefix: &String, into: &mut BTreeMap<String, common::StaticValue>, width: &common::RegisterWidth
     ) {
         // expect the opening syntax
         self.expect_ident_value("constants");

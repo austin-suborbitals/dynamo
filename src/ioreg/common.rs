@@ -8,7 +8,7 @@ use syntax::ptr;
 use syntax::parse::token;
 use syntax::codemap::Span;
 
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 
 //
@@ -237,7 +237,7 @@ pub struct IoRegFuncDef {
 #[derive(Debug)]
 pub struct IoRegOffsetInfo {
     pub index:          IoRegOffsetIndexInfo,
-    pub functions:      HashMap<String, IoRegFuncDef>,
+    pub functions:      BTreeMap<String, IoRegFuncDef>,
     pub span:           Span,
 }
 
@@ -247,7 +247,7 @@ pub struct IoRegSegmentInfo {
     pub address:        u32, // TODO: usize?
     pub reg_width:      RegisterWidth,
     pub access_perms:   RegisterPermissions,
-    pub const_vals:     HashMap<String, StaticValue>,
+    pub const_vals:     BTreeMap<String, StaticValue>,
     pub offsets:        Vec<IoRegOffsetInfo>,
     pub span:           Span,
 }
@@ -276,8 +276,8 @@ impl IoRegSegmentInfo {
 pub struct IoRegInfo {
     pub name:       String,
     pub doc_srcs:   Vec<String>,
-    pub segments:   HashMap<String, IoRegSegmentInfo>,
-    pub const_vals: HashMap<String, StaticValue>,
+    pub segments:   BTreeMap<String, IoRegSegmentInfo>,
+    pub const_vals: BTreeMap<String, StaticValue>,
     pub span:       Span,
 }
 

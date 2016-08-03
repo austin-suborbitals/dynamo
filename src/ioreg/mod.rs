@@ -115,7 +115,7 @@ use syntax::codemap::Span;
 use syntax::util::small_vector::SmallVector;
 use syntax::ext::base::{ExtCtxt, MacResult};
 
-use std::collections::HashMap;
+use std::collections::BTreeMap;
 
 pub mod parser;
 pub mod common;
@@ -178,7 +178,7 @@ fn parse_offset(parser: &mut parser::Parser, seg: &mut common::IoRegSegmentInfo)
     parser.expect_open_curly();
 
     // loop (parsing function defs) until we hit our closing bracket
-    let mut func_defs =  HashMap::<String, common::IoRegFuncDef>::new();
+    let mut func_defs =  BTreeMap::<String, common::IoRegFuncDef>::new();
     while ! parser.eat(&token::Token::CloseDelim(token::DelimToken::Brace)) {
         // get a name and a colon to start the definition
         let name = parser.parse_ident_string();
@@ -223,7 +223,7 @@ fn parse_segment(parser: &mut parser::Parser) -> common::IoRegSegmentInfo {
     parser.expect_open_curly();                 // expect the opening brace
 
     // see if we have a constants block, and if so, parse it
-    let mut val_defs: HashMap<String, common::StaticValue> = HashMap::new();
+    let mut val_defs: BTreeMap<String, common::StaticValue> = BTreeMap::new();
     if is_ident!(parser.curr_token()) {
         let tok = extract_ident_name!(parser);
         match tok.as_str() {
@@ -268,7 +268,7 @@ fn parse_ioreg(parser: &mut parser::Parser) -> common::IoRegInfo {
     parser.expect_semi();
 
     // check if we have a constants or doc_srcs definition block
-    let mut const_vals: HashMap<String, common::StaticValue> = HashMap::new();
+    let mut const_vals: BTreeMap<String, common::StaticValue> = BTreeMap::new();
     let mut doc_srcs: Vec<String> = vec!();
     while is_ident!(parser.curr_token()) {
         let tok = extract_ident_name!(parser);
@@ -283,7 +283,7 @@ fn parse_ioreg(parser: &mut parser::Parser) -> common::IoRegInfo {
     let mut result = common::IoRegInfo{
         name: name_str,
         doc_srcs: doc_srcs,
-        segments: HashMap::new(),
+        segments: BTreeMap::new(),
         const_vals: const_vals,
         span: start_span,
     };
