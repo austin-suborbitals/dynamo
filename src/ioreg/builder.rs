@@ -50,22 +50,33 @@ macro_rules! ptr_cast {
 }
 
 macro_rules! setter_doc {
-    ($func:expr, $seg:ident, $off:expr) => {
+    ($func:expr, $seg:ident, $off:expr) => {{
+        let mut mask_qual = "";
+        for i in &$func.values {
+            match i {
+                &common::FunctionValueType::Static(_) => {
+                    mask_qual = "\n\n**NOTE**: all values are as defined _before_ any masking.";
+                    break;
+                }
+                _ => { /* do nothing */ }
+            }
+        }
+
         match $func.values.len() {
             1 => {
                 format!(
-                    "/// Writes the value (pre-masking) {:?} to the {} register at address 0x{:X} and offset {} bits.",
-                    $func.values[0], $seg.name, $seg.address, $off.index.offset
+                    "/// Writes the value `{:?}` to the `{}` register at relative address 0x{:X} and offset {} bits.{}",
+                    $func.values[0], $seg.name, $seg.address, $off.index.offset, mask_qual
                 )
             }
             _ => {
                 format!(
-                    "/// Consecutively writes the values (pre-masking) {:?} to the {} register at address 0x{:X} and offset {} bits.",
-                    $func.values, $seg.name, $seg.address, $off.index.offset
+                    "/// Consecutively writes the values `{:?}` to the `{}` register at relative address 0x{:X} and offset {} bits.{}",
+                    $func.values, $seg.name, $seg.address, $off.index.offset, mask_qual
                 )
             }
         }
-    }
+    }}
 }
 
 pub struct Builder {
@@ -174,7 +185,7 @@ impl Builder {
         let mut builder = prev_builder;
         let fn_bldr = builder
             .item(format!("read_{}", seg.name)).attr().doc(
-                format!("/// Reads the contents (as {}) of the {} register at relative address 0x{:X}",
+                format!("/// Reads the contents (as `{}`) of the `{}` register at relative address 0x{:X}",
                     seg.reg_width.to_type_string(), seg.name, seg.address
             ).as_str())
             .pub_().method().span(seg.span).fn_decl().self_().ref_();
