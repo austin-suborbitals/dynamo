@@ -91,10 +91,18 @@ impl Builder {
         let mut items: Vec<ptr::P<ast::Item>> = vec!();
 
         // generate the base "struct" pointer.
-        let type_def = self.base_builder.item().span(self.reg.span)
+        let mut docced_item = self.base_builder.item().span(self.reg.span)
             .attr().doc(
                 format!("/// Pointer wrapper that implements the {} operations", self.reg.name).as_str()
-            )
+            );
+        if self.reg.doc_srcs.len() > 0 {
+            docced_item = docced_item.attr().doc("///");
+            for i in &self.reg.doc_srcs {
+                docced_item = docced_item.attr().doc(format!("/// source: {}", i).as_str());
+            }
+        }
+
+        let type_def = docced_item
             .pub_().tuple_struct(self.reg.name.clone())
                 .with_tys(vec![ ptr_type!(self.base_builder.ty().u8(), false) ]) // false = immutable
             .build();

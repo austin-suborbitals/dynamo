@@ -275,6 +275,7 @@ impl IoRegSegmentInfo {
 #[derive(Debug)]
 pub struct IoRegInfo {
     pub name:       String,
+    pub doc_srcs:   Vec<String>,
     pub segments:   HashMap<String, IoRegSegmentInfo>,
     pub const_vals: HashMap<String, StaticValue>,
     pub span:       Span,

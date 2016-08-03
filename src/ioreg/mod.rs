@@ -121,6 +121,26 @@ pub mod parser;
 pub mod common;
 pub mod builder;
 
+
+macro_rules! is_ident {
+    ($val:expr) => {
+        match $val {
+            &token::Token::Ident(_) => { true }
+            _ => { false }
+        }
+    }
+}
+
+macro_rules! extract_ident_name {
+    ($parser:ident) => {
+        match $parser.curr_token() {
+            &token::Token::Ident(i) => { i.name.as_str().to_string().clone() } // TODO: these coercions are gross
+            _ => { $parser.set_err("detected an ident, but did not parse as an ident"); "".to_string() } // TODO: better default
+        }
+    }
+}
+
+
 //
 // ioreg expansion
 //
@@ -204,11 +224,12 @@ fn parse_segment(parser: &mut parser::Parser) -> common::IoRegSegmentInfo {
 
     // see if we have a constants block, and if so, parse it
     let mut val_defs: HashMap<String, common::StaticValue> = HashMap::new();
-    match parser.curr_token() {
-        &token::Token::Ident(_) => {
-            parser.parse_constants_block(&name, &mut val_defs, &width);
+    if is_ident!(parser.curr_token()) {
+        let tok = extract_ident_name!(parser);
+        match tok.as_str() {
+            "constants" => { parser.parse_constants_block(&name, &mut val_defs, &width); }
+            _ => { parser.set_err("unexpected block keyword"); }
         }
-        _ => { /* do nothing */ }
     }
 
     let mut result = common::IoRegSegmentInfo{
@@ -246,23 +267,22 @@ fn parse_ioreg(parser: &mut parser::Parser) -> common::IoRegInfo {
     let name_str = parser.parse_ident_string();       // get the name for the ioreg
     parser.expect_semi();
 
-    // check if we have a constants definition block
+    // check if we have a constants or doc_srcs definition block
     let mut const_vals: HashMap<String, common::StaticValue> = HashMap::new();
-    match parser.curr_token() {
-        &token::Token::Ident(ident) => {
-            if ident.name.as_str() != "constants" {
-                parser.set_fatal_err(format!("expected a 'constants' block here, but found ident '{}'", ident.name.as_str()).as_str());
-            }
-            // NOTE: constants at this level have no prefix
-            // TODO: this assumes a 32bit arch, and that constants on this level would not have a limit
-            parser.parse_constants_block(&"".to_string(), &mut const_vals, &common::RegisterWidth::R32);
+    let mut doc_srcs: Vec<String> = vec!();
+    while is_ident!(parser.curr_token()) {
+        let tok = extract_ident_name!(parser);
+        match tok.as_str() {
+            "constants" => { parser.parse_constants_block(&"".to_string(), &mut const_vals, &common::RegisterWidth::R32); }
+            "doc_srcs" => { parser.parse_doc_sources(&"".to_string(), &mut doc_srcs); }
+            _ => { parser.set_err("unexpected block keyword"); break; }
         }
-        _ => { /* do nothing */ }
     }
 
     // create the info struct we will parse into
     let mut result = common::IoRegInfo{
         name: name_str,
+        doc_srcs: doc_srcs,
         segments: HashMap::new(),
         const_vals: const_vals,
         span: start_span,

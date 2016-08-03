@@ -171,6 +171,14 @@ impl<'a> Parser<'a> {
         }
     }
 
+    pub fn expect_comma(&mut self) -> bool {
+        self.save_span();
+        match self.parser.eat(&token::Comma) {
+            true => { true }
+            false => { self.set_err("expected a comma"); false }
+        }
+    }
+
     pub fn expect_open_curly(&mut self) -> bool {
         self.save_span();
         match self.parser.eat(&token::OpenDelim(token::DelimToken::Brace)) {
@@ -431,6 +439,30 @@ impl<'a> Parser<'a> {
             self.expect_semi();               // expect a terminating semicolon for the value def
         }
         self.expect_semi();                   // expect a terminating semicolon for the constants block
+    }
+
+
+    // parse an entire `doc_srcs => [ ... ]` block into the given vector
+    pub fn parse_doc_sources(&mut self, prefix: &String, into: &mut Vec<String>) {
+        // expect the opening syntax
+        self.expect_ident_value("doc_srcs");
+        self.expect_fat_arrow();
+        self.expect_open_bracket();
+
+        let mut doc_cnt: usize = 0;
+        
+        // until we hit the closing brace
+        while ! self.eat(&token::Token::CloseDelim(token::DelimToken::Bracket)) {
+            // read the literal and assert string
+            let doc_src = self.parse_constant_literal(&format!("{}_doc_{}", prefix, doc_cnt));
+            match doc_src {
+                common::StaticValue::Str(v, _, _) => { into.push(v); doc_cnt += 1; }
+                _ => { self.set_err("expected a string literal"); return; }
+            }
+
+            self.expect_comma();
+        }
+        self.expect_semi();                   // expect a terminating semicolon for the doc_srcs block
     }
 
 
