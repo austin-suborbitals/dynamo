@@ -110,6 +110,7 @@ impl<'a> Parser<'a> {
 
     pub fn set_fatal_err(&mut self, err: &str) {
         self.parser.span_fatal(self.curr_span, err).emit();
+        panic!(err.to_string());
     }
 
     pub fn set_segment_err(&mut self, err: &str) {
@@ -135,7 +136,7 @@ impl<'a> Parser<'a> {
     pub fn expect_ident_value(&mut self, expect: &str) {
         let got = self.parse_ident_string();
         if expect != got {
-            self.set_err(format!("expected '{}' but found '{}'", expect, got).as_str());
+            self.set_fatal_err(format!("expected '{}' but found '{}'", expect, got).as_str());
         }
     }
 
@@ -143,7 +144,7 @@ impl<'a> Parser<'a> {
         self.save_span();
         match self.parser.expect(&token::Token::Semi) {
             Ok(_) => { true }
-            Err(e) => { self.set_err(e.message()); false }
+            Err(e) => { self.set_fatal_err(e.message()); false }
         }
     }
 
@@ -151,7 +152,7 @@ impl<'a> Parser<'a> {
         self.save_span();
         match self.parser.expect(&token::Token::Eq) {
             Ok(_) => { true }
-            Err(e) => { self.set_err(e.message()); false }
+            Err(e) => { self.set_fatal_err(e.message()); false }
         }
     }
 
@@ -159,7 +160,7 @@ impl<'a> Parser<'a> {
         self.save_span();
         match self.parser.eat(&token::FatArrow) {
             true => {true }
-            false => { self.set_err("expected a fat arrow (=>)"); false }
+            false => { self.set_fatal_err("expected a fat arrow (=>)"); false }
         }
     }
 
@@ -167,7 +168,7 @@ impl<'a> Parser<'a> {
         self.save_span();
         match self.parser.eat(&token::Colon) {
             true => { true }
-            false => { self.set_err("expected a colon"); false }
+            false => { self.set_fatal_err("expected a colon"); false }
         }
     }
 
@@ -175,7 +176,7 @@ impl<'a> Parser<'a> {
         self.save_span();
         match self.parser.eat(&token::Comma) {
             true => { true }
-            false => { self.set_err("expected a comma"); false }
+            false => { self.set_fatal_err("expected a comma"); false }
         }
     }
 
@@ -183,7 +184,7 @@ impl<'a> Parser<'a> {
         self.save_span();
         match self.parser.eat(&token::OpenDelim(token::DelimToken::Brace)) {
             true => { true }
-            false => { self.set_err("expected an opening curly brace"); false }
+            false => { self.set_fatal_err("expected an opening curly brace"); false }
         }
     }
 
@@ -191,7 +192,7 @@ impl<'a> Parser<'a> {
         self.save_span();
         match self.parser.eat(&token::CloseDelim(token::DelimToken::Brace)) {
             true => { false }
-            false => { self.set_err("expected a closing curly brace"); false }
+            false => { self.set_fatal_err("expected a closing curly brace"); false }
         }
     }
 
@@ -199,7 +200,7 @@ impl<'a> Parser<'a> {
         self.save_span();
         match self.parser.eat(&token::OpenDelim(token::DelimToken::Bracket)) {
             true => { true }
-            false => { self.set_err("expected an opening bracket"); false }
+            false => { self.set_fatal_err("expected an opening bracket"); false }
         }
     }
 
@@ -207,7 +208,7 @@ impl<'a> Parser<'a> {
         self.save_span();
         match self.parser.eat(&token::CloseDelim(token::DelimToken::Bracket)) {
             true => { true }
-            false => { self.set_err("expected a closing bracket"); false }
+            false => { self.set_fatal_err("expected a closing bracket"); false }
         }
     }
 
