@@ -180,6 +180,22 @@ impl<'a> Parser<'a> {
         }
     }
 
+    pub fn expect_open_paren(&mut self) -> bool {
+        self.save_span();
+        match self.parser.eat(&token::OpenDelim(token::DelimToken::Paren)) {
+            true => { true }
+            false => { self.set_fatal_err("expected an opening paren"); false }
+        }
+    }
+
+    pub fn expect_close_paren(&mut self) -> bool {
+        self.save_span();
+        match self.parser.eat(&token::CloseDelim(token::DelimToken::Paren)) {
+            true => { false }
+            false => { self.set_fatal_err("expected a closing paren"); false }
+        }
+    }
+
     pub fn expect_open_curly(&mut self) -> bool {
         self.save_span();
         match self.parser.eat(&token::OpenDelim(token::DelimToken::Brace)) {
@@ -467,22 +483,15 @@ impl<'a> Parser<'a> {
     }
 
 
-    // parse a function definition from the name to the semicolon after the argument values
-    pub fn parse_func_def(&mut self, name: String, width: &common::RegisterWidth) -> common::IoRegFuncDef {
-        self.expect_fat_arrow();                  // functions must be followed with fat arrow
-        self.expect_open_bracket();               // expect a series of values
-
-        let span = self.curr_span.clone();
-    
+    fn parse_static_setter_values(&mut self, result: &mut common::IoRegFuncDef, width: &common::RegisterWidth) {
         // until the end of the values
-        let mut vals: Vec<common::FunctionValueType> = vec!();
         while ! self.eat(&token::CloseDelim(token::DelimToken::Bracket)) {
             // inspect the token we are currently considering
             match self.raw_parser().token {
                 // if we have a literal, we expect it to be an integral, so parse that
                 token::Token::Literal(token::Lit::Integer(_), _) => {  // TODO: consider float
                     match read_uint_for_register!(self, width) {
-                        Ok(i) => { vals.push(common::FunctionValueType::Static(i as u32)); }
+                        Ok(i) => { result.values.push(common::FunctionValueType::Static(i as u32)); }
                         Err(e) => {
                             self.set_err(e.as_str());
                             break;  // TODO: better return
@@ -492,7 +501,7 @@ impl<'a> Parser<'a> {
     
                 // otherwise, we expect an ident to reference a defined variable
                 token::Ident(_) => {
-                    vals.push(common::FunctionValueType::Reference(self.parse_ident_string()));
+                    result.values.push(common::FunctionValueType::Reference(self.parse_ident_string()));
                 }
     
                 // consider everything else an error
@@ -506,13 +515,40 @@ impl<'a> Parser<'a> {
             self.eat(&token::Token::Comma);       // skip a comma if there is one
         }
         self.expect_semi();                       // expect a close to the definition
-    
-        common::IoRegFuncDef{
+    }
+
+    // parse a function definition from the name to the semicolon after the argument values
+    pub fn parse_func_def(&mut self, name: String, width: &common::RegisterWidth) -> common::IoRegFuncDef {
+        let span = self.curr_span.clone();
+
+        self.expect_fat_arrow();                  // functions must be followed with fat arrow
+        let setter_type = match self.curr_token() {
+            &token::Token::OpenDelim(token::DelimToken::Paren) => { common::FunctionType::Setter }
+            &token::Token::OpenDelim(token::DelimToken::Bracket) => { common::FunctionType::StaticSetter }
+            _ => {
+                self.set_fatal_err("expected an open bracket or paren"); // fatal error
+                common::FunctionType::Setter                             // make the compiler happy -- should not get used
+            }
+        };
+        self.parser.bump();
+
+        let mut result = common::IoRegFuncDef {
             name: name,
-            values: vals,
-            ty: common::FunctionType::Setter,
+            values: vec!(),
+            ty: setter_type,
             span: span,
+        };
+
+        match setter_type {
+            common::FunctionType::Setter => {
+                self.expect_close_paren();
+                self.expect_semi();
+            }
+            common::FunctionType::StaticSetter => { self.parse_static_setter_values(&mut result, width); }
+            _ => { self.set_fatal_err("unexpected function type"); }
         }
+
+        result
     }
 
 

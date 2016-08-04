@@ -32,6 +32,15 @@ impl Narrow<u32> for u32 {
 // primitive type to_type and to_lit trait
 //
 
+pub fn reg_width_to_ty(width: &RegisterWidth) -> ptr::P<ast::Ty> {
+    match width {
+        &RegisterWidth::R8 => { u8::to_type() }
+        &RegisterWidth::R16 => { u16::to_type() }
+        &RegisterWidth::R32 => { u32::to_type() }
+        &RegisterWidth::Unknown => { u32::to_type() } // TODO: panic? ok to default?
+    }
+}
+
 pub trait ToAstType<T> {
     fn to_type() -> ptr::P<ast::Ty>;
     fn to_lit(val: T) -> ptr::P<ast::Expr>;
@@ -64,6 +73,7 @@ impl ToAstType<u32> for u32 {
 
 pub enum FunctionValueType {
     Static(u32),   // TODO: generic? convert in the func def?
+    Argument(String),
     Reference(String),
 }
 
@@ -71,6 +81,7 @@ impl Debug for FunctionValueType {
     fn fmt(&self, f: &mut Formatter) -> Result {
         match self {
             &FunctionValueType::Static(ref i) => { write!(f, "0x{:X}", i) }
+            &FunctionValueType::Argument(ref i) => { write!(f, "{}", i) }
             &FunctionValueType::Reference(ref r) => { write!(f, "{}", r.to_uppercase()) }
         }
     }
@@ -81,17 +92,21 @@ impl Debug for FunctionValueType {
 // function type
 //
 
+#[derive(Copy)]
+#[derive(Clone)]
 #[derive(PartialEq)]
 pub enum FunctionType {
     Getter,
     Setter,
+    StaticSetter,
 }
 
 impl Debug for FunctionType {
     fn fmt(&self, f: &mut Formatter) -> Result {
         match *self {
             FunctionType::Getter => { write!(f, "getter") }
-            FunctionType::Setter => { write!(f, "setter") }
+            FunctionType::Setter => { write!(f, "setter (with input)") }
+            FunctionType::StaticSetter => { write!(f, "setter") }
         }
     }
 }
@@ -222,6 +237,20 @@ impl IoRegOffsetIndexInfo {
 
     pub fn offset_in_bytes(&self) -> u32 {
         ((self.offset as u32) - ((self.offset % 8) as u32)) / 8
+    }
+}
+
+pub fn offset_width_to_ty(off: &IoRegOffsetIndexInfo) -> ptr::P<ast::Ty> {
+    if off.width == 0 {
+        panic!("cannot support offset widths of 0"); // TODO: check before calling?
+    }
+
+    if off.width < 16 {
+        return u8::to_type();
+    } else if off.width >= 16 && off.width < 32 {
+        return u16::to_type();
+    } else {
+        return u32::to_type();
     }
 }
 

@@ -9,7 +9,6 @@ use std::ops::BitAnd;
 use std::collections::BTreeMap;
 
 use ::ioreg::common;
-use ioreg::common::ToAstType;
 
 type ImplBuilder = aster::item::ItemImplBuilder<aster::invoke::Identity>;
 type FnInternalBlockBuilder = aster::block::BlockBuilder<
@@ -49,45 +48,53 @@ macro_rules! ptr_cast {
     };
 }
 
-macro_rules! setter_doc {
-    ($func:expr, $seg:ident, $off:expr) => {{
-        let mut mask_qual = "";
-        let mut actual_vals: Vec<String> = vec!();
-        for i in &$func.values {
-            match i {
-                &common::FunctionValueType::Static(val) => {
-                    // if we will be using a static value, and the qualifier has not been set, set it.
-                    if mask_qual.len() == 0 {
-                        mask_qual = "\n\n**NOTE**: all values are as defined _before_ any masking.";
-                    }
-                    actual_vals.push(format!("0x{:X}", val));
+fn make_setter_doc(func: &common::IoRegFuncDef, seg: &common::IoRegSegmentInfo, off: &common::IoRegOffsetInfo) -> String {
+    let mut mask_qual = "";
+    let mask_str = "\n\n**NOTE**: all values are as defined _before_ any masking.";
+    
+    if func.ty == common::FunctionType::Setter {
+        return format!(
+            "/// Writes the value of the given argument to the `{}` register at relative address 0x{:X} and offset {} bits.{}",
+            seg.name, seg.address, off.index.offset, mask_str
+        )
+    }
+    
+    let mut actual_vals: Vec<String> = vec!();
+    for i in &func.values {
+        match i {
+            &common::FunctionValueType::Static(val) => {
+                // if we will be using a static value, and the qualifier has not been set, set it.
+                if mask_qual.len() == 0 {
+                    mask_qual = mask_str;
                 }
-                &common::FunctionValueType::Reference(ref name) => {
-                    let scoped_name = format!("{}_{}", $seg.name, name);
-                    if $seg.const_vals.contains_key(&scoped_name) {
-                        actual_vals.push(scoped_name.to_uppercase());
-                    } else {
-                        actual_vals.push(name.to_uppercase());
-                    }
+                actual_vals.push(format!("0x{:X}", val));
+            }
+            &common::FunctionValueType::Reference(ref name) => {
+                let scoped_name = format!("{}_{}", seg.name, name);
+                if seg.const_vals.contains_key(&scoped_name) {
+                    actual_vals.push(scoped_name.to_uppercase());
+                } else {
+                    actual_vals.push(name.to_uppercase());
                 }
             }
+            &common::FunctionValueType::Argument(_) => { /* do nothing */ }
         }
-
-        match actual_vals.len() {
-            1 => {
-                format!(
-                    "/// Writes the value `{}` to the `{}` register at relative address 0x{:X} and offset {} bits.{}",
-                    actual_vals[0], $seg.name, $seg.address, $off.index.offset, mask_qual
-                )
-            }
-            _ => {
-                format!(
-                    "/// Consecutively writes the values `{:?}` to the `{}` register at relative address 0x{:X} and offset {} bits.{}",
-                    actual_vals, $seg.name, $seg.address, $off.index.offset, mask_qual
-                )
-            }
+    }
+    
+    match actual_vals.len() {
+        1 => {
+            format!(
+                "/// Writes the value `{}` to the `{}` register at relative address 0x{:X} and offset {} bits.{}",
+                actual_vals[0], seg.name, seg.address, off.index.offset, mask_qual
+            )
         }
-    }}
+        _ => {
+            format!(
+                "/// Consecutively writes the values `{:?}` to the `{}` register at relative address 0x{:X} and offset {} bits.{}",
+                actual_vals, seg.name, seg.address, off.index.offset, mask_qual
+            )
+        }
+    }
 }
 
 pub struct Builder {
@@ -252,6 +259,31 @@ impl Builder {
             .with_arg(ptr_cast!(self_offset, T::to_type(), true)) // mutable
     }
 
+    fn build_volatile_store<T>(
+        &self, addr: u32, fn_def: &common::IoRegFuncDef, seg: &common::IoRegSegmentInfo, v: &common::FunctionValueType
+    )
+        -> ast::Stmt
+        where T: common::ToAstType<T> + common::Narrow<u32>
+    {
+        let base = self.build_volatile_store_base::<T>(addr, fn_def.span);
+        match fn_def.ty {
+            common::FunctionType::StaticSetter => {
+                base.with_arg( T::to_lit(self.get_uint_const_val::<T>(v, seg))  ).build()
+            }
+            common::FunctionType::Setter => {
+                match v {
+                    &common::FunctionValueType::Argument(ref arg_name) => {
+                        base.with_arg( self.base_builder.expr().span(fn_def.span).id(arg_name) ).build()
+                    }
+                    _ => { panic!("did not expect non-argument type for FunctionType::Setter"); }
+                }
+            }
+            common::FunctionType::Getter => {
+                panic!("did not expect getter function for generating volatile_store");
+            }
+        }
+    }
+
     fn get_uint_const_val<T>(&self, v: &common::FunctionValueType, seg: &common::IoRegSegmentInfo) -> T
         where T: common::ToAstType<T> + common::Narrow<u32>
     {
@@ -272,6 +304,7 @@ impl Builder {
                     }
                 }
             }
+            &common::FunctionValueType::Argument(_) => { panic!("arguments cannot be looked up as constants"); }
         }
     }
 
@@ -311,32 +344,63 @@ impl Builder {
                     T::to_lit(mask)
                 );
 
-        for v in &fn_def.values {
-            // if we are not writing the entire width, we cannot reliable set a portion of the register with a
-            // single binop. so instead, we read the current value and mask out the region we will be writing.
-            // now we can write the entire register and simply OR the needed value into the mask
-            let write_val = match off.offset {
-                0 => {
-                    T::to_lit(T::narrow( self.get_uint_const_val::<u32>(v, seg) & val_mask ))
-                }
-                _ => {
-                    self.base_builder.expr().paren().build_shl(
-                        T::to_lit( T::narrow( self.get_uint_const_val::<u32>(v, seg) & val_mask )),
-                        self.base_builder.expr().span(fn_def.span).lit().u8(shift_offset)
-                    )
-                }
-            };
 
-            fn_block = fn_block.with_stmt(
-                self.build_volatile_store_base::<T>(write_address, fn_def.span)
-                    .with_arg(
-                        self.base_builder.expr().span(fn_def.span).build_bit_or(
-                            self.base_builder.expr().span(fn_def.span).id(mask_id),
-                            write_val
+        match fn_def.ty {
+            common::FunctionType::Setter => {
+                let arg_id = self.base_builder.expr().span(fn_def.span).id("val");
+                let write_val = match off.offset {
+                    0 => { arg_id }
+                    _ => {
+                        self.base_builder.expr().span(fn_def.span).paren().build_shl(
+                            self.base_builder.expr().span(fn_def.span).paren().build_bit_and(
+                                arg_id, T::to_lit(T::narrow(val_mask))
+                            ),
+                            self.base_builder.expr().span(fn_def.span).lit().u8(shift_offset)
                         )
-                    )
-                    .build()
-            );
+                    }
+                };
+
+                fn_block = fn_block.with_stmt(
+                    self.build_volatile_store_base::<T>(write_address, fn_def.span)
+                        .with_arg(
+                            self.base_builder.expr().span(fn_def.span).build_bit_or(
+                                self.base_builder.expr().span(fn_def.span).id(mask_id),
+                                write_val
+                            )
+                        )
+                        .build()
+                );
+            }
+            common::FunctionType::StaticSetter => {
+                for v in &fn_def.values {
+                    // if we are not writing the entire width, we cannot reliable set a portion of the register with a
+                    // single binop. so instead, we read the current value and mask out the region we will be writing.
+                    // now we can write the entire register and simply OR the needed value into the mask
+                    let write_val = match off.offset {
+                        0 => {
+                            T::to_lit(T::narrow( self.get_uint_const_val::<u32>(v, seg) & val_mask ))
+                        }
+                        _ => {
+                            self.base_builder.expr().span(fn_def.span).paren().build_shl(
+                                T::to_lit( T::narrow( self.get_uint_const_val::<u32>(v, seg) & val_mask )),
+                                self.base_builder.expr().span(fn_def.span).lit().u8(shift_offset)
+                            )
+                        }
+                    };
+
+                    fn_block = fn_block.with_stmt(
+                        self.build_volatile_store_base::<T>(write_address, fn_def.span)
+                            .with_arg(
+                                self.base_builder.expr().span(fn_def.span).build_bit_or(
+                                    self.base_builder.expr().span(fn_def.span).id(mask_id),
+                                    write_val
+                                )
+                            )
+                            .build()
+                    );
+                }
+            }
+            common::FunctionType::Getter => { panic!("optimize_write did not expect a getter function"); }
         }
 
         fn_block
@@ -350,38 +414,37 @@ impl Builder {
     {
         let mut fn_block = fn_sig;
 
-        // TODO: how to handle PARTIAL writes to WriteOnly registers?
-        if ! off.is_fully_byte_aligned() && seg.access_perms == common::RegisterPermissions::WriteOnly {
-            panic!("partial writes to WriteOnly register indices is currently not supported");
-        }
-
         // if we are setting the entire register, or byte aligned length and index, then write the whole thing blindly :)
         if off.is_fully_byte_aligned() {
+            // TODO: how to handle PARTIAL writes to WriteOnly registers?
+            if seg.access_perms == common::RegisterPermissions::WriteOnly {
+                panic!("partial writes to WriteOnly register indices is currently not supported");
+            }
+
             let write_address = seg.address + off.offset_in_bytes();
-            for v in &fn_def.values {
-                match off.width {
-                    8 => {
-                        fn_block = fn_block.with_stmt(
-                            self.build_volatile_store_base::<u8>(write_address, fn_def.span)
-                                .with_arg( u8::to_lit(self.get_uint_const_val::<u8>(v, seg))  )
-                                .build()
-                            );
+            match fn_def.ty {
+                common::FunctionType::Setter => {
+                    let v = common::FunctionValueType::Argument("val".to_string());
+                    fn_block = fn_block.with_stmt(self.build_volatile_store::<T>(write_address, &fn_def, &seg, &v));
+                }
+                common::FunctionType::StaticSetter => {
+                    for v in &fn_def.values {
+                        match off.width {
+                            8 => {
+                                fn_block = fn_block.with_stmt(self.build_volatile_store::<u8>(write_address, &fn_def, &seg, &v));
+                            }
+                            16 => {
+                                fn_block = fn_block.with_stmt(self.build_volatile_store::<u16>(write_address, &fn_def, &seg, &v));
+                            }
+                            32 => {
+                                fn_block = fn_block.with_stmt(self.build_volatile_store::<u32>(write_address, &fn_def, &seg, &v));
+                            }
+                            _ => { panic!("found non-aligned width despite alignment check"); }
+                        }
                     }
-                    16 => {
-                        fn_block = fn_block.with_stmt(
-                            self.build_volatile_store_base::<u16>(write_address, fn_def.span)
-                                .with_arg( u16::to_lit(self.get_uint_const_val::<u16>(v, seg))  )
-                                .build()
-                            );
-                    }
-                    32 => {
-                        fn_block = fn_block.with_stmt(
-                            self.build_volatile_store_base::<u32>(write_address, fn_def.span)
-                                .with_arg( u32::to_lit(self.get_uint_const_val::<u32>(v, seg))  )
-                                .build()
-                            );
-                    }
-                    _ => { panic!("found non-aligned width despite alignment check"); }
+                }
+                common::FunctionType::Getter => {
+                    panic!("did not expect getter function for generating a setter");
                 }
             }
         } else {
@@ -404,12 +467,19 @@ impl Builder {
             // we know how many bits we need to operate on, but we can only address bytes...
             // so, if we have less than 8 bits, operate on a byte, otherwise get the pow_2 >= width
 
-            let ctx = bldr.item(f.1.name.clone())
-                .attr().doc(setter_doc!(f.1, seg, off).as_str())
+            let mut fn_base = bldr.item(f.1.name.clone())
+                .attr().doc(make_setter_doc(f.1, seg, off).as_str())
                 .pub_().method().span(f.1.span).fn_decl()
-                    .self_().ref_()
-                    .default_return().block()
-                    .expr().block().unsafe_();
+                    .self_().ref_();
+
+            if f.1.ty == common::FunctionType::Setter {
+                //return self.build_user_input_setter();
+                fn_base = fn_base.arg_id("val").with_ty(common::offset_width_to_ty(&off.index));
+            }
+
+            let ctx = fn_base
+                .default_return().block()
+                .expr().block().unsafe_();
 
             bldr = match seg.reg_width {
                 common::RegisterWidth::R8 => { self.build_setter::<u8>(&f.1, seg, &off.index, ctx) }

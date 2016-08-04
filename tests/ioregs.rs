@@ -193,6 +193,14 @@ mod write {
             8..23 =>  { glbl_gets_u16_narrowed => [glbl_large_constant]; }
             24..31 => { local_gets_u8_narrowed => [local_large_constant]; }
         };
+
+        0x0070 => test_user_input r32 rw {
+            0..31 => { set_user_data => (); }
+        };
+
+        0x0080 => test_user_input_unaligned r32 rw {
+            3..18 => { set_user_data_unaligned => (); } // 16 bit value, unaligned
+        };
     );
 
 
@@ -426,5 +434,33 @@ mod write {
         let expect = TestingStruct::TEST_CONSTANTS_LOCAL_LARGE_CONSTANT << 24;
         assert_eq!(0xEF000000, expect);
         assert_eq!(expect, t.read_test_constants());
+    }
+
+
+    //
+    // user input setters
+    //
+
+    #[test]
+    fn user_input_setter() {
+        let reg_mem: [u8; 4096] = [0; 4096];
+        let t = TestingStruct(&reg_mem as *const u8);
+
+        let expect = 0xDEADBEEF;
+        t.set_user_data(expect);
+        assert_eq!(expect, t.read_test_user_input());
+    }
+
+    #[test]
+    fn user_input_setter_unaligned() {
+        let reg_mem: [u8; 4096] = [0; 4096];
+        let t = TestingStruct(&reg_mem as *const u8);
+
+        let val = 0xBEEF;
+        t.set_user_data_unaligned(val);
+
+        let expect = (val & 0xFFFF) << 3;
+        println!("expect 0x{:X}, have 0x{:X}", expect, t.read_test_user_input_unaligned());
+        assert_eq!(expect as u32, t.read_test_user_input_unaligned());
     }
 }
