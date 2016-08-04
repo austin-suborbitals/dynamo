@@ -142,7 +142,7 @@ impl Builder {
 
         let type_def = docced_item
             .pub_().tuple_struct(self.reg.name.clone())
-                .with_tys(vec![ ptr_type!(self.base_builder.ty().u8(), false) ]) // false = immutable
+                .field().pub_().build_ty( ptr_type!(self.base_builder.ty().u8(), false) ) // false = immutable
             .build();
         items.push(type_def);
 
