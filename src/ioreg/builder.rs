@@ -5,6 +5,7 @@ use syntax::ptr;
 use syntax::codemap::Span;
 use syntax::print::pprust;
 
+use std::fmt;
 use std::ops::BitAnd;
 use std::collections::BTreeMap;
 
@@ -48,6 +49,14 @@ macro_rules! ptr_cast {
     };
 }
 
+struct NonQuoteString(String);
+impl fmt::Display for NonQuoteString {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> { write!(f, "{}", self.0) }
+}
+impl fmt::Debug for NonQuoteString {
+    fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> { write!(f, "{}", self.0) }
+}
+
 fn make_setter_doc(func: &common::IoRegFuncDef, seg: &common::IoRegSegmentInfo, off: &common::IoRegOffsetInfo) -> String {
     let mut mask_qual = "";
     let mask_str = "\n\n**NOTE**: all values are as defined _before_ any masking.";
@@ -59,7 +68,7 @@ fn make_setter_doc(func: &common::IoRegFuncDef, seg: &common::IoRegSegmentInfo, 
         )
     }
     
-    let mut actual_vals: Vec<String> = vec!();
+    let mut actual_vals: Vec<NonQuoteString> = vec!();
     for i in &func.values {
         match i {
             &common::FunctionValueType::Static(val) => {
@@ -67,14 +76,14 @@ fn make_setter_doc(func: &common::IoRegFuncDef, seg: &common::IoRegSegmentInfo, 
                 if mask_qual.len() == 0 {
                     mask_qual = mask_str;
                 }
-                actual_vals.push(format!("0x{:X}", val));
+                actual_vals.push(NonQuoteString(format!("0x{:X}", val)));
             }
             &common::FunctionValueType::Reference(ref name) => {
                 let scoped_name = format!("{}_{}", seg.name, name);
                 if seg.const_vals.contains_key(&scoped_name) {
-                    actual_vals.push(scoped_name.to_uppercase());
+                    actual_vals.push(NonQuoteString(scoped_name.to_uppercase()));
                 } else {
-                    actual_vals.push(name.to_uppercase());
+                    actual_vals.push(NonQuoteString(name.to_uppercase()));
                 }
             }
             &common::FunctionValueType::Argument(_) => { /* do nothing */ }
