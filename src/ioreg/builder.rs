@@ -416,11 +416,6 @@ impl Builder {
 
         // if we are setting the entire register, or byte aligned length and index, then write the whole thing blindly :)
         if off.is_fully_byte_aligned() {
-            // TODO: how to handle PARTIAL writes to WriteOnly registers?
-            if seg.access_perms == common::RegisterPermissions::WriteOnly {
-                panic!("partial writes to WriteOnly register indices is currently not supported");
-            }
-
             let write_address = seg.address + off.offset_in_bytes();
             match fn_def.ty {
                 common::FunctionType::Setter => {
@@ -448,6 +443,11 @@ impl Builder {
                 }
             }
         } else {
+            // TODO: how to handle PARTIAL writes to WriteOnly registers?
+            if seg.access_perms == common::RegisterPermissions::WriteOnly {
+                panic!("partial writes to WriteOnly register indices is currently not supported"); // TODO: this should be a syntax error (or be able to access the parser)
+            }
+
             match off.width {
                 1...8 => { fn_block = self.optimize_write::<u8>(fn_def, fn_block, off, seg); }
                 9...16 => { fn_block = self.optimize_write::<u16>(fn_def, fn_block, off, seg); }
