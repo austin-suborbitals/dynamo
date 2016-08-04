@@ -59,23 +59,23 @@ impl fmt::Debug for NonQuoteString {
 
 fn make_setter_doc(func: &common::IoRegFuncDef, seg: &common::IoRegSegmentInfo, off: &common::IoRegOffsetInfo) -> String {
     let mut mask_qual = "";
-    let mask_str = "\n\n**NOTE**: all values are as defined _before_ any masking.";
+    let mask_str = "\n\n**NOTE**: all values in unaligned writes are subject to masking which is not displayed here.";
     
     if func.ty == common::FunctionType::Setter {
         return format!(
             "/// Writes the value of the given argument to the `{}` register at relative address 0x{:X} and offset {} bits.{}",
-            seg.name, seg.address, off.index.offset, mask_str
+            seg.name, seg.address, off.index.offset, if off.index.is_fully_byte_aligned() { "" } else { mask_str }
         )
     }
     
     let mut actual_vals: Vec<NonQuoteString> = vec!();
     for i in &func.values {
+        if mask_qual.len() == 0 && ! off.index.is_fully_byte_aligned() {
+            mask_qual = mask_str;
+        }
         match i {
             &common::FunctionValueType::Static(val) => {
                 // if we will be using a static value, and the qualifier has not been set, set it.
-                if mask_qual.len() == 0 {
-                    mask_qual = mask_str;
-                }
                 actual_vals.push(NonQuoteString(format!("0x{:X}", val)));
             }
             &common::FunctionValueType::Reference(ref name) => {
