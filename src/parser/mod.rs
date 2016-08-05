@@ -1,3 +1,5 @@
+#![macro_use]
+
 extern crate aster;
 
 use syntax::ast;
@@ -10,6 +12,25 @@ use syntax::parse::parser as rsparse;
 
 use std;
 use std::fmt;
+use std::collections::BTreeMap;
+
+macro_rules! is_ident {
+    ($val:expr) => {
+        match $val {
+            &token::Token::Ident(_) => { true }
+            _ => { false }
+        }
+    }
+}
+
+macro_rules! extract_ident_name {
+    ($parser:ident) => {
+        match $parser.curr_token() {
+            &token::Token::Ident(i) => { i.name.as_str().to_string().clone() } // TODO: these coercions are gross
+            _ => { $parser.set_err("detected an ident, but did not parse as an ident"); "".to_string() } // TODO: better default
+        }
+    }
+}
 
 
 pub trait HasMinMax<T> {
@@ -409,5 +430,87 @@ impl<'a> CommonParser<'a> {
 
     pub fn parse_ident_string(&mut self) -> String {
         self.get_ident().name.as_str().to_string()
+    }
+
+
+    //
+    // block reading
+    //
+
+    // parse an entire `doc_srcs => [ ... ]` block into the given vector
+    pub fn parse_doc_sources(&mut self, prefix: &String, into: &mut Vec<String>) {
+        // expect the opening syntax
+        self.expect_ident_value("doc_srcs");
+        self.expect_fat_arrow();
+        self.expect_open_bracket();
+
+        let mut doc_cnt: usize = 0;
+        
+        // until we hit the closing brace
+        loop {
+            // read the literal and assert string
+            let doc_src = self.parse_constant_literal(&format!("{}_doc_{}", prefix, doc_cnt));
+            match doc_src {
+                StaticValue::Str(v, _, _) => { into.push(v); doc_cnt += 1; }
+                _ => { self.set_err("expected a string literal"); return; }
+            }
+
+            if ! self.eat(&token::Token::CloseDelim(token::DelimToken::Bracket)) {
+                self.expect_comma();
+            } else {
+                break;
+            }
+        }
+        self.expect_semi();                   // expect a terminating semicolon for the doc_srcs block
+    }
+
+
+    // parse an entire `constants => { ... }` block into the given hash map
+    pub fn parse_constants_block<T>(
+        &mut self, prefix: &String, into: &mut BTreeMap<String, StaticValue>,
+        validate: fn(&T,&StaticValue,&mut BTreeMap<String, StaticValue>) -> Result<(), String>,
+        validate_ctx: &T
+    ) {
+        // expect the opening syntax
+        self.expect_ident_value("constants");
+        self.expect_fat_arrow();
+        self.expect_open_curly();
+        
+        // until we hit the closing brace
+        while ! self.eat(&token::Token::CloseDelim(token::DelimToken::Brace)) {
+            let mut const_name = self.parse_ident_string();
+            if ! self.eat(&token::Token::Eq) {
+                self.set_err("expected a '=' after constant definition name");
+                return; // TODO: should we just return here? would require func sig change
+            }
+    
+            if prefix.len() > 0 {
+                const_name = format!("{}_{}", prefix, const_name);
+            }
+        
+            // get the value and add it to the list
+            let parsed_val = self.parse_constant_literal(&const_name);
+            match parsed_val {
+                // if error, set the error
+                StaticValue::Error(e,_) => { self.set_err(e.as_str()); }
+                // otherwise, validate and push the value
+                _ => {
+                    match validate(validate_ctx, &parsed_val, into) {
+                        Ok(_) => {
+                            if into.contains_key(&const_name) {
+                                self.set_err("duplicate constant definition");
+                            } else {
+                                into.insert(const_name.clone(), parsed_val);
+                            }
+                        }
+                        Err(e) => {
+                            self.set_err(e.as_str());
+                        }
+                    }
+                }
+            }
+            self.expect_semi();               // expect a terminating semicolon for the value def
+        }
+        self.expect_semi();                   // expect a terminating semicolon for the constants block
     }
 }

@@ -460,7 +460,41 @@ mod write {
         t.set_user_data_unaligned(val);
 
         let expect = (val & 0xFFFF) << 3;
-        println!("expect 0x{:X}, have 0x{:X}", expect, t.read_test_user_input_unaligned());
         assert_eq!(expect as u32, t.read_test_user_input_unaligned());
     }
+}
+
+
+#[cfg(test)]
+mod docs {
+    #![allow(dead_code)]
+
+    ioreg!(
+        name => Multiple;
+        doc_srcs => ["one", "two", "three"];
+    );
+
+    #[test]
+    fn compile() {}
+}
+
+
+#[cfg(test)]
+mod interchange_doc_const_blocks {
+    #![allow(dead_code)]
+
+    ioreg!(
+        name => DocsFirst;
+        doc_srcs => ["test", "other", "third"];
+        constants => { a = 0x123; };
+    );
+
+    ioreg!(
+        name => ConstsFirst;
+        constants => { a = 0x123; };
+        doc_srcs => ["test", "other", "third"];
+    );
+
+    #[test]
+    fn works() {}
 }

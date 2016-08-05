@@ -11,7 +11,7 @@ use rustc_plugin::Registry;
 
 pub mod parser;
 pub mod ioreg;
-pub mod cpu;
+pub mod mcu;
 
 //
 // plugin registration
@@ -21,4 +21,7 @@ pub mod cpu;
 pub fn plugin_registrar(reg: &mut Registry) {
     reg.register_macro("ioreg", ioreg::expand_ioreg);
     reg.register_macro("ioreg_debug", ioreg::expand_ioreg_debug);
+
+    reg.register_macro("mcu", mcu::expand_mcu);
+    reg.register_macro("mcu_debug", mcu::expand_mcu_debug);
 }

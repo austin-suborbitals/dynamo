@@ -115,6 +115,7 @@ use syntax::codemap::Span;
 use syntax::util::small_vector::SmallVector;
 use syntax::ext::base::{ExtCtxt, MacResult};
 
+use std;
 use std::collections::BTreeMap;
 
 pub mod parser;
@@ -122,25 +123,6 @@ pub mod common;
 pub mod builder;
 
 use parser::StaticValue;
-
-
-macro_rules! is_ident {
-    ($val:expr) => {
-        match $val {
-            &token::Token::Ident(_) => { true }
-            _ => { false }
-        }
-    }
-}
-
-macro_rules! extract_ident_name {
-    ($parser:ident) => {
-        match $parser.curr_token() {
-            &token::Token::Ident(i) => { i.name.as_str().to_string().clone() } // TODO: these coercions are gross
-            _ => { $parser.set_err("detected an ident, but did not parse as an ident"); "".to_string() } // TODO: better default
-        }
-    }
-}
 
 
 //
@@ -205,6 +187,54 @@ fn parse_offset(parser: &mut parser::Parser, seg: &mut common::IoRegSegmentInfo)
 }
 
 
+
+// determine if a given parser::StaticValue can fit in the needed register
+fn fits_into(val: &::parser::StaticValue, width: &common::RegisterWidth) -> bool {
+    match val {
+        &::parser::StaticValue::Error(_, _) => { false }
+        &::parser::StaticValue::Int(i, _, _) => {
+            match width {
+                &common::RegisterWidth::R8 => { i <= (i8::max_value() as i32) }
+                &common::RegisterWidth::R16 => { i <= (i16::max_value() as i32) }
+                &common::RegisterWidth::R32 => { i <= (i32::max_value()) }
+                &common::RegisterWidth::Unknown => { false }
+            }
+        }
+        &::parser::StaticValue::Uint(i, _, _) => {
+            match width {
+                &common::RegisterWidth::R8 => { i <= (u8::max_value() as u32) }
+                &common::RegisterWidth::R16 => { i <= (u16::max_value() as u32) }
+                &common::RegisterWidth::R32 => { i <= (u32::max_value()) }
+                &common::RegisterWidth::Unknown => { false }
+            }
+        }
+        &::parser::StaticValue::Float(f, _, _, _) => {
+            match width {
+                &common::RegisterWidth::R8 | &common::RegisterWidth::R16 => { false } // TODO: what to do about f8 and f16
+                &common::RegisterWidth::R32 => { f <= std::f32::MAX }
+                &common::RegisterWidth::Unknown => { false }
+            }
+        }
+        &::parser::StaticValue::Str(_, _, _) => { true } // TODO: this is because we "don't care" but perhaps we should?
+    }
+}
+
+
+
+
+fn validate_constant(
+    width: &common::RegisterWidth, val: &::parser::StaticValue, _: &mut BTreeMap<String, StaticValue>
+)
+    -> Result<(), String>
+{
+    if ! fits_into(&val, width) {
+        Err(format!("given literal does not fit into register of size {:?}", width))
+    } else {
+        Ok(())
+    }
+}
+
+
 // parse a segment of the register block.
 // these are typically _actual_ registers.... but for code sanity
 // we group them together in logical structs.
@@ -217,7 +247,7 @@ fn parse_segment(parser: &mut parser::Parser) -> common::IoRegSegmentInfo {
     parser.expect_fat_arrow();                  // skip the =>
 
     // gather metadata
-    let name = parser.parse_ident_string();       // get the name
+    let name = parser.parse_ident_string();     // get the name
     let width = parser.parse_reg_width();       // get the width
     let perms = parser.parse_reg_access();      // get read/write type
 
@@ -229,7 +259,9 @@ fn parse_segment(parser: &mut parser::Parser) -> common::IoRegSegmentInfo {
     if is_ident!(parser.curr_token()) {
         let tok = extract_ident_name!(parser);
         match tok.as_str() {
-            "constants" => { parser.parse_constants_block(&name, &mut val_defs, &width); }
+            "constants" => {
+                parser.parse_constants_block(&name, &mut val_defs, validate_constant, &width);
+            }
             _ => { parser.set_err("unexpected block keyword"); }
         }
     }
@@ -275,9 +307,14 @@ fn parse_ioreg(parser: &mut parser::Parser) -> common::IoRegInfo {
     while is_ident!(parser.curr_token()) {
         let tok = extract_ident_name!(parser);
         match tok.as_str() {
-            "constants" => { parser.parse_constants_block(&"".to_string(), &mut const_vals, &common::RegisterWidth::R32); }
+            "constants" => {
+                parser.parse_constants_block(
+                    &"".to_string(), &mut const_vals,
+                    validate_constant, &common::RegisterWidth::R32
+                );
+            }
             "doc_srcs" => { parser.parse_doc_sources(&"".to_string(), &mut doc_srcs); }
-            _ => { parser.set_err("unexpected block keyword"); break; }
+            _ => { parser.set_err(format!("unexpected block keyword '{}'", tok).as_str()); break; }
         }
     }
 
