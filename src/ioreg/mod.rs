@@ -121,6 +121,8 @@ pub mod parser;
 pub mod common;
 pub mod builder;
 
+use parser::StaticValue;
+
 
 macro_rules! is_ident {
     ($val:expr) => {
@@ -223,7 +225,7 @@ fn parse_segment(parser: &mut parser::Parser) -> common::IoRegSegmentInfo {
     parser.expect_open_curly();                 // expect the opening brace
 
     // see if we have a constants block, and if so, parse it
-    let mut val_defs: BTreeMap<String, common::StaticValue> = BTreeMap::new();
+    let mut val_defs: BTreeMap<String, StaticValue> = BTreeMap::new();
     if is_ident!(parser.curr_token()) {
         let tok = extract_ident_name!(parser);
         match tok.as_str() {
@@ -268,7 +270,7 @@ fn parse_ioreg(parser: &mut parser::Parser) -> common::IoRegInfo {
     parser.expect_semi();
 
     // check if we have a constants or doc_srcs definition block
-    let mut const_vals: BTreeMap<String, common::StaticValue> = BTreeMap::new();
+    let mut const_vals: BTreeMap<String, StaticValue> = BTreeMap::new();
     let mut doc_srcs: Vec<String> = vec!();
     while is_ident!(parser.curr_token()) {
         let tok = extract_ident_name!(parser);

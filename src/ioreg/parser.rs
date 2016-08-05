@@ -1,39 +1,13 @@
 extern crate aster;
 
-use syntax::ast;
-use syntax::tokenstream;
 use syntax::parse::token;
-use syntax::codemap::Span;
-use syntax::ext::base::ExtCtxt;
-use syntax::parse::parser as rsparse;
 
 use std;
 use std::collections::BTreeMap;
 
+use ::parser;
 use ::ioreg::common;
 
-
-pub trait HasMinMax<T> {
-    fn max_value() -> T;
-    fn min_value() -> T;
-}
-
-impl HasMinMax<u8> for u8 {
-    fn max_value() -> u8 { u8::max_value() }
-    fn min_value() -> u8 { u8::min_value() }
-}
-impl HasMinMax<u16> for u16 {
-    fn max_value() -> u16 { u16::max_value() }
-    fn min_value() -> u16 { u16::min_value() }
-}
-impl HasMinMax<u32> for u32 {
-    fn max_value() -> u32 { u32::max_value() }
-    fn min_value() -> u32 { u32::min_value() }
-}
-impl HasMinMax<f32> for f32 {
-    fn max_value() -> f32 { std::f32::MAX }
-    fn min_value() -> f32 { std::f32::MIN }
-}
 
 macro_rules! read_uint_for_register {
     ($parser:ident, $width:ident) => {{
@@ -48,11 +22,11 @@ macro_rules! read_uint_for_register {
     }}
 }
 
-// determine if a given common::StaticValue can fit in the needed register
-fn fits_into(val: &common::StaticValue, width: &common::RegisterWidth) -> bool {
+// determine if a given parser::StaticValue can fit in the needed register
+fn fits_into(val: &parser::StaticValue, width: &common::RegisterWidth) -> bool {
     match val {
-        &common::StaticValue::Error(_, _) => { false }
-        &common::StaticValue::Int(i, _, _) => {
+        &parser::StaticValue::Error(_, _) => { false }
+        &parser::StaticValue::Int(i, _, _) => {
             match width {
                 &common::RegisterWidth::R8 => { i <= (i8::max_value() as i32) }
                 &common::RegisterWidth::R16 => { i <= (i16::max_value() as i32) }
@@ -60,7 +34,7 @@ fn fits_into(val: &common::StaticValue, width: &common::RegisterWidth) -> bool {
                 &common::RegisterWidth::Unknown => { false }
             }
         }
-        &common::StaticValue::Uint(i, _, _) => {
+        &parser::StaticValue::Uint(i, _, _) => {
             match width {
                 &common::RegisterWidth::R8 => { i <= (u8::max_value() as u32) }
                 &common::RegisterWidth::R16 => { i <= (u16::max_value() as u32) }
@@ -68,198 +42,23 @@ fn fits_into(val: &common::StaticValue, width: &common::RegisterWidth) -> bool {
                 &common::RegisterWidth::Unknown => { false }
             }
         }
-        &common::StaticValue::Float(f, _, _, _) => {
+        &parser::StaticValue::Float(f, _, _, _) => {
             match width {
                 &common::RegisterWidth::R8 | &common::RegisterWidth::R16 => { false } // TODO: what to do about f8 and f16
                 &common::RegisterWidth::R32 => { f <= std::f32::MAX }
                 &common::RegisterWidth::Unknown => { false }
             }
         }
-        &common::StaticValue::Str(_, _, _) => { true } // TODO: this is because we "don't care" but perhaps we should?
+        &parser::StaticValue::Str(_, _, _) => { true } // TODO: this is because we "don't care" but perhaps we should?
     }
 }
 
 
 
-pub struct Parser<'a> {
-    pub parser:     rsparse::Parser<'a>,
-        builder:    aster::AstBuilder,  // used for default value construction
-
-    // state
-    pub curr_span:      Span,
-    pub begin_segment:  Span,
-}
+pub type Parser<'a> = parser::CommonParser<'a>;
 
 
 impl<'a> Parser<'a> {
-    pub fn from(cx: &mut ExtCtxt<'a>, tree: &[tokenstream::TokenTree]) -> Parser<'a> {
-        let p = cx.new_parser_from_tts(tree);
-        let s = p.span;
-        let result = Parser {
-            parser: p,
-            builder: aster::AstBuilder::new(),
-            curr_span: s,
-            begin_segment: s,   // TODO: better initializer
-        };
-        result
-    }
-
-    pub fn set_err(&mut self, err: &str) {
-        self.parser.span_err(self.curr_span, err);
-    }
-
-    pub fn set_fatal_err(&mut self, err: &str) {
-        self.parser.span_fatal(self.curr_span, err).emit();
-        panic!(err.to_string());
-    }
-
-    pub fn set_segment_err(&mut self, err: &str) {
-        self.parser.span_err(self.begin_segment, err);
-    }
-
-    pub fn raw_parser(&self) -> &rsparse::Parser { &self.parser }
-
-
-    //
-    // state saving
-    //
-
-    fn save_span(&mut self) {
-        self.curr_span = self.parser.span.clone();
-    }
-
-
-    //
-    // assert and consume
-    //
-
-    pub fn expect_ident_value(&mut self, expect: &str) {
-        let got = self.parse_ident_string();
-        if expect != got {
-            self.set_fatal_err(format!("expected '{}' but found '{}'", expect, got).as_str());
-        }
-    }
-
-    pub fn expect_semi(&mut self) -> bool {
-        self.save_span();
-        match self.parser.expect(&token::Token::Semi) {
-            Ok(_) => { true }
-            Err(e) => { self.set_fatal_err(e.message()); false }
-        }
-    }
-
-    pub fn expect_equal(&mut self) -> bool {
-        self.save_span();
-        match self.parser.expect(&token::Token::Eq) {
-            Ok(_) => { true }
-            Err(e) => { self.set_fatal_err(e.message()); false }
-        }
-    }
-
-    pub fn expect_fat_arrow(&mut self) -> bool {
-        self.save_span();
-        match self.parser.eat(&token::FatArrow) {
-            true => {true }
-            false => { self.set_fatal_err("expected a fat arrow (=>)"); false }
-        }
-    }
-
-    pub fn expect_colon(&mut self) -> bool {
-        self.save_span();
-        match self.parser.eat(&token::Colon) {
-            true => { true }
-            false => { self.set_fatal_err("expected a colon"); false }
-        }
-    }
-
-    pub fn expect_comma(&mut self) -> bool {
-        self.save_span();
-        match self.parser.eat(&token::Comma) {
-            true => { true }
-            false => { self.set_fatal_err("expected a comma"); false }
-        }
-    }
-
-    pub fn expect_open_paren(&mut self) -> bool {
-        self.save_span();
-        match self.parser.eat(&token::OpenDelim(token::DelimToken::Paren)) {
-            true => { true }
-            false => { self.set_fatal_err("expected an opening paren"); false }
-        }
-    }
-
-    pub fn expect_close_paren(&mut self) -> bool {
-        self.save_span();
-        match self.parser.eat(&token::CloseDelim(token::DelimToken::Paren)) {
-            true => { false }
-            false => { self.set_fatal_err("expected a closing paren"); false }
-        }
-    }
-
-    pub fn expect_open_curly(&mut self) -> bool {
-        self.save_span();
-        match self.parser.eat(&token::OpenDelim(token::DelimToken::Brace)) {
-            true => { true }
-            false => { self.set_fatal_err("expected an opening curly brace"); false }
-        }
-    }
-
-    pub fn expect_close_curly(&mut self) -> bool {
-        self.save_span();
-        match self.parser.eat(&token::CloseDelim(token::DelimToken::Brace)) {
-            true => { false }
-            false => { self.set_fatal_err("expected a closing curly brace"); false }
-        }
-    }
-
-    pub fn expect_open_bracket(&mut self) -> bool {
-        self.save_span();
-        match self.parser.eat(&token::OpenDelim(token::DelimToken::Bracket)) {
-            true => { true }
-            false => { self.set_fatal_err("expected an opening bracket"); false }
-        }
-    }
-
-    pub fn expect_close_bracket(&mut self) -> bool {
-        self.save_span();
-        match self.parser.eat(&token::CloseDelim(token::DelimToken::Bracket)) {
-            true => { true }
-            false => { self.set_fatal_err("expected a closing bracket"); false }
-        }
-    }
-
-
-    //
-    // simple read
-    //
-
-    fn get_ident(&mut self) -> ast::Ident {
-        self.save_span();
-        match self.parser.parse_ident() {
-            Ok(i) => { i }
-            Err(e) => {
-                self.set_err(e.message());
-                ast::Ident::with_empty_ctxt(self.builder.name("error"))
-            }
-        }
-    }
-
-    pub fn get_literal(&mut self) -> Result<ast::Lit, String> {
-        self.save_span();
-        match self.parser.parse_lit() {
-            Ok(i) => {
-                return Ok(i);
-            }
-            Err(e) => {
-                self.set_err(e.message());
-                return Err(e.message().to_string());
-            }
-        }
-    }
-
-    //
-    // value reading
-    //
 
     // parse and index span
     // can be a single number (i.e. 3) or a range (i.e. 1..5)
@@ -292,123 +91,6 @@ impl<'a> Parser<'a> {
         };
     }
 
-    pub fn parse_uint<T: HasMinMax<T> + From<T>>(&mut self) -> u64
-        where u64: From<T> {
-
-        match self.checked_parse_uint::<T>() {
-            Ok(i) => { i }
-            Err(e) => {
-                self.set_err(e.as_str());
-                u64::max_value()
-            }
-        }
-    }
-
-    // TODO: why can I not cast u64 to T where T is uint < u64
-    // TODO: use the new common::Narrow trait
-    pub fn checked_parse_uint<T: HasMinMax<T> + From<T>>(&mut self) -> Result<u64, String>
-        where u64: From<T> {
-
-        let t_as_str = unsafe { std::intrinsics::type_name::<T>() };
-
-        let lit = match self.get_literal() {
-            Ok(i) => { i.node }
-            Err(e) => { return Err(e); }
-        };
-        if let ast::LitKind::Int(value, ty) = lit {
-            match ty {
-                ast::LitIntType::Unsigned(_) | ast::LitIntType::Unsuffixed => {
-                    // some unsigned or unspecified int
-                    if value <= (u64::from(T::max_value())) { // TODO: better assertion
-                        return Ok(value);
-                    } else {
-                        return Err(format!("found value is larger than {}", t_as_str));
-                    }
-                }
-                // everything else
-                _ => {
-                    return Err(format!("expected {}, but parsed {:?}", t_as_str, ty));
-                }
-            }
-        } else {
-            return Err(format!("expected a {}", t_as_str));
-        }
-    }
-
-    pub fn parse_ident_string(&mut self) -> String {
-        self.get_ident().name.as_str().to_string()
-    }
-
-
-    fn parse_constant_literal(&mut self, name: &String) -> common::StaticValue {
-        self.save_span();
-        let curr_span = self.curr_span;
-        match self.curr_token() {
-            // parse an integer literal value
-            &token::Token::Literal(token::Lit::Integer(_), _) => {
-                match self.checked_parse_uint::<u32>() {
-                    Ok(i) => {
-                        return common::StaticValue::Uint(i as u32, name.clone(), curr_span);
-                    }
-                    Err(e) => {
-                        return common::StaticValue::Error(e, curr_span);
-                    }
-                }
-            }
-        
-            // parse a floating literal value
-            &token::Token::Literal(token::Lit::Float(_), _) => {
-                match self.get_literal() {
-                    Ok(l) => {
-                        match l.node {
-                            // TODO: do we care about type? stored as f64....
-                            ast::LitKind::Float(s, _) | ast::LitKind::FloatUnsuffixed(s) => {
-                                let conv = s.parse::<f32>();
-                                if conv.is_err() {
-                                    return common::StaticValue::Error(conv.unwrap_err().to_string(), curr_span);
-                                }
-    
-                                return common::StaticValue::Float(conv.unwrap(), s, name.clone(), curr_span);
-                            }
-                            _ => { return common::StaticValue::Error("could not be parsed as a float".to_string(), curr_span); }
-                        }
-                    }
-                    Err(e) => { return common::StaticValue::Error(e, curr_span); }
-                }
-            }
-    
-            // parse a string literal value
-            &token::Token::Literal(token::Lit::Str_(_), _) => {
-                match self.get_literal() {
-                    Ok(l) => {
-                        match l.node {
-                            ast::LitKind::Str(s, _) => {
-                                return common::StaticValue::Str(s.to_string(), name.clone(), curr_span);
-                            }
-                            _ => { return common::StaticValue::Error("expected a string literal".to_string(), curr_span); }
-                        }
-                    }
-                    Err(e) => {
-                        return common::StaticValue::Error(e, curr_span);
-                    }
-                }
-            }
-
-            // TODO: we need to handle negative ints
-            /*
-            &token::Token::BinOp(token::BinOpToken::Minus) => {
-                self.eat(&token::Token::BinOp(token::BinOpToken::Minus));
-                return self.parse_constant_literal(name);
-            }
-            */
-
-            _ => {
-                return common::StaticValue::Error("unexpected token. expected a static literal".to_string(), curr_span);
-            }
-        }
-    }
-
-
     //
     // parse entire blocks/statements
     //
@@ -416,7 +98,7 @@ impl<'a> Parser<'a> {
 
     // parse an entire `constants => { ... }` block into the given hash map
     pub fn parse_constants_block(
-        &mut self, prefix: &String, into: &mut BTreeMap<String, common::StaticValue>, width: &common::RegisterWidth
+        &mut self, prefix: &String, into: &mut BTreeMap<String, parser::StaticValue>, width: &common::RegisterWidth
     ) {
         // expect the opening syntax
         self.expect_ident_value("constants");
@@ -439,7 +121,7 @@ impl<'a> Parser<'a> {
             let parsed_val = self.parse_constant_literal(&const_name);
             match parsed_val {
                 // if error, set the error
-                common::StaticValue::Error(e,_) => { self.set_err(e.as_str()); }
+                parser::StaticValue::Error(e,_) => { self.set_err(e.as_str()); }
                 // otherwise, push the value
                 _ => {
                     if fits_into(&parsed_val, width) {
@@ -473,7 +155,7 @@ impl<'a> Parser<'a> {
             // read the literal and assert string
             let doc_src = self.parse_constant_literal(&format!("{}_doc_{}", prefix, doc_cnt));
             match doc_src {
-                common::StaticValue::Str(v, _, _) => { into.push(v); doc_cnt += 1; }
+                parser::StaticValue::Str(v, _, _) => { into.push(v); doc_cnt += 1; }
                 _ => { self.set_err("expected a string literal"); return; }
             }
 

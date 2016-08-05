@@ -9,6 +9,7 @@ use std::fmt;
 use std::ops::BitAnd;
 use std::collections::BTreeMap;
 
+use ::parser;
 use ::ioreg::common;
 
 type ImplBuilder = aster::item::ItemImplBuilder<aster::invoke::Identity>;
@@ -178,27 +179,27 @@ impl Builder {
         items
     }
 
-    fn build_const_vals(&self, vals: &BTreeMap<String, common::StaticValue>, prev_build: ImplBuilder) -> ImplBuilder {
+    fn build_const_vals(&self, vals: &BTreeMap<String, parser::StaticValue>, prev_build: ImplBuilder) -> ImplBuilder {
         let mut builder = prev_build;
         // generate associated constants in the impl block
         for v in vals {
             let name = v.0.to_uppercase();
             match v.1 {
-                &common::StaticValue::Int(i, _, sp) => {
+                &parser::StaticValue::Int(i, _, sp) => {
                     builder = builder.item(name).span(sp).const_().expr().i32(i).ty().i32();
                 }
-                &common::StaticValue::Uint(u, _, sp) => {
+                &parser::StaticValue::Uint(u, _, sp) => {
                     builder = builder.item(name).span(sp).const_().expr().u32(u).ty().u32();
                 }
-                &common::StaticValue::Float(_, ref s, _, sp) => {
+                &parser::StaticValue::Float(_, ref s, _, sp) => {
                     builder = builder.item(name).span(sp).const_().expr().f32(s).ty().f32();
                 }
-                &common::StaticValue::Str(ref s, _, sp) => {
+                &parser::StaticValue::Str(ref s, _, sp) => {
                     builder = builder.item(name).span(sp).const_().expr()
                         .str(s.clone().as_str())
                         .ty().ref_().lifetime("'static").ty().path().id("str").build();
                 }
-                &common::StaticValue::Error(ref e, _) => {
+                &parser::StaticValue::Error(ref e, _) => {
                     // TODO: what should we do here?
                     panic!("encountered error while building const_val getter: {}", e);
                 }
@@ -242,7 +243,7 @@ impl Builder {
 
     // TODO: assumes u32 address space
     fn build_read_register<T>(&self, addr: u32, sp: Span) -> ptr::P<ast::Expr>
-        where T: common::ToAstType<T>
+        where T: parser::ToAstType<T>
     {
         let self_offset = self.base_builder.expr().span(sp)
             .method_call("offset").tup_field(0).self_()
@@ -256,7 +257,7 @@ impl Builder {
     }
 
     fn build_volatile_store_base<T>(&self, addr: u32, sp: Span) -> FnArgsBuilder
-        where T: common::ToAstType<T>
+        where T: parser::ToAstType<T>
     {
         let self_offset = self.base_builder.expr().span(sp)
             .method_call("offset").tup_field(0).self_()
@@ -272,7 +273,7 @@ impl Builder {
         &self, addr: u32, fn_def: &common::IoRegFuncDef, seg: &common::IoRegSegmentInfo, v: &common::FunctionValueType
     )
         -> ast::Stmt
-        where T: common::ToAstType<T> + common::Narrow<u32>
+        where T: parser::ToAstType<T> + parser::Narrow<u32>
     {
         let base = self.build_volatile_store_base::<T>(addr, fn_def.span);
         match fn_def.ty {
@@ -294,7 +295,7 @@ impl Builder {
     }
 
     fn get_uint_const_val<T>(&self, v: &common::FunctionValueType, seg: &common::IoRegSegmentInfo) -> T
-        where T: common::ToAstType<T> + common::Narrow<u32>
+        where T: parser::ToAstType<T> + parser::Narrow<u32>
     {
         match v {
             &common::FunctionValueType::Static(val) => { T::narrow(val) }
@@ -302,7 +303,7 @@ impl Builder {
                 match self.lookup_const_val(name, seg) {
                     Ok(v) => {
                         match v {
-                            &common::StaticValue::Uint(u, _, _) => { T::narrow(u) }
+                            &parser::StaticValue::Uint(u, _, _) => { T::narrow(u) }
                             _ => {
                                 panic!("expected a static value after lookup up constant value definition");
                             }
@@ -328,7 +329,7 @@ impl Builder {
         off: &common::IoRegOffsetIndexInfo, seg: &common::IoRegSegmentInfo
     )
         -> FnInternalBlockBuilder
-        where T: common::ToAstType<T> + common::Narrow<u32> + BitAnd<T>
+        where T: parser::ToAstType<T> + parser::Narrow<u32> + BitAnd<T>
     {
         let write_address = seg.address + off.offset_in_bytes();
         let shift_offset = off.offset % 8;
@@ -419,7 +420,7 @@ impl Builder {
 
     fn build_setter<T>(&self, fn_def: &common::IoRegFuncDef, seg: &common::IoRegSegmentInfo, off: &common::IoRegOffsetIndexInfo,  fn_sig: FnInternalBlockBuilder)
         -> ImplBuilder
-        where T: common::ToAstType<T> + common::Narrow<u32>
+        where T: parser::ToAstType<T> + parser::Narrow<u32>
     {
         let mut fn_block = fn_sig;
 
@@ -503,7 +504,7 @@ impl Builder {
         bldr
     }
 
-    fn lookup_const_val<'a>(&'a self, name: &str, seg: &'a common::IoRegSegmentInfo) -> Result<&common::StaticValue, String> {
+    fn lookup_const_val<'a>(&'a self, name: &str, seg: &'a common::IoRegSegmentInfo) -> Result<&parser::StaticValue, String> {
         // first, check for global def
         let mut val = self.reg.const_vals.get(name);
         if val.is_some() {

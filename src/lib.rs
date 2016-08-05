@@ -9,6 +9,7 @@ extern crate rustc_plugin;
 
 use rustc_plugin::Registry;
 
+pub mod parser;
 pub mod ioreg;
 pub mod cpu;
 

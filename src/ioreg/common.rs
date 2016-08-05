@@ -5,27 +5,12 @@ use std::fmt::{Debug, Formatter, Result};
 
 use syntax::ast;
 use syntax::ptr;
-use syntax::parse::token;
 use syntax::codemap::Span;
 
 use std::collections::BTreeMap;
 
-
-//
-// narrow from u32 to u8 and u16
-//
-pub trait Narrow<T> {
-    fn narrow(u: T) -> Self;
-}
-impl Narrow<u32> for u8 {
-    fn narrow(u: u32) -> Self { (u & 0xFFFF) as u8 }
-}
-impl Narrow<u32> for u16 {
-    fn narrow(u: u32) -> Self { (u & 0xFFFF) as u16 }
-}
-impl Narrow<u32> for u32 {
-    fn narrow(u: u32) -> Self { u }
-}
+use ::parser;
+use parser::ToAstType;
 
 
 //
@@ -39,31 +24,6 @@ pub fn reg_width_to_ty(width: &RegisterWidth) -> ptr::P<ast::Ty> {
         &RegisterWidth::R32 => { u32::to_type() }
         &RegisterWidth::Unknown => { u32::to_type() } // TODO: panic? ok to default?
     }
-}
-
-pub trait ToAstType<T> {
-    fn to_type() -> ptr::P<ast::Ty>;
-    fn to_lit(val: T) -> ptr::P<ast::Expr>;
-    fn to_arg(val: T) -> ptr::P<ast::Expr>;
-}
-
-// TODO: do not require a new builder
-impl ToAstType<u8> for u8 {
-    fn to_type() -> ptr::P<ast::Ty> { aster::AstBuilder::new().ty().u8() }
-    fn to_lit(val: u8) -> ptr::P<ast::Expr> { aster::AstBuilder::new().expr().lit().u8(val) }
-    fn to_arg(val: u8) -> ptr::P<ast::Expr> { aster::AstBuilder::new().expr().lit().u8(val) }
-}
-// TODO: do not require a new builder
-impl ToAstType<u16> for u16 {
-    fn to_type() -> ptr::P<ast::Ty> { aster::AstBuilder::new().ty().u16() }
-    fn to_lit(val: u16) -> ptr::P<ast::Expr> { aster::AstBuilder::new().expr().lit().u16(val) }
-    fn to_arg(val: u16) -> ptr::P<ast::Expr> { aster::AstBuilder::new().expr().lit().u16(val) }
-}
-// TODO: do not require a new builder
-impl ToAstType<u32> for u32 {
-    fn to_type() -> ptr::P<ast::Ty> { aster::AstBuilder::new().ty().u32() }
-    fn to_lit(val: u32) -> ptr::P<ast::Expr> { aster::AstBuilder::new().expr().lit().u32(val) }
-    fn to_arg(val: u32) -> ptr::P<ast::Expr> { aster::AstBuilder::new().expr().lit().u32(val) }
 }
 
 
@@ -107,31 +67,6 @@ impl Debug for FunctionType {
             FunctionType::Getter => { write!(f, "getter") }
             FunctionType::Setter => { write!(f, "setter (with input)") }
             FunctionType::StaticSetter => { write!(f, "setter") }
-        }
-    }
-}
-
-//
-// static value type
-//
-
-// TODO: 32bit limitation imposed here
-pub enum StaticValue {
-    Int(i32, String, Span),
-    Uint(u32, String, Span),
-    Float(f32, token::InternedString, String, Span), // TODO: avoid carrying the interned string around
-    Str(String, String, Span),
-    Error(String, Span),
-}
-
-impl Debug for StaticValue {
-    fn fmt(&self, f: &mut Formatter) -> Result {
-        match self {
-            &StaticValue::Int(i, ref n, _) => { write!(f, "({}:int) {}", n, i) }
-            &StaticValue::Uint(i, ref n, _) => { write!(f, "({}:uint) {}", n, i) }
-            &StaticValue::Float(i, _, ref n, _) => { write!(f, "({}:float) {}", n, i) }
-            &StaticValue::Str(ref s, ref n, _) => { write!(f, "({}:str) {}", n, s) }
-            &StaticValue::Error(ref e, _) => { write!(f, "(PARSER ERROR) {}", e) }
         }
     }
 }
@@ -276,7 +211,7 @@ pub struct IoRegSegmentInfo {
     pub address:        u32, // TODO: usize?
     pub reg_width:      RegisterWidth,
     pub access_perms:   RegisterPermissions,
-    pub const_vals:     BTreeMap<String, StaticValue>,
+    pub const_vals:     BTreeMap<String, parser::StaticValue>,
     pub offsets:        Vec<IoRegOffsetInfo>,
     pub span:           Span,
 }
@@ -306,7 +241,7 @@ pub struct IoRegInfo {
     pub name:       String,
     pub doc_srcs:   Vec<String>,
     pub segments:   BTreeMap<String, IoRegSegmentInfo>,
-    pub const_vals: BTreeMap<String, StaticValue>,
+    pub const_vals: BTreeMap<String, parser::StaticValue>,
     pub span:       Span,
 }
 
