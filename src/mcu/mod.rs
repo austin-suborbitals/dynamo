@@ -13,10 +13,15 @@ mcu!(
 
     // TODO: externs sections
 
-    interrupts => [255] @ .interrupts {     // NOTE: argument to @ _must_ be a link section
+    // NOTE: argument to @ _must_ be a link section
+    // if you cannot know the link section name at definition-time, you can manually
+    // create the array using references to the functions defined in related modules.
+    //
+    // if no interrupts are defined, no structure is created.
+    interrupts => [255] @ .interrupts {
         0       => main;
         1..5    => some_common_handler;
-        6       => another_handler;
+        6       => peregrine::isr::default::some_default_handler;
         7..127  => None;
     };
 
@@ -36,17 +41,21 @@ mcu!(
         dest_end    => data_section_end;
     };
 
+    heap => {
+        base    => HEAP_BEGIN;
+        limit   => HEAP_END;
+    };
+
     peripherals => {
         wdog    => wdog::Watchdog @ 0x5000;     // type parsed as a path and pointer set to value after @
         uart    => uart::UART @ UART_1;         // can also be a const/extern
         i2c     => i2c::I2C @ i2c_loc;          // can also be an internal constant
     };
 
+
+    // NOTE: functions with empty () args after the ident get an implicit `&mut self`
+    // NOTE: actions cannot have return values
     actions => [
-        // NOTE: functions with empty () args after the ident get an implicit `&mut self`
-        //
-        // NOTE: actions cannot have return values
-        //
         // NOTE: init is a special cased action.
         //       if it is defined we will not generate one -- if it is not defined, the generated MCU::init() would
         //          1. unlock the watchdog (assumes self.wdog.unlock() exists)
@@ -68,14 +77,13 @@ mcu!(
         };
 
 
-        // NOTE: this function also has implicit self
         enable_hardfloat() => {
             self.my_periph.enable();
         }
 
         // sets the given pin to digital mode.
         // just an example -- so probably not realistic
-        digital_pin(pin: u8) =>() {
+        digital_pin(pin: u8) => {
             match pin / PINS_PER_PORT {
                 1 => { self.port_a.digital(pin % PINS_PER_PORT); }
                 2 => { self.port_a.digital(pin % PINS_PER_PORT); }
