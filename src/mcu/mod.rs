@@ -4,24 +4,34 @@ mcu!(
     name => SomeMcuName;
     doc_srcs => [
         "http://some.url.com/path/to/probably.pdf",
-        "http://some.url.com/path/to/another.pdf",
+        "http://some.url.com/path/to/another.pdf"
     ];
+
+    link_script => "some/path/to/a/linker.ld";
 
     constants => {
         i2c_loc = 0x8000;
     };
 
-    // TODO: externs sections
+    externs => {
+        data_flash: usize;
+        data_section: usize;
+        data_section_end: usize;
+    };
 
     // NOTE: argument to @ _must_ be a link section
+    //       the link section _must_ be prefixed with a '.'
     // if you cannot know the link section name at definition-time, you can manually
     // create the array using references to the functions defined in related modules.
     //
     // if no interrupts are defined, no structure is created.
+    //
+    // NOTE: if you use a path to a function, it _must_ be prefixed with the module separator "::".
+    //       this will not be included in the result, but is needed to distinguish between a path and an ident.
     interrupts => [255] @ .interrupts {
         0       => main;
         1..5    => some_common_handler;
-        6       => peregrine::isr::default::some_default_handler;
+        6       => ::peregrine::isr::default::some_default_handler;
         7..127  => None;
     };
 

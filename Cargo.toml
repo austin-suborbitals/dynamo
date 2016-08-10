@@ -8,4 +8,5 @@ plugin = true
 crate_type = ["dylib"]
 
 [dependencies]
-aster = { version = "0.21.1" }
+aster = "0.21.1"
+bitmap = "*"

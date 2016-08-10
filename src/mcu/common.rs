@@ -1,10 +1,13 @@
+extern crate aster;
 extern crate syntax;
 
 use syntax::ast;
+use syntax::codemap::Span;
 
 use std::collections::BTreeMap;
 
 use parser::StaticValue;
+use ::mcu::common;
 
 #[derive(Debug)]
 pub struct RangeInfo {
@@ -20,21 +23,43 @@ impl RangeInfo {
 
 #[derive(Debug)]
 pub struct StackInfo {
-    pub base:   usize,
-    pub limit:  usize,
+    pub base:   StaticValue,
+    pub limit:  StaticValue,
+    pub link_location: String,
 }
 
 #[derive(Debug)]
 pub struct DataInfo {
-    pub src:        usize,
-    pub dest_begin: usize,
-    pub dest_end:   usize,
+    pub src:        StaticValue,
+    pub dest_begin: StaticValue,
+    pub dest_end:   StaticValue,
 }
 
 #[derive(Debug)]
 pub struct HeapInfo {
-    pub base:   usize,
-    pub limit:  usize,
+    pub base:   StaticValue,
+    pub limit:  StaticValue,
+}
+
+#[derive(Debug)]
+pub struct InterruptsInfo {
+    pub ints: Vec<(common::RangeInfo, StaticValue)>,
+    pub link_location: String,
+}
+impl InterruptsInfo {
+    pub fn default() -> Self {
+        InterruptsInfo{
+            ints: vec!(),
+            link_location: "unknown_link_location".to_string(),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct PeripheralInfo {
+    pub name: String,
+    pub path: ast::TyKind,
+    pub ptr: StaticValue,
 }
 
 #[derive(Debug)]
@@ -42,11 +67,13 @@ pub struct McuInfo {
     pub name: String,
     pub docs: Vec<String>,
     pub constants: BTreeMap<String, StaticValue>,
-    pub interrupts: Vec<Option<fn()>>,
+    pub externs: BTreeMap<String, (ast::TyKind, Span)>,
+    pub interrupts: InterruptsInfo,
     pub stack: StackInfo,
     pub data: DataInfo,
     pub heap: HeapInfo,
-    pub peripherals: Vec<ast::Path>
+    pub peripherals: Vec<PeripheralInfo>,
+    pub link_script: String,
 }
 
 impl McuInfo {
@@ -55,11 +82,17 @@ impl McuInfo {
             name: "".to_string(),
             docs: vec!(),
             constants: BTreeMap::new(),
-            interrupts: vec!(),
-            stack: StackInfo{base:0, limit:0},
-            data: DataInfo{src:0, dest_begin:0, dest_end:0},
-            heap: HeapInfo{base:0, limit:0},
+            externs: BTreeMap::new(),
+            interrupts: InterruptsInfo::default(),
+            stack: StackInfo{base: StaticValue::default_uint(), limit: StaticValue::default_uint(), link_location:"".to_string()},
+            data: DataInfo{
+                src:StaticValue::default_uint(),
+                dest_begin:StaticValue::default_uint(),
+                dest_end:StaticValue::default_uint()
+            },
+            heap: HeapInfo{base:StaticValue::default_uint(), limit:StaticValue::default_uint()},
             peripherals: vec!(),
+            link_script: "".to_string(),
         }
     }
 }

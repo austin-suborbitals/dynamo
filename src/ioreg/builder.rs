@@ -199,6 +199,12 @@ impl Builder {
                         .str(s.clone().as_str())
                         .ty().ref_().lifetime("'static").ty().path().id("str").build();
                 }
+                &parser::StaticValue::Ident(ref s, _, _) => {
+                    panic!("cannot use ident as constant: {}", s);
+                }
+                &parser::StaticValue::Path(ref s, _) => {
+                    panic!("cannot use path as constant: {}", s);
+                }
                 &parser::StaticValue::Error(ref e, _) => {
                     // TODO: what should we do here?
                     panic!("encountered error while building const_val getter: {}", e);

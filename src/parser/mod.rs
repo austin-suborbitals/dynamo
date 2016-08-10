@@ -8,6 +8,7 @@ use syntax::tokenstream;
 use syntax::parse::token;
 use syntax::codemap::Span;
 use syntax::ext::base::ExtCtxt;
+use syntax::ext::quote::rt::DUMMY_SP;
 use syntax::parse::parser as rsparse;
 
 use std;
@@ -112,7 +113,14 @@ pub enum StaticValue {
     Uint(u32, String, Span),
     Float(f32, token::InternedString, String, Span), // TODO: avoid carrying the interned string around
     Str(String, String, Span),
+    Ident(String, ast::Ident, Span),
+    Path(ast::Path, Span),
     Error(String, Span),
+}
+impl StaticValue {
+    pub fn default_uint() -> StaticValue {
+        StaticValue::Uint(0, "default_static_uint".to_string(), DUMMY_SP)
+    }
 }
 
 impl fmt::Debug for StaticValue {
@@ -122,6 +130,8 @@ impl fmt::Debug for StaticValue {
             &StaticValue::Uint(i, ref n, _) => { write!(f, "({}:uint) {}", n, i) }
             &StaticValue::Float(i, _, ref n, _) => { write!(f, "({}:float) {}", n, i) }
             &StaticValue::Str(ref s, ref n, _) => { write!(f, "({}:str) {}", n, s) }
+            &StaticValue::Ident(ref s, _, _) => { write!(f, "({}:ident)", s) }
+            &StaticValue::Path(ref s, _) => { write!(f, "({:?}:path)", s) }
             &StaticValue::Error(ref e, _) => { write!(f, "(PARSER ERROR) {}", e) }
         }
     }
@@ -287,6 +297,17 @@ impl<'a> CommonParser<'a> {
             Err(e) => {
                 self.set_err(e.message());
                 ast::Ident::with_empty_ctxt(self.builder.name("error"))
+            }
+        }
+    }
+
+    pub fn get_type_path(&mut self) -> ast::Path {
+        self.save_span();
+        match self.parser.parse_path(rsparse::PathStyle::Type) {
+            Ok(i) => { i }
+            Err(e) => {
+                self.set_err(e.message());
+                ast::Path::from_ident(DUMMY_SP, aster::AstBuilder::new().id("error"))
             }
         }
     }

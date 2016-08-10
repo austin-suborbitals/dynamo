@@ -192,6 +192,7 @@ fn parse_offset(parser: &mut parser::Parser, seg: &mut common::IoRegSegmentInfo)
 fn fits_into(val: &::parser::StaticValue, width: &common::RegisterWidth) -> bool {
     match val {
         &::parser::StaticValue::Error(_, _) => { false }
+        &::parser::StaticValue::Ident(_, _, _) | &::parser::StaticValue::Path(_, _) => { false }
         &::parser::StaticValue::Int(i, _, _) => {
             match width {
                 &common::RegisterWidth::R8 => { i <= (i8::max_value() as i32) }
