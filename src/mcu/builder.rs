@@ -2,11 +2,14 @@ extern crate aster;
 
 use syntax::ast;
 use syntax::ptr;
+use syntax::abi;
 use syntax::print::pprust;
 
 use ::mcu::common;
 use ::mcu::parser;
 use ::parser::StaticValue;
+
+type ImplBuilder = aster::item::ItemImplBuilder<aster::invoke::Identity>;
 
 
 // TODO: dedupe with ioreg
@@ -60,9 +63,10 @@ impl<'a> Builder<'a> {
     // TODO: better return?
     pub fn build(&self) -> Vec<ptr::P<ast::Item>> {
         let mut result = Vec::<ptr::P<ast::Item>>::new();
+        result.push(self.build_externs());
         result.push(self.build_struct());
-        result.push(self.build_sync_impl());
         result.push(self.build_impl());
+        result.push(self.build_sync_impl());
         result.push(self.build_static_instantiation());
 
         if self.verbose {
@@ -156,9 +160,67 @@ impl<'a> Builder<'a> {
         )
     }
 
+    // TODO: no cloning the tykind
+    pub fn build_externs(&self) -> ptr::P<ast::Item> {
+        let mut externs: Vec<ast::ForeignItem> = vec!();
+        for (k, e) in &self.mcu.externs {
+            externs.push(ast::ForeignItem {
+                ident: self.base_builder.id(k),
+                attrs: vec!(),
+                node: ast::ForeignItemKind::Static(self.base_builder.ty().span(e.1).build_ty_kind(e.0.clone()), false),
+                id: 0xFFFFFFFF,
+                span: e.1,
+                vis: ast::Visibility::Inherited,
+            });
+        }
+
+        self.base_builder.item().build_item_kind("extern_block", ast::ItemKind::ForeignMod(ast::ForeignMod{
+            abi: abi::Abi::C,
+            items: externs
+        }))
+    }
+
     pub fn build_impl(&self) -> ptr::P<ast::Item> {
-        let impl_block = self.base_builder.item().impl_();
+        let mut impl_block = self.base_builder.item().impl_();
+        impl_block = self.build_const_vals(impl_block);
+
 
         impl_block.ty().id(self.mcu.name.clone())
+    }
+
+    fn build_const_vals(&self, impl_block: ImplBuilder) -> ImplBuilder {
+        let mut builder = impl_block;
+
+        // generate associated constants in the impl block
+        for v in &self.mcu.constants {
+            let name = v.0.to_uppercase();
+            match v.1 {
+                &StaticValue::Int(i, _, sp) => {
+                    builder = builder.item(name).span(sp).const_().expr().i32(i).ty().i32();
+                }
+                &StaticValue::Uint(u, _, sp) => {
+                    builder = builder.item(name).span(sp).const_().expr().u32(u).ty().u32();
+                }
+                &StaticValue::Float(_, ref s, _, sp) => {
+                    builder = builder.item(name).span(sp).const_().expr().f32(s).ty().f32();
+                }
+                &StaticValue::Str(ref s, _, sp) => {
+                    builder = builder.item(name).span(sp).const_().expr()
+                        .str(s.clone().as_str())
+                        .ty().ref_().lifetime("'static").ty().path().id("str").build();
+                }
+                &StaticValue::Ident(ref s, _, _) => {
+                    panic!("cannot use ident as constant: {}", s);
+                }
+                &StaticValue::Path(ref s, _) => {
+                    panic!("cannot use path as constant: {}", s);
+                }
+                &StaticValue::Error(ref e, _) => {
+                    // TODO: what should we do here?
+                    panic!("encountered error while building const_val getter: {}", e);
+                }
+            }
+        }
+        builder
     }
 }
