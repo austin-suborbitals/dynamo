@@ -75,6 +75,9 @@ mod poc {
 
 
     #[test]
-    fn compiles() {
+    fn static_instantiated() {
+        unsafe { // TODO: mutable statics are unsafe? does it even need to be mutable without `initialized`?
+            assert_eq!(false, mcu.is_initialized());
+        }
     }
 }

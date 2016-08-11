@@ -61,6 +61,7 @@ impl<'a> Builder<'a> {
     pub fn build(&self) -> Vec<ptr::P<ast::Item>> {
         let mut result = Vec::<ptr::P<ast::Item>>::new();
         result.push(self.build_struct());
+        result.push(self.build_impl());
         result.push(self.build_static_instantiation());
 
         if self.verbose {
@@ -94,11 +95,10 @@ impl<'a> Builder<'a> {
 
     // TODO: minimize clones
     pub fn build_static_instantiation(&self) -> ptr::P<ast::Item> {
-        //self.base_builder.stmt().let_().id("mcu").ty().id(self.mcu.name.clone())
-
-        // TODO: do this in a .map(|x| x) style
         let mut built_struct = self.base_builder.expr().struct_().id(self.mcu.name.clone()).build()
             .field("initialized").false_();
+
+        // TODO: do this in a .map(|x| x) style if possible
         for p in &self.mcu.peripherals {
             let ty_path = match &p.path {
                 &ast::TyKind::Path(_, ref path) => { path.clone() }
@@ -145,5 +145,14 @@ impl<'a> Builder<'a> {
                 built_struct.build()
             )
         )
+    }
+
+    pub fn build_impl(&self) -> ptr::P<ast::Item> {
+        self.base_builder.item().impl_()
+            .item("is_initialized").pub_().method().fn_decl().self_().ref_().return_().bool().block()
+                .stmt().expr().return_expr()
+                    .field("initialized").self_()
+            .build()
+        .ty().id(self.mcu.name.clone())
     }
 }
