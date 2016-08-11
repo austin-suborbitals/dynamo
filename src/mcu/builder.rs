@@ -61,6 +61,7 @@ impl<'a> Builder<'a> {
     pub fn build(&self) -> Vec<ptr::P<ast::Item>> {
         let mut result = Vec::<ptr::P<ast::Item>>::new();
         result.push(self.build_struct());
+        result.push(self.build_sync_impl());
         result.push(self.build_impl());
         result.push(self.build_static_instantiation());
 
@@ -74,7 +75,12 @@ impl<'a> Builder<'a> {
     pub fn build_struct(&self) -> ptr::P<ast::Item> {
         // make the struct builder and add the doc attributes
         let mut preamble = self.base_builder.item()
-            .attr().doc(format!("/// Generated definition of the {} MCU", self.mcu.name).as_str());
+            .attr().doc(format!("/// Generated definition of the {} MCU", self.mcu.name).as_str())
+            .attr().doc(        "///")
+            .attr().doc(        "/// The `Sync` trait is automatically generated, so all locking")
+            .attr().doc(        "/// of registers/mcu is left to the implementor")
+            .attr().doc(        "///");
+
         for d in &self.mcu.docs {
             preamble = preamble.attr().doc(format!("/// source: {}", d).as_str());
         }
@@ -82,21 +88,24 @@ impl<'a> Builder<'a> {
             preamble = preamble.attr().doc(format!("/// link script: {}", self.mcu.link_script).as_str());
         }
 
-        // make it a pub struct
-        let mut base_struct = preamble.pub_().struct_(self.mcu.name.clone()).field("initialized").ty().bool();
-
         // and add the peripheral fields
+        let mut fields: Vec<ast::StructField> = vec!();
         for p in &self.mcu.peripherals {
-            base_struct = base_struct.field(p.name.clone()).pub_().ty().build_ty_kind(p.path.clone());
+            fields.push(self.base_builder.span(p.span).struct_field(p.name.clone()).pub_().ty().build_ty_kind(p.path.clone()));
         }
 
-        base_struct.build()
+        preamble.pub_().struct_(self.mcu.name.clone()).with_fields(fields).build()
+    }
+
+    pub fn build_sync_impl(&self) -> ptr::P<ast::Item> {
+        self.base_builder.item().impl_().unsafe_()
+            .trait_().id("Sync").build()
+            .ty().id(self.mcu.name.clone())
     }
 
     // TODO: minimize clones
     pub fn build_static_instantiation(&self) -> ptr::P<ast::Item> {
-        let mut built_struct = self.base_builder.expr().struct_().id(self.mcu.name.clone()).build()
-            .field("initialized").false_();
+        let mut built_struct = self.base_builder.expr().struct_().id(self.mcu.name.clone()).build();
 
         // TODO: do this in a .map(|x| x) style if possible
         for p in &self.mcu.peripherals {
@@ -138,21 +147,18 @@ impl<'a> Builder<'a> {
 
 
         self.base_builder.item().build_item_kind(
-            "mcu",
+            "MCU",
             ast::ItemKind::Static(
                 self.base_builder.ty().id(self.mcu.name.clone()),
-                ast::Mutability::Mutable,
+                ast::Mutability::Immutable,
                 built_struct.build()
             )
         )
     }
 
     pub fn build_impl(&self) -> ptr::P<ast::Item> {
-        self.base_builder.item().impl_()
-            .item("is_initialized").pub_().method().fn_decl().self_().ref_().return_().bool().block()
-                .stmt().expr().return_expr()
-                    .field("initialized").self_()
-            .build()
-        .ty().id(self.mcu.name.clone())
+        let impl_block = self.base_builder.item().impl_();
+
+        impl_block.ty().id(self.mcu.name.clone())
     }
 }

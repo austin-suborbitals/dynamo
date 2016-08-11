@@ -60,6 +60,7 @@ pub struct PeripheralInfo {
     pub name: String,
     pub path: ast::TyKind,
     pub ptr: StaticValue,
+    pub span: Span,
 }
 
 #[derive(Debug)]
@@ -72,7 +73,7 @@ pub struct McuInfo {
     pub stack: StackInfo,                                   // TODO: builder
     pub data: DataInfo,                                     // TODO: builder
     pub heap: HeapInfo,                                     // TODO: builder
-    pub peripherals: Vec<PeripheralInfo>,                   // TODO: instantiate static mcu and fill these in
+    pub peripherals: Vec<PeripheralInfo>,
     pub link_script: String,                                // TODO: make sure #[link_flags = ""] escape crate-level
 }
 

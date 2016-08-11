@@ -235,6 +235,7 @@ impl<'a> Parser<'a> {
 
     pub fn parse_peripherals(&mut self, into: &mut Vec<common::PeripheralInfo>, consts: &BTreeMap<String, parser::StaticValue>) {
         while ! self.eat(&token::CloseDelim(token::DelimToken::Brace)) {
+            let sp = self.curr_span;
             let name = self.parse_ident_string();
             self.expect_fat_arrow();
             let periph = self.parser.parse_ty_path().expect(format!("could not parse type path for peripheral {}", name).as_str());
@@ -242,8 +243,8 @@ impl<'a> Parser<'a> {
                 self.set_fatal_err("expected an '@' token after peripheral type name");
             }
 
-            let mut addr = self.parse_lit_or_ident(format!("{}_addr", name).as_str(), consts);
-            into.push(common::PeripheralInfo{name: name, path: periph, ptr: addr});
+            let addr = self.parse_lit_or_ident(format!("{}_addr", name).as_str(), consts);
+            into.push(common::PeripheralInfo{name: name, path: periph, ptr: addr, span: sp});
             self.expect_semi();
         }
         self.expect_semi();
