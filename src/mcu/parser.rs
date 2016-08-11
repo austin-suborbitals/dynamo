@@ -15,7 +15,7 @@ use ::parser;
 use ::mcu::common;
 
 // TODO: check less than usize? not sure if or what we want/need to validate
-fn validate_constant(ctx: &(), val: &::parser::StaticValue, into: &mut BTreeMap<String, parser::StaticValue>)
+fn validate_constant(_: &(), _: &::parser::StaticValue, _: &mut BTreeMap<String, parser::StaticValue>)
     -> Result<(), String>
 {
     Ok(())
@@ -57,19 +57,19 @@ impl<'a> Parser<'a> {
                 }
                 "stack" => {
                     self.assert_keyword_preamble("stack");
-                    self.parse_stack(&mut result.stack);
+                    self.parse_stack(&mut result.stack, &result.constants);
                 }
                 "data" => {
                     self.assert_keyword_preamble("data");
-                    self.parse_data(&mut result.data);
+                    self.parse_data(&mut result.data, &result.constants);
                 }
                 "heap" => {
                     self.assert_keyword_preamble("heap");
-                    self.parse_heap(&mut result.heap);
+                    self.parse_heap(&mut result.heap, &result.constants);
                 }
                 "peripherals" => {
                     self.assert_keyword_preamble("peripherals");
-                    self.parse_peripherals(&mut result.peripherals);
+                    self.parse_peripherals(&mut result.peripherals, &result.constants);
                 }
                 _ => { self.set_err(format!("unexpected block keyword '{}'", tok).as_str()); break; }
             }
@@ -163,11 +163,11 @@ impl<'a> Parser<'a> {
         self.expect_semi();
     }
 
-    pub fn parse_stack(&mut self, into: &mut common::StackInfo) {
+    pub fn parse_stack(&mut self, into: &mut common::StackInfo, consts: &BTreeMap<String, parser::StaticValue>) {
         // parse base
         self.expect_ident_value("base");
         self.expect_fat_arrow();
-        into.base = self.parse_lit_or_ident("stack_base");
+        into.base = self.parse_lit_or_ident("stack_base", consts);
         if ! self.parser.expect(&token::Token::At).is_ok() {
             self.set_fatal_err("expected an '@' token after stack base location");
         }
@@ -180,7 +180,7 @@ impl<'a> Parser<'a> {
         // parse limit
         self.expect_ident_value("limit");
         self.expect_fat_arrow();
-        into.limit = self.parse_lit_or_ident("stack_limit");
+        into.limit = self.parse_lit_or_ident("stack_limit", consts);
         self.expect_semi();
 
         // TODO: how to validate values if they are idents!?
@@ -189,23 +189,23 @@ impl<'a> Parser<'a> {
         self.expect_semi();
     }
 
-    pub fn parse_data(&mut self, into: &mut common::DataInfo) {
+    pub fn parse_data(&mut self, into: &mut common::DataInfo, consts: &BTreeMap<String, parser::StaticValue>) {
         // parse src
         self.expect_ident_value("src");
         self.expect_fat_arrow();
-        into.src = self.parse_lit_or_ident("data_src");
+        into.src = self.parse_lit_or_ident("data_src", consts);
         self.expect_semi();
 
         // parse dest_begin
         self.expect_ident_value("dest_begin");
         self.expect_fat_arrow();
-        into.dest_begin = self.parse_lit_or_ident("data_dest");
+        into.dest_begin = self.parse_lit_or_ident("data_dest", consts);
         self.expect_semi();
 
         // parse dest_end
         self.expect_ident_value("dest_end");
         self.expect_fat_arrow();
-        into.dest_end = self.parse_lit_or_ident("data_dest_end");
+        into.dest_end = self.parse_lit_or_ident("data_dest_end", consts);
         self.expect_semi();
 
         // TODO: how to validate values if they are idents!?
@@ -214,17 +214,17 @@ impl<'a> Parser<'a> {
         self.expect_semi();
     }
 
-    pub fn parse_heap(&mut self, into: &mut common::HeapInfo) {
+    pub fn parse_heap(&mut self, into: &mut common::HeapInfo, consts: &BTreeMap<String, parser::StaticValue>) {
         // parse base
         self.expect_ident_value("base");
         self.expect_fat_arrow();
-        into.base = self.parse_lit_or_ident("heap_base");
+        into.base = self.parse_lit_or_ident("heap_base", consts);
         self.expect_semi();
 
         // parse limit
         self.expect_ident_value("limit");
         self.expect_fat_arrow();
-        into.limit = self.parse_lit_or_ident("heap_limit");
+        into.limit = self.parse_lit_or_ident("heap_limit", consts);
         self.expect_semi();
 
         // TODO: how to validate values if they are idents!?
@@ -233,7 +233,7 @@ impl<'a> Parser<'a> {
         self.expect_semi();
     }
 
-    pub fn parse_peripherals(&mut self, into: &mut Vec<common::PeripheralInfo>) {
+    pub fn parse_peripherals(&mut self, into: &mut Vec<common::PeripheralInfo>, consts: &BTreeMap<String, parser::StaticValue>) {
         while ! self.eat(&token::CloseDelim(token::DelimToken::Brace)) {
             let name = self.parse_ident_string();
             self.expect_fat_arrow();
@@ -242,7 +242,7 @@ impl<'a> Parser<'a> {
                 self.set_fatal_err("expected an '@' token after peripheral type name");
             }
 
-            let addr = self.parse_lit_or_ident(format!("{}_addr", name).as_str());
+            let mut addr = self.parse_lit_or_ident(format!("{}_addr", name).as_str(), consts);
             into.push(common::PeripheralInfo{name: name, path: periph, ptr: addr});
             self.expect_semi();
         }
@@ -259,11 +259,17 @@ impl<'a> Parser<'a> {
         self.expect_open_curly();
     }
 
-    pub fn parse_lit_or_ident(&mut self, name: &str) -> parser::StaticValue {
+    // NOTE: will return a literal if the ident is an internal constant
+    pub fn parse_lit_or_ident(&mut self, name: &str, consts: &BTreeMap<String, parser::StaticValue>) -> parser::StaticValue {
         let sp = self.curr_span.clone();
         match self.curr_token() {
             &token::Token::Ident(id) => {
-                parser::StaticValue::Ident(id.name.to_string().clone(), self.get_ident(), sp)
+                if consts.contains_key(&id.name.to_string()) {
+                    self.parser.bump(); // did not actually read anything
+                    (*consts.get(&id.name.to_string()).expect("could not get constant from const map")).clone()
+                } else {
+                    parser::StaticValue::Ident(id.name.to_string().clone(), self.get_ident(), sp)
+                }
             }
             &token::Token::Literal(_, _) => {
                 parser::StaticValue::Uint(self.parse_uint::<u32>() as u32, name.to_string(), sp)

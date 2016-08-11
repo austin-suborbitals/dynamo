@@ -147,7 +147,5 @@ fn generate_mcu(_: &ExtCtxt, info: common::McuInfo, parser: parser::Parser, verb
     -> Box<MacResult + 'static>
 {
     let builder = builder::Builder::new(info, parser, verbose);
-
-    //let items = builder.build();
     syntax::ext::base::MacEager::items(SmallVector::many(builder.build()))
 }

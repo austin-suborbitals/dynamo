@@ -108,6 +108,7 @@ impl ToAstType<u32> for u32 {
 //
 
 // TODO: 32bit limitation imposed here
+#[derive(Clone)]
 pub enum StaticValue {
     Int(i32, String, Span),
     Uint(u32, String, Span),

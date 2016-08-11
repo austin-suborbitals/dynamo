@@ -66,14 +66,14 @@ pub struct PeripheralInfo {
 pub struct McuInfo {
     pub name: String,
     pub docs: Vec<String>,
-    pub constants: BTreeMap<String, StaticValue>,
-    pub externs: BTreeMap<String, (ast::TyKind, Span)>,
-    pub interrupts: InterruptsInfo,
-    pub stack: StackInfo,
-    pub data: DataInfo,
-    pub heap: HeapInfo,
-    pub peripherals: Vec<PeripheralInfo>,
-    pub link_script: String,
+    pub constants: BTreeMap<String, StaticValue>,           // TODO: builder
+    pub externs: BTreeMap<String, (ast::TyKind, Span)>,     // TODO: builder
+    pub interrupts: InterruptsInfo,                         // TODO: builder
+    pub stack: StackInfo,                                   // TODO: builder
+    pub data: DataInfo,                                     // TODO: builder
+    pub heap: HeapInfo,                                     // TODO: builder
+    pub peripherals: Vec<PeripheralInfo>,                   // TODO: instantiate static mcu and fill these in
+    pub link_script: String,                                // TODO: make sure #[link_flags = ""] escape crate-level
 }
 
 impl McuInfo {

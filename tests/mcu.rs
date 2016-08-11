@@ -8,7 +8,13 @@
 
 #[cfg(test)]
 mod poc {
-    mcu!(
+    mod wdog { ioreg!( name => Watchdog; ); }
+    mod uart { ioreg!( name => UART; ); }
+    mod i2c { ioreg!( name => I2C; ); }
+
+    const UART_1: u32 = 0xDEADBEEF;
+
+    mcu_debug!(
         name => SomeMcuName;
         doc_srcs => [
             "http://some.url.com/path/to/probably.pdf",
