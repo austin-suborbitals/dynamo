@@ -14,7 +14,7 @@ mod poc {
 
     const UART_1: u32 = 0xDEADBEEF;
 
-    mcu_debug!(
+    mcu!(
         name => SomeMcuName;
         doc_srcs => [
             "http://some.url.com/path/to/probably.pdf",
