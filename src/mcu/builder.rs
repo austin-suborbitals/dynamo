@@ -67,7 +67,9 @@ impl<'a> Builder<'a> {
         result.push(self.build_struct());
         result.push(self.build_impl());
         result.push(self.build_sync_impl());
-        result.push(self.build_static_instantiation());
+        if ! self.mcu.no_static {
+            result.push(self.build_static_instantiation());
+        }
 
         if self.verbose {
             for i in &result { println!("{}\n", pprust::item_to_string(i)); }
@@ -107,8 +109,7 @@ impl<'a> Builder<'a> {
             .ty().id(self.mcu.name.clone())
     }
 
-    // TODO: minimize clones
-    pub fn build_static_instantiation(&self) -> ptr::P<ast::Item> {
+    pub fn build_new_struct(&self) -> ptr::P<ast::Expr> {
         let mut built_struct = self.base_builder.expr().struct_().id(self.mcu.name.clone()).build();
 
         // TODO: do this in a .map(|x| x) style if possible
@@ -148,14 +149,17 @@ impl<'a> Builder<'a> {
                 }
             }
         }
+        built_struct.build()
+    }
 
-
+    // TODO: minimize clones
+    pub fn build_static_instantiation(&self) -> ptr::P<ast::Item> {
         self.base_builder.item().build_item_kind(
             "MCU",
             ast::ItemKind::Static(
                 self.base_builder.ty().id(self.mcu.name.clone()),
                 ast::Mutability::Immutable,
-                built_struct.build()
+                self.build_new_struct()
             )
         )
     }
@@ -184,6 +188,11 @@ impl<'a> Builder<'a> {
         let mut impl_block = self.base_builder.item().impl_();
         impl_block = self.build_const_vals(impl_block);
 
+        // create the ::new() function
+        impl_block = impl_block.method("new").span(self.mcu.span).fn_decl()
+            .return_().path().id(self.mcu.name.clone()).build()
+            .block()
+                .build_expr(self.build_new_struct());
 
         impl_block.ty().id(self.mcu.name.clone())
     }

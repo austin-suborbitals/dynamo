@@ -3,6 +3,7 @@ extern crate syntax;
 
 use syntax::ast;
 use syntax::codemap::Span;
+use syntax::ext::quote::rt::DUMMY_SP;
 
 use std::collections::BTreeMap;
 
@@ -75,6 +76,8 @@ pub struct McuInfo {
     pub heap: HeapInfo,                                     // TODO: builder
     pub peripherals: Vec<PeripheralInfo>,
     pub link_script: String,                                // TODO: builder and make sure #[link_flags = ""] escape crate-level
+    pub span: Span,
+    pub no_static: bool,
 }
 
 impl McuInfo {
@@ -94,6 +97,8 @@ impl McuInfo {
             heap: HeapInfo{base:StaticValue::default_uint(), limit:StaticValue::default_uint()},
             peripherals: vec!(),
             link_script: "".to_string(),
+            span: DUMMY_SP,
+            no_static: false,
         }
     }
 }

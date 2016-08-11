@@ -25,6 +25,18 @@ pub type Parser<'a> = parser::CommonParser<'a>;
 impl<'a> Parser<'a> {
     pub fn parse(&mut self) -> common::McuInfo {
         let mut result = common::McuInfo::default();
+        result.span = self.curr_span;
+
+        match self.curr_token() {
+            &token::Token::Ident(n) => {
+                if n.to_string() == "no_static" {
+                    self.parser.bump();
+                    self.expect_semi();
+                    result.no_static = true;
+                }
+            }
+            _ => {}
+        }
 
         // parse the mcu name
         self.expect_ident_value("name");
