@@ -126,7 +126,7 @@ impl<'a> Parser<'a> {
 
         // make a bitmap to make sure we set an interrupt only once
         //let mut set_ints_raw = Vec::<usize>::with_capacity(num_ints as usize);
-        let set_ints: Bitmap<_, bitmap::DynamicSize> =
+        let mut set_ints: Bitmap<_, bitmap::DynamicSize> =
             Bitmap::from_storage(num_ints as usize, 1 as usize, vec![0; ((num_ints/8)+1) as usize])
                 .expect("could not create bitmap");
 
@@ -139,6 +139,7 @@ impl<'a> Parser<'a> {
                 if set_ints.get(i).expect("error getting bitmap index") == 1 {
                     self.set_fatal_err("a value for this interrupt has already been set -- the ranges probably overlap");
                 }
+                set_ints.set(i, 1);
             }
 
             let sp = self.curr_span.clone();
