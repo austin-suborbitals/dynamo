@@ -112,8 +112,8 @@ impl<'a> Builder<'a> {
             let ty_path = match &p.path {
                 &ast::TyKind::Path(_, ref path) => { path.clone() }
                 _ => {
-                    // TODO: set parser error
-                    panic!(format!("cannot use non-path type for peripheral {}", p.name));
+                    self.parser.parser.span_err(p.span, format!("cannot use non-path type for peripheral {}", p.name).as_str());
+                    self.base_builder.path().id("builder_error").build()
                 }
             };
 
@@ -139,8 +139,8 @@ impl<'a> Builder<'a> {
                         ).build();
                 }
                 _ => {
-                    // TODO: set parser error instead of panic
-                    panic!(format!("must use either a literal or an ident for peripheral address for {}", p.name));
+                    self.parser.parser.span_err(p.span,
+                        format!("must use either a literal or an ident for peripheral address for {}", p.name).as_str());
                 }
             }
         }

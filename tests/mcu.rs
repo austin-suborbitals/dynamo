@@ -1,5 +1,4 @@
 #![feature(plugin)]
-#![feature(core_intrinsics)]
 #![feature(associated_consts)]
 
 #![plugin(dynamo)]

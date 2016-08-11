@@ -111,9 +111,7 @@ extern crate syntax;
 extern crate rustc;
 extern crate rustc_plugin;
 
-use syntax::ast;
 use syntax::tokenstream;
-use syntax::parse::token;
 use syntax::codemap::Span;
 use syntax::util::small_vector::SmallVector;
 use syntax::ext::base::{ExtCtxt, MacResult};

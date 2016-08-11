@@ -7,10 +7,8 @@ use syntax::ext::quote::rt::DUMMY_SP;
 extern crate bitmap;
 use self::bitmap::Bitmap;
 
-use std::mem;
 use std::collections::BTreeMap;
 
-#[macro_use]
 use ::parser;
 use ::mcu::common;
 
