@@ -51,7 +51,7 @@ impl InterruptsInfo {
     pub fn default() -> Self {
         InterruptsInfo{
             ints: vec!(),
-            link_location: "unknown_link_location".to_string(),
+            link_location: "".to_string(),
         }
     }
 }
