@@ -131,6 +131,9 @@ impl Builder {
 
         // generate the base "struct" pointer.
         let mut docced_item = self.base_builder.item().span(self.reg.span)
+            .attr().list("derive").word("Debug").build()
+            .attr().list("derive").word("Clone").build()
+            .attr().list("derive").word("PartialEq").build()
             .attr().doc(
                 format!("/// Pointer wrapper that implements the {} operations", self.reg.name).as_str()
             );

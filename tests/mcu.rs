@@ -6,10 +6,26 @@
 #[allow(dead_code)]
 
 #[cfg(test)]
-mod poc {
+mod sanity {
     mod wdog { ioreg!( name => Watchdog; ); }
     mod uart { ioreg!( name => UART; ); }
     mod i2c { ioreg!( name => I2C; ); }
+
+    // TODO: cannot set the attrs for the entire extern module?
+    mod some_extern_thing {
+        #[no_mangle]
+        #[allow(non_upper_case_globals)]
+        #[allow(private_no_mangle_statics)]
+        pub static data_flash: usize = 0x1234;
+        #[no_mangle]
+        #[allow(non_upper_case_globals)]
+        #[allow(private_no_mangle_statics)]
+        pub static data_section: usize = 0x4321;
+        #[no_mangle]
+        #[allow(non_upper_case_globals)]
+        #[allow(private_no_mangle_statics)]
+        pub static data_section_end: usize = 0xBEEF;
+    }
 
     const UART_1: u32 = 0xDEADBEEF;
 
@@ -76,5 +92,34 @@ mod poc {
 
 
     #[test]
-    fn compiles() {}
+    fn correct_periphs() {
+        let mcu = SomeMcuName::new();
+        assert_eq!(mcu.wdog, wdog::Watchdog(0x5000 as *const u8));
+        assert_eq!(mcu.uart, uart::UART(UART_1 as *const u8));
+        assert_eq!(mcu.i2c, i2c::I2C(0x8000 as *const u8));
+    }
+
+    #[test]
+    fn constants() {
+        assert_eq!(SomeMcuName::I2C_LOC, 0x8000);
+    }
+
+    #[test]
+    fn externs() {
+        assert_eq!(data_flash, some_extern_thing::data_flash);
+        assert_eq!(data_section, some_extern_thing::data_section);
+        assert_eq!(data_section_end, some_extern_thing::data_section_end);
+    }
+}
+
+#[cfg(test)]
+mod with_static {
+    mcu!(
+        name => TestMcu;
+    );
+
+    #[test]
+    fn instantiated() {
+        assert_eq!(MCU, TestMcu::new());
+    }
 }

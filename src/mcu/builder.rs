@@ -63,11 +63,15 @@ impl<'a> Builder<'a> {
     // TODO: better return?
     pub fn build(&self) -> Vec<ptr::P<ast::Item>> {
         let mut result = Vec::<ptr::P<ast::Item>>::new();
-        result.push(self.build_externs());
+        if ! self.mcu.externs.is_empty() {
+            result.push(self.build_externs());
+        }
+
         result.push(self.build_struct());
         result.push(self.build_impl());
-        result.push(self.build_sync_impl());
+
         if ! self.mcu.no_static {
+            result.push(self.build_sync_impl());
             result.push(self.build_static_instantiation());
         }
 
@@ -81,6 +85,9 @@ impl<'a> Builder<'a> {
     pub fn build_struct(&self) -> ptr::P<ast::Item> {
         // make the struct builder and add the doc attributes
         let mut preamble = self.base_builder.item()
+            .attr().list("derive").word("Debug").build()
+            .attr().list("derive").word("Clone").build()
+            .attr().list("derive").word("PartialEq").build()
             .attr().doc(format!("/// Generated definition of the {} MCU", self.mcu.name).as_str())
             .attr().doc(        "///")
             .attr().doc(        "/// The `Sync` trait is automatically generated, so all locking")
