@@ -146,7 +146,6 @@ pub struct CommonParser<'a> {
         builder:    aster::AstBuilder,
 
     // state
-    pub curr_span:      Span,
     pub begin_segment:  Span,
 }
 
@@ -157,18 +156,22 @@ impl<'a> CommonParser<'a> {
         CommonParser {
             parser: p,
             builder: aster::AstBuilder::new(),
-            curr_span: s,
             begin_segment: s,   // TODO: better initializer
         }
     }
 
     pub fn set_err(&mut self, err: &str) {
-        self.parser.span_err(self.curr_span, err);
+        self.parser.span_err(self.parser.span, err);
+    }
+    pub fn set_err_last(&mut self, err: &str) {
+        self.parser.span_err(self.parser.last_span, err);
     }
 
     pub fn set_fatal_err(&mut self, err: &str) {
-        self.parser.span_fatal(self.curr_span, err).emit();
-        panic!(err.to_string());
+        self.parser.span_fatal(self.parser.span, err).emit();
+    }
+    pub fn set_fatal_err_last(&mut self, err: &str) {
+        self.parser.span_fatal(self.parser.last_span, err).emit();
     }
 
     pub fn set_segment_err(&mut self, err: &str) {
@@ -176,15 +179,6 @@ impl<'a> CommonParser<'a> {
     }
 
     pub fn raw_parser(&self) -> &rsparse::Parser { &self.parser }
-
-
-    //
-    // state saving
-    //
-
-    pub fn save_span(&mut self) {
-        self.curr_span = self.parser.span.clone();
-    }
 
 
     //
@@ -199,7 +193,6 @@ impl<'a> CommonParser<'a> {
     }
 
     pub fn expect_semi(&mut self) -> bool {
-        self.save_span();
         match self.parser.expect(&token::Token::Semi) {
             Ok(_) => { true }
             Err(e) => { self.set_fatal_err(e.message()); false }
@@ -207,7 +200,6 @@ impl<'a> CommonParser<'a> {
     }
 
     pub fn expect_equal(&mut self) -> bool {
-        self.save_span();
         match self.parser.expect(&token::Token::Eq) {
             Ok(_) => { true }
             Err(e) => { self.set_fatal_err(e.message()); false }
@@ -215,7 +207,6 @@ impl<'a> CommonParser<'a> {
     }
 
     pub fn expect_fat_arrow(&mut self) -> bool {
-        self.save_span();
         match self.parser.eat(&token::FatArrow) {
             true => {true }
             false => { self.set_fatal_err("expected a fat arrow (=>)"); false }
@@ -223,7 +214,6 @@ impl<'a> CommonParser<'a> {
     }
 
     pub fn expect_colon(&mut self) -> bool {
-        self.save_span();
         match self.parser.eat(&token::Colon) {
             true => { true }
             false => { self.set_fatal_err("expected a colon"); false }
@@ -231,7 +221,6 @@ impl<'a> CommonParser<'a> {
     }
 
     pub fn expect_comma(&mut self) -> bool {
-        self.save_span();
         match self.parser.eat(&token::Comma) {
             true => { true }
             false => { self.set_fatal_err("expected a comma"); false }
@@ -239,7 +228,6 @@ impl<'a> CommonParser<'a> {
     }
 
     pub fn expect_open_paren(&mut self) -> bool {
-        self.save_span();
         match self.parser.eat(&token::OpenDelim(token::DelimToken::Paren)) {
             true => { true }
             false => { self.set_fatal_err("expected an opening paren"); false }
@@ -247,7 +235,6 @@ impl<'a> CommonParser<'a> {
     }
 
     pub fn expect_close_paren(&mut self) -> bool {
-        self.save_span();
         match self.parser.eat(&token::CloseDelim(token::DelimToken::Paren)) {
             true => { false }
             false => { self.set_fatal_err("expected a closing paren"); false }
@@ -255,7 +242,6 @@ impl<'a> CommonParser<'a> {
     }
 
     pub fn expect_open_curly(&mut self) -> bool {
-        self.save_span();
         match self.parser.eat(&token::OpenDelim(token::DelimToken::Brace)) {
             true => { true }
             false => { self.set_fatal_err("expected an opening curly brace"); false }
@@ -263,7 +249,6 @@ impl<'a> CommonParser<'a> {
     }
 
     pub fn expect_close_curly(&mut self) -> bool {
-        self.save_span();
         match self.parser.eat(&token::CloseDelim(token::DelimToken::Brace)) {
             true => { false }
             false => { self.set_fatal_err("expected a closing curly brace"); false }
@@ -271,7 +256,6 @@ impl<'a> CommonParser<'a> {
     }
 
     pub fn expect_open_bracket(&mut self) -> bool {
-        self.save_span();
         match self.parser.eat(&token::OpenDelim(token::DelimToken::Bracket)) {
             true => { true }
             false => { self.set_fatal_err("expected an opening bracket"); false }
@@ -279,7 +263,6 @@ impl<'a> CommonParser<'a> {
     }
 
     pub fn expect_close_bracket(&mut self) -> bool {
-        self.save_span();
         match self.parser.eat(&token::CloseDelim(token::DelimToken::Bracket)) {
             true => { true }
             false => { self.set_fatal_err("expected a closing bracket"); false }
@@ -292,7 +275,6 @@ impl<'a> CommonParser<'a> {
     //
 
     pub fn get_ident(&mut self) -> ast::Ident {
-        self.save_span();
         match self.parser.parse_ident() {
             Ok(i) => { i }
             Err(e) => {
@@ -303,7 +285,6 @@ impl<'a> CommonParser<'a> {
     }
 
     pub fn get_type_path(&mut self) -> ast::Path {
-        self.save_span();
         match self.parser.parse_path(rsparse::PathStyle::Type) {
             Ok(i) => { i }
             Err(e) => {
@@ -314,7 +295,6 @@ impl<'a> CommonParser<'a> {
     }
 
     pub fn get_literal(&mut self) -> Result<ast::Lit, String> {
-        self.save_span();
         match self.parser.parse_lit() {
             Ok(i) => {
                 return Ok(i);
@@ -376,8 +356,7 @@ impl<'a> CommonParser<'a> {
 
 
     pub fn parse_constant_literal(&mut self, name: &String) -> StaticValue {
-        self.save_span();
-        let curr_span = self.curr_span;
+        let curr_span = self.parser.span;
         match self.curr_token() {
             // parse an integer literal value
             &token::Token::Literal(token::Lit::Integer(_), _) => {

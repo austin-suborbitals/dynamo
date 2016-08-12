@@ -1,12 +1,16 @@
 #![feature(plugin)]
+#![feature(core_intrinsics)]
 #![feature(associated_consts)]
 
 #![plugin(dynamo)]
 
-#[allow(dead_code)]
+#![allow(dead_code)]
 
 #[cfg(test)]
 mod sanity {
+    extern crate core;
+    use self::core::intrinsics::volatile_copy_nonoverlapping_memory;
+
     mod wdog { ioreg!( name => Watchdog; ); }
     mod uart { ioreg!( name => UART; ); }
     mod i2c { ioreg!( name => I2C; ); }
@@ -20,16 +24,19 @@ mod sanity {
         #[no_mangle]
         #[allow(non_upper_case_globals)]
         #[allow(private_no_mangle_statics)]
-        pub static data_section: usize = 0x4321;
+        pub static data_flash_end: usize = 0x4321;
         #[no_mangle]
         #[allow(non_upper_case_globals)]
         #[allow(private_no_mangle_statics)]
-        pub static data_section_end: usize = 0xBEEF;
+        pub static data_section: usize = 0xBEEF;
     }
 
     const UART_1: u32 = 0xDEADBEEF;
+    const STACK_LIMIT: u32 = 0x12345678;
+    const HEAP_BEGIN: u32 = 0xBADC0FFE;
+    const HEAP_END: u32 = 0xBADFFFFF;
 
-    mcu!(
+    mcu_debug!(
         no_static;
 
         name => SomeMcuName;
@@ -46,8 +53,8 @@ mod sanity {
 
         externs => {
             data_flash: usize;
+            data_flash_end: usize;
             data_section: usize;
-            data_section_end: usize;
         };
 
         // NOTE: argument to @ _must_ be a link section
@@ -62,20 +69,15 @@ mod sanity {
             7..127  => None;
         };
 
-        // NOTE: the `base` field requires a link section to place the base pointer -- generally right before the IVT
-        //       the stack **will not** be located at the link section, simply a pointer to it.
-        //       it is entirely reasonable to have something like:
-        //          `base => .stack_begin @ .stack_ptr`
-        //       this would place the stack base at `.stack_begin` and create a constant STACK_BEGIN
         stack => {
-            base    => 0x1000 @ .stack_ptr;
+            base    => 0x1000;
             limit   => STACK_LIMIT;             // externally defined const. could also be an internal constant or literal
         };
 
         data => {
-            src         => data_flash;
-            dest_begin  => data_section;
-            dest_end    => data_section_end;
+            src_begin   => data_flash;
+            src_end     => data_flash_end;
+            dest        => data_section;
         };
 
         heap => {
@@ -107,13 +109,28 @@ mod sanity {
     #[test]
     fn externs() {
         assert_eq!(data_flash, some_extern_thing::data_flash);
+        assert_eq!(data_flash_end, some_extern_thing::data_flash_end);
         assert_eq!(data_section, some_extern_thing::data_section);
-        assert_eq!(data_section_end, some_extern_thing::data_section_end);
+    }
+
+    #[test]
+    fn stack_constants_generated() {
+        assert_eq!(SomeMcuName::STACK_BASE, 0x1000);
+        assert_eq!(SomeMcuName::STACK_LIMIT, STACK_LIMIT);
+    }
+
+    #[test]
+    fn heap_constants_generated() {
+        assert_eq!(SomeMcuName::HEAP_BASE, HEAP_BEGIN);
+        assert_eq!(SomeMcuName::HEAP_LIMIT, HEAP_END);
     }
 }
 
 #[cfg(test)]
 mod with_static {
+    extern crate core;
+    use self::core::intrinsics::volatile_copy_nonoverlapping_memory;
+
     mcu!(
         name => TestMcu;
     );
@@ -121,5 +138,17 @@ mod with_static {
     #[test]
     fn instantiated() {
         assert_eq!(MCU, TestMcu::new());
+    }
+
+    #[test]
+    fn stack_constants_default() {
+        assert_eq!(TestMcu::STACK_BASE, 0);
+        assert_eq!(TestMcu::STACK_LIMIT, 0);
+    }
+
+    #[test]
+    fn heap_constants_default() {
+        assert_eq!(TestMcu::HEAP_BASE, 0);
+        assert_eq!(TestMcu::HEAP_LIMIT, 0);
     }
 }

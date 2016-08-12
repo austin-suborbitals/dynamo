@@ -45,10 +45,16 @@ mcu!(
         limit   => STACK_LIMIT;             // externally defined const. could also be an internal constant or literal
     };
 
+    code => {
+        src_begin   => code_flash;
+        src_end     => code_flash_end;
+        dest        => code_section;
+    };
+
     data => {
-        src         => data_flash;
-        dest_begin  => data_section;
-        dest_end    => data_section_end;
+        src_begin   => data_flash;
+        src_end     => data_flash_end;
+        dest        => data_section;
     };
 
     heap => {

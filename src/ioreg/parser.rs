@@ -29,7 +29,7 @@ impl<'a> Parser<'a> {
     // returned as a tuple of (begin, length)
     // TODO: Result<(u8,u8), _> perhaps?
     pub fn parse_index(&mut self) -> common::IoRegOffsetIndexInfo {
-        let start_span = self.curr_span;
+        let start_span = self.parser.span;
         let begin = self.parse_uint::<u8>() as u8;
         if begin == u8::max_value() {
             self.set_err("detected error while parsing index");
@@ -95,7 +95,7 @@ impl<'a> Parser<'a> {
 
     // parse a function definition from the name to the semicolon after the argument values
     pub fn parse_func_def(&mut self, name: String, width: &common::RegisterWidth) -> common::IoRegFuncDef {
-        let span = self.curr_span.clone();
+        let span = self.parser.span.clone();
 
         self.expect_fat_arrow();                  // functions must be followed with fat arrow
         let setter_type = match self.curr_token() {

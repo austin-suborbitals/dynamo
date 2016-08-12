@@ -147,7 +147,7 @@ pub fn expand_ioreg_debug(cx: &mut ExtCtxt, _: Span, args: &[tokenstream::TokenT
 //
 
 fn parse_offset(parser: &mut parser::Parser, seg: &mut common::IoRegSegmentInfo) -> Result<common::IoRegOffsetInfo, &'static str> {
-    let start_span = parser.curr_span;
+    let start_span = parser.parser.span;
 
     // parse the index width and begin offset
     let offset_index = parser.parse_index();
@@ -240,11 +240,11 @@ fn validate_constant(
 // these are typically _actual_ registers.... but for code sanity
 // we group them together in logical structs.
 fn parse_segment(parser: &mut parser::Parser) -> common::IoRegSegmentInfo {
-    let start_span = parser.curr_span;
+    let start_span = parser.parser.span;
 
     // get an address
     let addr = parser.parse_uint::<u32>() as u32; // parse the address
-    parser.begin_segment = parser.curr_span;    // save this segment's span
+    parser.begin_segment = parser.parser.span;    // save this segment's span
     parser.expect_fat_arrow();                  // skip the =>
 
     // gather metadata
@@ -294,7 +294,7 @@ fn parse_segment(parser: &mut parser::Parser) -> common::IoRegSegmentInfo {
 
 // entry to the ioreg macro parsing
 fn parse_ioreg(parser: &mut parser::Parser) -> common::IoRegInfo {
-    let start_span = parser.curr_span;
+    let start_span = parser.parser.span;
 
     // parse the name of the ioreg
     parser.expect_ident_value("name");              // expect 'name' literal

@@ -21,37 +21,44 @@ impl RangeInfo {
     pub fn contains(&self, i: usize) -> bool { i >= self.begin && i <= self.end }
 }
 
-
 #[derive(Debug)]
 pub struct StackInfo {
     pub base:   StaticValue,
     pub limit:  StaticValue,
-    pub link_location: String,
+    pub span:   Span,
 }
 
 #[derive(Debug)]
 pub struct DataInfo {
-    pub src:        StaticValue,
-    pub dest_begin: StaticValue,
-    pub dest_end:   StaticValue,
+    pub src_begin:  StaticValue,
+    pub src_end:    StaticValue,
+    pub dest:       StaticValue,
+    pub span:       Span,
 }
 
 #[derive(Debug)]
 pub struct HeapInfo {
     pub base:   StaticValue,
     pub limit:  StaticValue,
+    pub span:   Span,
 }
 
 #[derive(Debug)]
 pub struct InterruptsInfo {
+    pub code_entry: usize,
+    pub total_ints: u8,
     pub ints: Vec<(common::RangeInfo, StaticValue)>,
     pub link_location: String,
+    pub span: Span,
 }
 impl InterruptsInfo {
     pub fn default() -> Self {
         InterruptsInfo{
+            code_entry: (-1isize as usize),
+            total_ints: 0,
             ints: vec!(),
             link_location: "".to_string(),
+            span: DUMMY_SP,
         }
     }
 }
@@ -88,13 +95,22 @@ impl McuInfo {
             constants: BTreeMap::new(),
             externs: BTreeMap::new(),
             interrupts: InterruptsInfo::default(),
-            stack: StackInfo{base: StaticValue::default_uint(), limit: StaticValue::default_uint(), link_location:"".to_string()},
-            data: DataInfo{
-                src:StaticValue::default_uint(),
-                dest_begin:StaticValue::default_uint(),
-                dest_end:StaticValue::default_uint()
+            stack: StackInfo{
+                base: StaticValue::default_uint(),
+                limit: StaticValue::default_uint(),
+                span: DUMMY_SP,
             },
-            heap: HeapInfo{base:StaticValue::default_uint(), limit:StaticValue::default_uint()},
+            data: DataInfo{
+                src_begin:StaticValue::default_uint(),
+                src_end:StaticValue::default_uint(),
+                dest:StaticValue::default_uint(),
+                span: DUMMY_SP,
+            },
+            heap: HeapInfo{
+                base:StaticValue::default_uint(),
+                limit:StaticValue::default_uint(),
+                span: DUMMY_SP,
+            },
             peripherals: vec!(),
             link_script: "".to_string(),
             span: DUMMY_SP,

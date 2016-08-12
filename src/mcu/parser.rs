@@ -25,7 +25,7 @@ pub type Parser<'a> = parser::CommonParser<'a>;
 impl<'a> Parser<'a> {
     pub fn parse(&mut self) -> common::McuInfo {
         let mut result = common::McuInfo::default();
-        result.span = self.curr_span;
+        result.span = self.parser.span;
 
         match self.curr_token() {
             &token::Token::Ident(n) => {
@@ -47,6 +47,7 @@ impl<'a> Parser<'a> {
         // parse the various portions of he mcu def
         while is_ident!(self.curr_token()) {
             let tok = extract_ident_name!(self);
+            let span = self.parser.span;
             match tok.as_str() {
                 "constants" => {
                     self.parse_constants_block(
@@ -63,17 +64,21 @@ impl<'a> Parser<'a> {
                     self.parse_doc_sources(&"".to_string(), &mut result.docs);
                 }
                 "interrupts" => {
+                    result.interrupts.span = self.parser.span.clone();
                     self.parse_interrupts(&mut result.interrupts);
                 }
                 "stack" => {
+                    result.stack.span = self.parser.span.clone();
                     self.assert_keyword_preamble("stack");
                     self.parse_stack(&mut result.stack, &result.constants);
                 }
                 "data" => {
+                    result.data.span = self.parser.span.clone();
                     self.assert_keyword_preamble("data");
                     self.parse_data(&mut result.data, &result.constants);
                 }
                 "heap" => {
+                    result.heap.span = self.parser.span.clone();
                     self.assert_keyword_preamble("heap");
                     self.parse_heap(&mut result.heap, &result.constants);
                 }
@@ -81,7 +86,10 @@ impl<'a> Parser<'a> {
                     self.assert_keyword_preamble("peripherals");
                     self.parse_peripherals(&mut result.peripherals, &result.constants);
                 }
-                _ => { self.set_err(format!("unexpected block keyword '{}'", tok).as_str()); break; }
+                _ => {
+                    self.parser.span_fatal(span, format!("unexpected block keyword '{}'", tok).as_str()).emit();
+                    break;
+                }
             }
         }
 
@@ -96,7 +104,7 @@ impl<'a> Parser<'a> {
         let doc_src = self.parse_constant_literal(&format!("{}_link_script", into.name));
         match doc_src {
             parser::StaticValue::Str(v, _, _) => { into.link_script = v; }
-            _ => { self.set_err("expected a string literal"); return; }
+            _ => { self.set_err_last("expected a string literal"); return; }
         }
 
         self.expect_semi();
@@ -108,7 +116,7 @@ impl<'a> Parser<'a> {
         self.expect_open_curly();
 
         while ! self.eat(&token::CloseDelim(token::DelimToken::Brace)) {
-            let span = self.curr_span;
+            let span = self.parser.span;
             let name = self.parse_ident_string();
             self.expect_colon();
             let ty = self.parser.parse_ty_path().expect(format!("could not parse extern type for '{}'", name).as_str());
@@ -124,37 +132,36 @@ impl<'a> Parser<'a> {
 
         // parse interrupt count
         self.expect_open_bracket();
-        let num_ints = self.parse_uint::<u8>();
+        into.total_ints = self.parse_uint::<u8>() as u8;
         self.expect_close_bracket();
 
         // parse link section
-        if ! self.parser.expect(&token::Token::At).is_ok() {
-            self.set_fatal_err("expected an '@' token after interrupt count");
-        }
-        if ! self.parser.expect(&token::Token::Dot).is_ok() {
-            self.set_fatal_err("expected an '.' token before link section");
-        }
+        let exp_at = self.parser.expect(&token::Token::At);
+        if exp_at.is_err() { exp_at.err().unwrap().emit(); }
+        let exp_dot = self.parser.expect(&token::Token::Dot);
+        if exp_dot.is_err() { exp_dot.err().unwrap().emit(); }
         into.link_location = self.parse_ident_string();
 
         // make a bitmap to make sure we set an interrupt only once
-        //let mut set_ints_raw = Vec::<usize>::with_capacity(num_ints as usize);
         let mut set_ints: Bitmap<_, bitmap::DynamicSize> =
-            Bitmap::from_storage(num_ints as usize, 1 as usize, vec![0; ((num_ints/8)+1) as usize])
+            Bitmap::from_storage(into.total_ints as usize, 1 as usize, vec![0; ((into.total_ints/8)+1) as usize])
                 .expect("could not create bitmap");
 
         // read block
         self.expect_open_curly();
         while ! self.eat(&token::CloseDelim(token::DelimToken::Brace)) {
+            let span = self.parser.span.clone();
             let range = self.parse_index_or_range();
             self.expect_fat_arrow();
             for i in range.begin..range.end+1 {
                 if set_ints.get(i).expect("error getting bitmap index") == 1 {
-                    self.set_fatal_err("a value for this interrupt has already been set -- the ranges probably overlap");
+                    self.parser.span_fatal(span, "a value for this interrupt has already been set -- the ranges probably overlap")
+                        .emit();
                 }
                 set_ints.set(i, 1);
             }
 
-            let sp = self.curr_span.clone();
+            let sp = self.parser.span.clone();
             let fn_ident = match self.curr_token() {
                 &token::Token::Ident(id) => {
                     parser::StaticValue::Ident(id.name.to_string().clone(), self.get_ident(), sp)
@@ -179,13 +186,6 @@ impl<'a> Parser<'a> {
         self.expect_ident_value("base");
         self.expect_fat_arrow();
         into.base = self.parse_lit_or_ident("stack_base", consts);
-        if ! self.parser.expect(&token::Token::At).is_ok() {
-            self.set_fatal_err("expected an '@' token after stack base location");
-        }
-        if ! self.parser.expect(&token::Token::Dot).is_ok() {
-            self.set_fatal_err("expected a '.' before link location");
-        }
-        into.link_location = self.parse_ident_string();
         self.expect_semi();
 
         // parse limit
@@ -202,21 +202,21 @@ impl<'a> Parser<'a> {
 
     pub fn parse_data(&mut self, into: &mut common::DataInfo, consts: &BTreeMap<String, parser::StaticValue>) {
         // parse src
-        self.expect_ident_value("src");
+        self.expect_ident_value("src_begin");
         self.expect_fat_arrow();
-        into.src = self.parse_lit_or_ident("data_src", consts);
+        into.src_begin = self.parse_lit_or_ident("data_src_begin", consts);
         self.expect_semi();
 
         // parse dest_begin
-        self.expect_ident_value("dest_begin");
+        self.expect_ident_value("src_end");
         self.expect_fat_arrow();
-        into.dest_begin = self.parse_lit_or_ident("data_dest", consts);
+        into.src_end = self.parse_lit_or_ident("data_src_end", consts);
         self.expect_semi();
 
         // parse dest_end
-        self.expect_ident_value("dest_end");
+        self.expect_ident_value("dest");
         self.expect_fat_arrow();
-        into.dest_end = self.parse_lit_or_ident("data_dest_end", consts);
+        into.dest = self.parse_lit_or_ident("data_dest", consts);
         self.expect_semi();
 
         // TODO: how to validate values if they are idents!?
@@ -246,13 +246,12 @@ impl<'a> Parser<'a> {
 
     pub fn parse_peripherals(&mut self, into: &mut Vec<common::PeripheralInfo>, consts: &BTreeMap<String, parser::StaticValue>) {
         while ! self.eat(&token::CloseDelim(token::DelimToken::Brace)) {
-            let sp = self.curr_span;
+            let sp = self.parser.span;
             let name = self.parse_ident_string();
             self.expect_fat_arrow();
             let periph = self.parser.parse_ty_path().expect(format!("could not parse type path for peripheral {}", name).as_str());
-            if ! self.parser.expect(&token::Token::At).is_ok() {
-                self.set_fatal_err("expected an '@' token after peripheral type name");
-            }
+            let exp_at = self.parser.expect(&token::Token::At);
+            if exp_at.is_err() { exp_at.err().unwrap().emit(); }
 
             let addr = self.parse_lit_or_ident(format!("{}_addr", name).as_str(), consts);
             into.push(common::PeripheralInfo{name: name, path: periph, ptr: addr, span: sp});
@@ -273,7 +272,7 @@ impl<'a> Parser<'a> {
 
     // NOTE: will return a literal if the ident is an internal constant
     pub fn parse_lit_or_ident(&mut self, name: &str, consts: &BTreeMap<String, parser::StaticValue>) -> parser::StaticValue {
-        let sp = self.curr_span.clone();
+        let sp = self.parser.span.clone();
         match self.curr_token() {
             &token::Token::Ident(id) => {
                 if consts.contains_key(&id.name.to_string()) {
@@ -300,7 +299,7 @@ impl<'a> Parser<'a> {
         if self.parser.eat(&token::Token::DotDot) {
             end = self.parse_uint::<u8>();
             if end < start {
-                self.set_fatal_err("range indices are inverted");
+                self.set_fatal_err_last("range indices are inverted");
             }
         }
 

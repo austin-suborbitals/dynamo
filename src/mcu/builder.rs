@@ -40,6 +40,27 @@ macro_rules! ptr_cast {
 }
 
 
+macro_rules! integral_or_ident_to_expr {
+    ($val:expr, $err:expr, $self_:ident) => {
+        match $val {
+            StaticValue::Uint(addr, _, sp) => {
+                $self_.base_builder.span(sp).expr().lit().u32(addr as u32)
+            }
+            StaticValue::Int(addr, _, sp) => {
+                $self_.base_builder.span(sp).expr().lit().u32(addr as u32)
+            }
+            StaticValue::Ident(ref id, _, sp) => {
+                $self_.base_builder.span(sp).expr().id(id)
+            }
+            StaticValue::Float(_,_,_,sp) | StaticValue::Str(_,_,sp) | StaticValue::Path(_,sp) | StaticValue::Error(_,sp) => {
+                $self_.parser.parser.span_fatal(sp, $err).emit();
+                $self_.base_builder.expr().lit().u32(0)
+            }
+        }
+    }
+}
+
+
 
 
 pub struct Builder<'a> {
@@ -195,11 +216,30 @@ impl<'a> Builder<'a> {
         let mut impl_block = self.base_builder.item().impl_();
         impl_block = self.build_const_vals(impl_block);
 
-        // create the ::new() function
+        // create the ::new() method
         impl_block = impl_block.method("new").span(self.mcu.span).fn_decl()
             .return_().path().id(self.mcu.name.clone()).build()
             .block()
                 .build_expr(self.build_new_struct());
+
+        // create the ::copy_data_section() method
+        let begin_expr = integral_or_ident_to_expr!(self.mcu.data.src_begin, "data src must be a numeric literal or ident", self);
+        let end_expr = integral_or_ident_to_expr!(self.mcu.data.src_end, "data src_end must be a numeric literal or ident", self);
+        let dest_expr = integral_or_ident_to_expr!(self.mcu.data.dest, "data dest must be a numeric literal or ident", self);
+        impl_block = impl_block.method("copy_data_section").span(self.mcu.data.span).fn_decl()
+            .default_return()
+            .block().unsafe_()
+                .stmt().expr().span(self.mcu.data.span).call().id("volatile_copy_nonoverlapping_memory")
+                    .with_arg(ptr_cast!(dest_expr, self.base_builder.ty().u8(), true /* mut ptr */))
+                    .with_arg(ptr_cast!(begin_expr.clone(), self.base_builder.ty().u8(), false /* const ptr */))
+                    .with_arg(
+                        self.base_builder.expr().build_expr_kind(ast::ExprKind::Cast(
+                            self.base_builder.expr().paren().build_sub(end_expr, begin_expr),
+                            self.base_builder.ty().usize()
+                        ))
+                    )
+                .build()
+            .build();
 
         impl_block.ty().id(self.mcu.name.clone())
     }
@@ -237,6 +277,20 @@ impl<'a> Builder<'a> {
                 }
             }
         }
+
+        // build stack constants
+        let stack_base_expr = integral_or_ident_to_expr!(self.mcu.stack.base, "stack base must be a numeric literal or ident", self);
+        let stack_limit_expr = integral_or_ident_to_expr!(self.mcu.stack.limit, "stack limit must be a numeric literal or ident", self);
+        builder = builder.item("STACK_BASE").span(self.mcu.stack.span).const_().with_expr(stack_base_expr).ty().u32();
+        builder = builder.item("STACK_LIMIT").span(self.mcu.stack.span).const_().with_expr(stack_limit_expr).ty().u32();
+
+
+        // build heap constants
+        let heap_base_expr = integral_or_ident_to_expr!(self.mcu.heap.base, "heap base must be a numeric literal or ident", self);
+        let heap_limit_expr = integral_or_ident_to_expr!(self.mcu.heap.limit, "heap limit must be a numeric literal or ident", self);
+        builder = builder.item("HEAP_BASE").span(self.mcu.heap.span).const_().with_expr(heap_base_expr).ty().u32();
+        builder = builder.item("HEAP_LIMIT").span(self.mcu.heap.span).const_().with_expr(heap_limit_expr).ty().u32();
+
         builder
     }
 }
