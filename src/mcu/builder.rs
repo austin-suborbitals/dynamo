@@ -91,6 +91,10 @@ impl<'a> Builder<'a> {
         result.push(self.build_struct());
         result.push(self.build_impl());
 
+        if ! self.mcu.interrupts.ints.is_empty() {
+            result.push(self.build_interrupts());
+        }
+
         if ! self.mcu.no_static {
             result.push(self.build_sync_impl());
             result.push(self.build_static_instantiation());
@@ -222,12 +226,19 @@ impl<'a> Builder<'a> {
             .block()
                 .build_expr(self.build_new_struct());
 
+        impl_block = self.build_copy_data(impl_block);
+
+        impl_block.ty().id(self.mcu.name.clone())
+    }
+
+    pub fn build_copy_data(&self, impl_block: ImplBuilder) -> ImplBuilder {
         // create the ::copy_data_section() method
         let begin_expr = integral_or_ident_to_expr!(self.mcu.data.src_begin, "data src must be a numeric literal or ident", self);
         let end_expr = integral_or_ident_to_expr!(self.mcu.data.src_end, "data src_end must be a numeric literal or ident", self);
         let dest_expr = integral_or_ident_to_expr!(self.mcu.data.dest, "data dest must be a numeric literal or ident", self);
-        impl_block = impl_block.method("copy_data_section").span(self.mcu.data.span).fn_decl()
-            .default_return()
+
+        impl_block.method("copy_data_section").span(self.mcu.data.span).fn_decl()
+            .self_().ref_().default_return()
             .block().unsafe_()
                 .stmt().expr().span(self.mcu.data.span).call().id("volatile_copy_nonoverlapping_memory")
                     .with_arg(ptr_cast!(dest_expr, self.base_builder.ty().u8(), true /* mut ptr */))
@@ -239,9 +250,7 @@ impl<'a> Builder<'a> {
                         ))
                     )
                 .build()
-            .build();
-
-        impl_block.ty().id(self.mcu.name.clone())
+            .build()       
     }
 
     fn build_const_vals(&self, impl_block: ImplBuilder) -> ImplBuilder {
@@ -279,18 +288,91 @@ impl<'a> Builder<'a> {
         }
 
         // build stack constants
-        let stack_base_expr = integral_or_ident_to_expr!(self.mcu.stack.base, "stack base must be a numeric literal or ident", self);
-        let stack_limit_expr = integral_or_ident_to_expr!(self.mcu.stack.limit, "stack limit must be a numeric literal or ident", self);
-        builder = builder.item("STACK_BASE").span(self.mcu.stack.span).const_().with_expr(stack_base_expr).ty().u32();
-        builder = builder.item("STACK_LIMIT").span(self.mcu.stack.span).const_().with_expr(stack_limit_expr).ty().u32();
+        let stack_base_expr = integral_or_ident_to_expr!(
+            self.mcu.stack.base, "stack base must be a numeric literal or ident", self);
+        let stack_limit_expr = integral_or_ident_to_expr!(
+            self.mcu.stack.limit, "stack limit must be a numeric literal or ident", self);
+        builder = builder.item("STACK_BASE").span(self.mcu.stack.span)
+                         .const_().with_expr(stack_base_expr).ty().u32();
+        builder = builder.item("STACK_LIMIT").span(self.mcu.stack.span)
+                         .const_().with_expr(stack_limit_expr).ty().u32();
 
 
         // build heap constants
-        let heap_base_expr = integral_or_ident_to_expr!(self.mcu.heap.base, "heap base must be a numeric literal or ident", self);
-        let heap_limit_expr = integral_or_ident_to_expr!(self.mcu.heap.limit, "heap limit must be a numeric literal or ident", self);
-        builder = builder.item("HEAP_BASE").span(self.mcu.heap.span).const_().with_expr(heap_base_expr).ty().u32();
-        builder = builder.item("HEAP_LIMIT").span(self.mcu.heap.span).const_().with_expr(heap_limit_expr).ty().u32();
+        let heap_base_expr = integral_or_ident_to_expr!(
+            self.mcu.heap.base, "heap base must be a numeric literal or ident", self);
+        let heap_limit_expr = integral_or_ident_to_expr!(
+            self.mcu.heap.limit, "heap limit must be a numeric literal or ident", self);
+        builder = builder.item("HEAP_BASE").span(self.mcu.heap.span)
+                         .const_().with_expr(heap_base_expr).ty().u32();
+        builder = builder.item("HEAP_LIMIT").span(self.mcu.heap.span)
+                         .const_().with_expr(heap_limit_expr).ty().u32();
 
         builder
     }
+
+    pub fn build_interrupts(&self) -> ptr::P<ast::Item> {
+        let mut ints: Vec<ptr::P<ast::Expr>> = vec![
+            self.base_builder.expr().none();
+            self.mcu.interrupts.total_ints as usize
+        ];
+        for i in &self.mcu.interrupts.ints {
+            let addr_expr = match &i.1 {
+                &StaticValue::Uint(addr, _, sp) => {
+                    self.base_builder.expr().span(sp).some().lit().u32(addr)
+                }
+                &StaticValue::Ident(_, ref id, sp) => {
+					if id.name.to_string() == "None".to_string() {
+                		self.base_builder.expr().span(sp).none()
+					} else {
+                		self.base_builder.expr().span(sp).some().id(id)
+					}
+                }
+                &StaticValue::Path(ref path, sp) => {
+                	self.base_builder.expr().span(sp).some().build_path(path.clone()) // TODO: clone
+                }
+
+                // not allowed
+                &StaticValue::Int(_, _,sp) |
+                &StaticValue::Float(_,_,_,sp) |
+                &StaticValue::Str(_, _,sp) => {
+                    self.parser.parser.span_err(sp, "invalid interrupt function location type");
+                    self.base_builder.expr().lit().u32(0) // TODO: ew
+                }
+                &StaticValue::Error(ref err, sp) =>  {
+                    self.parser.parser.span_err(sp, format!("unthrown parser error: {}", err).as_str());
+                    self.base_builder.expr().lit().u32(0) // TODO: ew
+                }
+            };
+
+            for i in i.0.begin .. i.0.end+1 {
+                ints[i] = addr_expr.clone();    // TODO: this should be faster than building, but check
+            }
+        }
+
+        self.base_builder.item()
+            .attr().name_value("link_section").str(self.mcu.interrupts.link_location.as_str())
+            .build_item_kind(
+                "INTERRUPTS",
+                ast::ItemKind::Static(
+                    self.base_builder.ty().build_ty_kind(ast::TyKind::FixedLengthVec(
+                        self.base_builder.ty().option().build_ty_kind(ast::TyKind::BareFn(ptr::P(
+						ast::BareFnTy {
+						    unsafety: ast::Unsafety::Normal, // TODO: or all unsafe?
+						    abi: abi::Abi::Rust,
+						    lifetimes: vec!(),
+						    decl: self.base_builder.fn_decl().default_return(),
+                        }))),
+                        self.base_builder.expr().lit().usize(self.mcu.interrupts.total_ints as usize)
+                    )),
+                    ast::Mutability::Immutable,
+                    self.base_builder.expr().slice().with_exprs(ints).build()
+                )
+            )
+    }
+
+    pub fn build_stack_and_entry_ptrs(&self) -> Vec<ptr::P<ast::Item>> {
+		vec![
+		]
+	}
 }

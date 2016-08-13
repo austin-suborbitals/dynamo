@@ -57,6 +57,14 @@ impl<'a> Parser<'a> {
                 "externs" => {
                     self.parse_externs_block(&mut result.externs);
                 }
+                "entry_ptr_link" => {
+                    self.parser.bump();
+                    self.expect_fat_arrow();
+                    let exp_dot = self.parser.expect(&token::Token::Dot);
+                    if exp_dot.is_err() { exp_dot.err().unwrap().emit(); }
+                    result.entry_ptr_link = format!(".{}", self.parse_ident_string());
+                    self.expect_semi();
+                }
                 "link_script" => {
                     self.parse_link_script(&mut result);
                 }
@@ -140,7 +148,7 @@ impl<'a> Parser<'a> {
         if exp_at.is_err() { exp_at.err().unwrap().emit(); }
         let exp_dot = self.parser.expect(&token::Token::Dot);
         if exp_dot.is_err() { exp_dot.err().unwrap().emit(); }
-        into.link_location = self.parse_ident_string();
+        into.link_location = format!(".{}", self.parse_ident_string());
 
         // make a bitmap to make sure we set an interrupt only once
         let mut set_ints: Bitmap<_, bitmap::DynamicSize> =
@@ -164,13 +172,17 @@ impl<'a> Parser<'a> {
             let sp = self.parser.span.clone();
             let fn_ident = match self.curr_token() {
                 &token::Token::Ident(id) => {
+                    if id.name.to_string().contains("::") {
+                        self.parser.span_warn(sp, "looks like a path, but no leading '::'");
+                    }
                     parser::StaticValue::Ident(id.name.to_string().clone(), self.get_ident(), sp)
                 }
                 &token::Token::ModSep => {
+                    self.parser.bump();
                     parser::StaticValue::Path(self.get_type_path(), sp)
                 }
                 _ => {
-                    self.set_fatal_err("expected a literal or ident");
+                    self.set_fatal_err("expected an ident or path");
                     parser::StaticValue::Uint(0, "0".to_string(), DUMMY_SP)
                 }
             };
@@ -186,6 +198,13 @@ impl<'a> Parser<'a> {
         self.expect_ident_value("base");
         self.expect_fat_arrow();
         into.base = self.parse_lit_or_ident("stack_base", consts);
+
+        // parse link section
+        let exp_at = self.parser.expect(&token::Token::At);
+        if exp_at.is_err() { exp_at.err().unwrap().emit(); }
+        let exp_dot = self.parser.expect(&token::Token::Dot);
+        if exp_dot.is_err() { exp_dot.err().unwrap().emit(); }
+        into.ptr_link = format!(".{}", self.parse_ident_string());
         self.expect_semi();
 
         // parse limit

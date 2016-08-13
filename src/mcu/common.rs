@@ -25,6 +25,7 @@ impl RangeInfo {
 pub struct StackInfo {
     pub base:   StaticValue,
     pub limit:  StaticValue,
+    pub ptr_link: String,
     pub span:   Span,
 }
 
@@ -45,7 +46,6 @@ pub struct HeapInfo {
 
 #[derive(Debug)]
 pub struct InterruptsInfo {
-    pub code_entry: usize,
     pub total_ints: u8,
     pub ints: Vec<(common::RangeInfo, StaticValue)>,
     pub link_location: String,
@@ -54,7 +54,6 @@ pub struct InterruptsInfo {
 impl InterruptsInfo {
     pub fn default() -> Self {
         InterruptsInfo{
-            code_entry: (-1isize as usize),
             total_ints: 0,
             ints: vec!(),
             link_location: "".to_string(),
@@ -77,11 +76,12 @@ pub struct McuInfo {
     pub docs: Vec<String>,
     pub constants: BTreeMap<String, StaticValue>,
     pub externs: BTreeMap<String, (ast::TyKind, Span)>,
-    pub interrupts: InterruptsInfo,                         // TODO: builder
+    pub interrupts: InterruptsInfo,
     pub stack: StackInfo,                                   // TODO: builder
-    pub data: DataInfo,                                     // TODO: builder
+    pub data: DataInfo,
     pub heap: HeapInfo,                                     // TODO: builder
     pub peripherals: Vec<PeripheralInfo>,
+    pub entry_ptr_link: String,
     pub link_script: String,                                // TODO: builder and make sure #[link_flags = ""] escape crate-level
     pub span: Span,
     pub no_static: bool,
@@ -98,6 +98,7 @@ impl McuInfo {
             stack: StackInfo{
                 base: StaticValue::default_uint(),
                 limit: StaticValue::default_uint(),
+                ptr_link: "".to_string(),
                 span: DUMMY_SP,
             },
             data: DataInfo{
@@ -112,6 +113,7 @@ impl McuInfo {
                 span: DUMMY_SP,
             },
             peripherals: vec!(),
+            entry_ptr_link: "".to_string(),
             link_script: "".to_string(),
             span: DUMMY_SP,
             no_static: false,

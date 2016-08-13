@@ -36,7 +36,17 @@ mod sanity {
     const HEAP_BEGIN: u32 = 0xBADC0FFE;
     const HEAP_END: u32 = 0xBADFFFFF;
 
-    mcu_debug!(
+	static mut main_value: u32 = 0x12345678;
+	static mut common_hndl_value: u32 = 0x12345678;
+    fn main() { unsafe{main_value = 0x87654321;} }
+    fn some_common_handler() { unsafe{common_hndl_value = 0x87654321;} }
+
+    mod peregrine { pub mod isr { pub mod default {
+		pub static mut some_val: u32 = 0x12345678;
+		pub fn some_default_handler() { unsafe{some_val = 0x87654321;} }
+	}}}
+
+    mcu!(
         no_static;
 
         name => SomeMcuName;
@@ -57,30 +67,34 @@ mod sanity {
             data_section: usize;
         };
 
+		entry_ptr_link => .entry_code_ptr; // link section to place the entry pointer in
+
         // NOTE: argument to @ _must_ be a link section
         // if you cannot know the link section name at definition-time, you can manually
         // create the array using references to the functions defined in related modules.
         //
         // if no interrupts are defined, no structure is created.
-        interrupts => [255] @ .interrupts {
+        interrupts => [64] @ .interrupts {
             0       => main;
             1..5    => some_common_handler;
             6       => ::peregrine::isr::default::some_default_handler; // NOTE: paths must start with :: but will not be included
-            7..127  => None;
+			7..32   => None;
         };
 
         stack => {
-            base    => 0x1000;
-            limit   => STACK_LIMIT;             // externally defined const. could also be an internal constant or literal
+            base    => 0x1000 @ .stack_base_ptr;
+            limit   => STACK_LIMIT;  // externally defined const. could also be an internal constant or literal
         };
 
         data => {
+            // any of the values could be an ident, literal, or path
             src_begin   => data_flash;
             src_end     => data_flash_end;
             dest        => data_section;
         };
 
         heap => {
+            // any of the values could be an ident, literal, or path
             base    => HEAP_BEGIN;
             limit   => HEAP_END;
         };
@@ -92,6 +106,9 @@ mod sanity {
         };
     );
 
+
+    #[test]
+    fn compiles() {}
 
     #[test]
     fn correct_periphs() {
@@ -123,6 +140,25 @@ mod sanity {
     fn heap_constants_generated() {
         assert_eq!(SomeMcuName::HEAP_BASE, HEAP_BEGIN);
         assert_eq!(SomeMcuName::HEAP_LIMIT, HEAP_END);
+    }
+
+    #[test]
+    fn correct_interrupts() {
+		unsafe { // TODO: because of static mut
+
+		INTERRUPTS[0].unwrap()();
+		assert_eq!(main_value, 0x87654321);
+
+		for i in 1..6 {
+			INTERRUPTS[i].unwrap()();
+			assert_eq!(common_hndl_value, 0x87654321);
+			common_hndl_value = 0x12345678;
+		}
+
+		INTERRUPTS[6].unwrap()();
+		assert_eq!(peregrine::isr::default::some_val, 0x87654321);
+
+		} // unsafe
     }
 }
 
