@@ -32,17 +32,17 @@ pub fn reg_width_to_ty(width: &RegisterWidth) -> ptr::P<ast::Ty> {
 //
 
 pub enum FunctionValueType {
-    Static(u32),   // TODO: generic? convert in the func def?
-    Argument(String),
-    Reference(String),
+    Static(u32, Span),   // TODO: generic? convert in the func def?
+    Argument(String, Span),
+    Reference(String, Span),
 }
 
 impl Debug for FunctionValueType {
     fn fmt(&self, f: &mut Formatter) -> Result {
         match self {
-            &FunctionValueType::Static(ref i) => { write!(f, "0x{:X}", i) }
-            &FunctionValueType::Argument(ref i) => { write!(f, "{}", i) }
-            &FunctionValueType::Reference(ref r) => { write!(f, "{}", r.to_uppercase()) }
+            &FunctionValueType::Static(ref i, _) => { write!(f, "0x{:X}", i) }
+            &FunctionValueType::Argument(ref i, _) => { write!(f, "{}", i) }
+            &FunctionValueType::Reference(ref r, _) => { write!(f, "{}", r.to_uppercase()) }
         }
     }
 }

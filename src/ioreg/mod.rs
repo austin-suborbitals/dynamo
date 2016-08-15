@@ -132,13 +132,13 @@ use parser::StaticValue;
 pub fn expand_ioreg(cx: &mut ExtCtxt, _: Span, args: &[tokenstream::TokenTree]) -> Box<MacResult + 'static> {
     let mut parser = parser::Parser::from(cx, args);
     let ioreg_info = parse_ioreg(&mut parser);
-    generate_ioreg(cx, ioreg_info, false)
+    generate_ioreg(cx, ioreg_info, parser, false)
 }
 
 pub fn expand_ioreg_debug(cx: &mut ExtCtxt, _: Span, args: &[tokenstream::TokenTree]) -> Box<MacResult + 'static> {
     let mut parser = parser::Parser::from(cx, args);
     let ioreg_info = parse_ioreg(&mut parser);
-    generate_ioreg(cx, ioreg_info, true)
+    generate_ioreg(cx, ioreg_info, parser, true)
 }
 
 
@@ -346,8 +346,8 @@ fn parse_ioreg(parser: &mut parser::Parser) -> common::IoRegInfo {
 // ioreg generation
 //
 
-fn generate_ioreg(_: &ExtCtxt, info: common::IoRegInfo, verbose: bool) -> Box<MacResult + 'static> {
-    let builder = builder::Builder::new(info, verbose);
+fn generate_ioreg(_: &ExtCtxt, info: common::IoRegInfo, parser: parser::Parser, verbose: bool) -> Box<MacResult + 'static> {
+    let builder = builder::Builder::new(info, parser, verbose);
 
     // now, generate code from the struct and get back Vec<ast::Item> to add to the token tree
     let items = builder.build();

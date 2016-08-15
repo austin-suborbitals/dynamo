@@ -4,6 +4,7 @@ use syntax::ast;
 use syntax::ptr;
 use syntax::codemap::Span;
 use syntax::print::pprust;
+use syntax::ext::quote::rt::DUMMY_SP;
 
 use std::fmt;
 use std::ops::BitAnd;
@@ -50,6 +51,26 @@ macro_rules! ptr_cast {
     };
 }
 
+macro_rules! expect_uint {
+    ($self_:ident, $expect:ident, $t:ident) => {
+        match $expect {
+            &parser::StaticValue::Uint(u, _, _) => { $t::narrow(u) }
+
+              &parser::StaticValue::Int(_,_,sp)
+            | &parser::StaticValue::Float(_,_,_,sp)
+            | &parser::StaticValue::Str(_,_,sp)
+            | &parser::StaticValue::Ident(_,_,sp)
+            | &parser::StaticValue::Path(_,sp)
+            | &parser::StaticValue::Error(_,sp)
+            => {
+                $self_.parser.parser.span_fatal(sp,
+                    "expected a static value after lookup up constant value definition").emit();
+                $t::narrow(0u32)
+            }
+        }
+    }
+}
+
 struct NonQuoteString(String);
 impl fmt::Display for NonQuoteString {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> { write!(f, "{}", self.0) }
@@ -75,11 +96,11 @@ fn make_setter_doc(func: &common::IoRegFuncDef, seg: &common::IoRegSegmentInfo, 
             mask_qual = mask_str;
         }
         match i {
-            &common::FunctionValueType::Static(val) => {
+            &common::FunctionValueType::Static(val, _) => {
                 // if we will be using a static value, and the qualifier has not been set, set it.
                 actual_vals.push(NonQuoteString(format!("0x{:X}", val)));
             }
-            &common::FunctionValueType::Reference(ref name) => {
+            &common::FunctionValueType::Reference(ref name, _) => {
                 let scoped_name = format!("{}_{}", seg.name, name);
                 if seg.const_vals.contains_key(&scoped_name) {
                     actual_vals.push(NonQuoteString(scoped_name.to_uppercase()));
@@ -87,7 +108,7 @@ fn make_setter_doc(func: &common::IoRegFuncDef, seg: &common::IoRegSegmentInfo, 
                     actual_vals.push(NonQuoteString(name.to_uppercase()));
                 }
             }
-            &common::FunctionValueType::Argument(_) => { /* do nothing */ }
+            &common::FunctionValueType::Argument(_, _) => { /* do nothing */ }
         }
     }
     
@@ -107,18 +128,20 @@ fn make_setter_doc(func: &common::IoRegFuncDef, seg: &common::IoRegSegmentInfo, 
     }
 }
 
-pub struct Builder {
+pub struct Builder<'a> {
     verbose: bool,
     reg: common::IoRegInfo,
     base_builder: aster::AstBuilder,
+    parser: ::ioreg::parser::Parser<'a>,
 }
 
-impl Builder {
-    pub fn new(ioreg: common::IoRegInfo, verbose: bool) -> Builder {
+impl<'a> Builder<'a> {
+    pub fn new(ioreg: common::IoRegInfo, parser: ::ioreg::parser::Parser, verbose: bool) -> Builder {
         Builder {
             verbose: verbose,
             reg: ioreg,
             base_builder: aster::AstBuilder::new(),
+            parser: parser,
         }
     }
 
@@ -202,15 +225,14 @@ impl Builder {
                         .str(s.clone().as_str())
                         .ty().ref_().lifetime("'static").ty().path().id("str").build();
                 }
-                &parser::StaticValue::Ident(ref s, _, _) => {
-                    panic!("cannot use ident as constant: {}", s);
+                &parser::StaticValue::Ident(ref s, _, sp) => {
+                    self.parser.parser.span_fatal(sp, format!("cannot use ident as constant: {}", s).as_str()).emit();
                 }
-                &parser::StaticValue::Path(ref s, _) => {
-                    panic!("cannot use path as constant: {}", s);
+                &parser::StaticValue::Path(ref s, sp) => {
+                    self.parser.parser.span_fatal(sp, format!("cannot use path as constant: {}", s).as_str()).emit();
                 }
-                &parser::StaticValue::Error(ref e, _) => {
-                    // TODO: what should we do here?
-                    panic!("encountered error while building const_val getter: {}", e);
+                &parser::StaticValue::Error(ref e, sp) => {
+                    self.parser.parser.span_fatal(sp, format!("encountered error while building const_val getter: {}", e).as_str()).emit();
                 }
             }
         }
@@ -219,8 +241,7 @@ impl Builder {
     }
 
     fn build_getter(&self, seg: &common::IoRegSegmentInfo, prev_builder: ImplBuilder) -> ImplBuilder {
-        let mut builder = prev_builder;
-        let fn_bldr = builder
+        let fn_bldr = prev_builder
             .item(format!("read_{}", seg.name)).attr().doc(
                 format!("/// Reads the contents (as `{}`) of the `{}` register at relative address 0x{:X}",
                     seg.reg_width.to_type_string(), seg.name, seg.address
@@ -228,26 +249,25 @@ impl Builder {
             .pub_().method().span(seg.span).fn_decl().self_().ref_();
         match seg.reg_width {
             common::RegisterWidth::R8 => {
-                builder = fn_bldr.return_().u8().block()
+                fn_bldr.return_().u8().block()
                     .expr().block().unsafe_()
-                        .build_expr(self.build_read_register::<u8>(seg.address, seg.span));
+                        .build_expr(self.build_read_register::<u8>(seg.address, seg.span))
             }
             common::RegisterWidth::R16 => {
-                builder = fn_bldr.return_().u16().block()
+                fn_bldr.return_().u16().block()
                     .expr().block().unsafe_()
-                        .build_expr(self.build_read_register::<u16>(seg.address, seg.span));
+                        .build_expr(self.build_read_register::<u16>(seg.address, seg.span))
             }
             common::RegisterWidth::R32 => {
-                builder = fn_bldr.return_().u32().block()
+                fn_bldr.return_().u32().block()
                     .expr().block().unsafe_()
-                        .build_expr(self.build_read_register::<u32>(seg.address, seg.span));
+                        .build_expr(self.build_read_register::<u32>(seg.address, seg.span))
             }
             common::RegisterWidth::Unknown => {
-                panic!("encountered register of unknown size!"); // TODO: no panic
+                self.parser.parser.span_fatal(seg.span, "encountered register of unknown size").emit();
+                fn_bldr.return_().u32().block().build()
             }
-        };
-
-        builder
+        }
     }
 
     // TODO: assumes u32 address space
@@ -291,14 +311,18 @@ impl Builder {
             }
             common::FunctionType::Setter => {
                 match v {
-                    &common::FunctionValueType::Argument(ref arg_name) => {
-                        base.with_arg( self.base_builder.expr().span(fn_def.span).id(arg_name) ).build()
+                    &common::FunctionValueType::Argument(ref arg_name, sp) => {
+                        base.with_arg( self.base_builder.expr().span(sp).id(arg_name) ).build()
                     }
-                    _ => { panic!("did not expect non-argument type for FunctionType::Setter"); }
+                    &common::FunctionValueType::Static(_, sp) | &common::FunctionValueType::Reference(_, sp) => {
+                        self.parser.parser.span_fatal(sp, "did not expect non-argument type for FunctionType::Setter").emit();
+                        base.with_arg( self.base_builder.expr().span(sp).id("non_argument_err") ).build()
+                    }
                 }
             }
             common::FunctionType::Getter => {
-                panic!("did not expect getter function for generating volatile_store");
+                self.parser.parser.span_fatal(fn_def.span, "did not expect getter function for generating volatile_store").emit();
+                base.with_arg( self.base_builder.expr().span(fn_def.span).id("wrong_func_type") ).build()
             }
         }
     }
@@ -307,23 +331,19 @@ impl Builder {
         where T: parser::ToAstType<T> + parser::Narrow<u32>
     {
         match v {
-            &common::FunctionValueType::Static(val) => { T::narrow(val) }
-            &common::FunctionValueType::Reference(ref name) => {
+            &common::FunctionValueType::Static(val, _) => { T::narrow(val) }
+            &common::FunctionValueType::Reference(ref name, _) => {
                 match self.lookup_const_val(name, seg) {
-                    Ok(v) => {
-                        match v {
-                            &parser::StaticValue::Uint(u, _, _) => { T::narrow(u) }
-                            _ => {
-                                panic!("expected a static value after lookup up constant value definition");
-                            }
-                        }
-                    }
+                    Ok(v) => { expect_uint!(self, v, T) }
                     Err(e) => {
-                        panic!(e);
+                        panic!(e); // TODO
                     }
                 }
             }
-            &common::FunctionValueType::Argument(_) => { panic!("arguments cannot be looked up as constants"); }
+            &common::FunctionValueType::Argument(_, sp) => {
+                self.parser.parser.span_fatal(sp, "arguments cannot be looked up as constants").emit();
+                T::narrow(0u32)
+            }
         }
     }
 
@@ -419,7 +439,9 @@ impl Builder {
                     );
                 }
             }
-            common::FunctionType::Getter => { panic!("optimize_write did not expect a getter function"); }
+            common::FunctionType::Getter => {
+                self.parser.parser.span_fatal(fn_def.span, "optimize_write did not expect a getter function").emit();
+            }
         }
 
         fn_block
@@ -438,7 +460,7 @@ impl Builder {
             let write_address = seg.address + off.offset_in_bytes();
             match fn_def.ty {
                 common::FunctionType::Setter => {
-                    let v = common::FunctionValueType::Argument("val".to_string());
+                    let v = common::FunctionValueType::Argument("val".to_string(), DUMMY_SP);
                     fn_block = fn_block.with_stmt(self.build_volatile_store::<T>(write_address, &fn_def, &seg, &v));
                 }
                 common::FunctionType::StaticSetter => {
@@ -453,25 +475,27 @@ impl Builder {
                             32 => {
                                 fn_block = fn_block.with_stmt(self.build_volatile_store::<u32>(write_address, &fn_def, &seg, &v));
                             }
-                            _ => { panic!("found non-aligned width despite alignment check"); }
+                            _ => {
+                                self.parser.parser.span_fatal(fn_def.span, "found non-aligned width despite alignment check").emit();
+                            }
                         }
                     }
                 }
                 common::FunctionType::Getter => {
-                    panic!("did not expect getter function for generating a setter");
+                    self.parser.parser.span_fatal(fn_def.span, "did not expect a getter for generating a setter").emit();
                 }
             }
         } else {
             // TODO: how to handle PARTIAL writes to WriteOnly registers?
             if seg.access_perms == common::RegisterPermissions::WriteOnly {
-                panic!("partial writes to WriteOnly register indices is currently not supported"); // TODO: this should be a syntax error (or be able to access the parser)
+                self.parser.parser.span_fatal(fn_def.span, "partial writes to WriteOnly register indices is currently not supported").emit();
             }
 
             match off.width {
                 1...8 => { fn_block = self.optimize_write::<u8>(fn_def, fn_block, off, seg); }
                 9...16 => { fn_block = self.optimize_write::<u16>(fn_def, fn_block, off, seg); }
                 17...32 => { fn_block = self.optimize_write::<u32>(fn_def, fn_block, off, seg); }
-                _ => { panic!("unknown size for write optimization"); }
+                _ => { self.parser.parser.span_fatal(fn_def.span, "unknown size for write optimization").emit(); }
             }
         }
 
@@ -506,14 +530,15 @@ impl Builder {
                 common::RegisterWidth::R32 => { self.build_setter::<u32>(&f.1, seg, &off.index, ctx) }
                 _ => {
                     // TODO: proper error
-                    panic!(format!("unknown register width to create setter function in segment '{}'", seg.name));
+                    self.parser.parser.span_fatal(seg.span, format!("unknown register width to create setter function in segment '{}'", seg.name).as_str()).emit();
+                    self.build_setter::<u8>(&f.1, seg, &off.index, ctx) // TODO: ewww, but temporary
                 }
             };
         }
         bldr
     }
 
-    fn lookup_const_val<'a>(&'a self, name: &str, seg: &'a common::IoRegSegmentInfo) -> Result<&parser::StaticValue, String> {
+    fn lookup_const_val<'b>(&'b self, name: &str, seg: &'b common::IoRegSegmentInfo) -> Result<&parser::StaticValue, String> {
         // first, check for global def
         let mut val = self.reg.const_vals.get(name);
         if val.is_some() {
