@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="generator" content="rustdoc">
+    <meta name="description" content="API documentation for the Rust `Builder` struct in crate `dynamo`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, Builder">
+
+    <title>dynamo::ioreg::builder::Builder - Rust</title>
+
+    <link rel="stylesheet" type="text/css" href="../../../rustdoc.css">
+    <link rel="stylesheet" type="text/css" href="../../../main.css">
+    
+
+    
+    
+</head>
+<body class="rustdoc">
+    <!--[if lte IE 8]>
+    <div class="warning">
+        This old browser is unsupported and will most likely display funky
+        things.
+    </div>
+    <![endif]-->
+
+    
+
+    <nav class="sidebar">
+        
+        <p class='location'><a href='../../index.html'>dynamo</a>::<wbr><a href='../index.html'>ioreg</a>::<wbr><a href='index.html'>builder</a></p><script>window.sidebarCurrent = {name: 'Builder', ty: 'struct', relpath: ''};</script><script defer src="sidebar-items.js"></script>
+    </nav>
+
+    <nav class="sub">
+        <form class="search-form js-only">
+            <div class="search-container">
+                <input class="search-input" name="search"
+                       autocomplete="off"
+                       placeholder="Click or press ‘S’ to search, ‘?’ for more options…"
+                       type="search">
+            </div>
+        </form>
+    </nav>
+
+    <section id='main' class="content struct">
+<h1 class='fqn'><span class='in-band'>Struct <a href='../../index.html'>dynamo</a>::<wbr><a href='../index.html'>ioreg</a>::<wbr><a href='index.html'>builder</a>::<wbr><a class='struct' href=''>Builder</a></span><span class='out-of-band'><span id='render-detail'>
+                   <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
+                       [<span class='inner'>&#x2212;</span>]
+                   </a>
+               </span><a id='src-596' class='srclink' href='../../../src/dynamo/src/ioreg/builder.rs.html#137-142' title='goto source code'>[src]</a></span></h1>
+<pre class='rust struct'>pub struct Builder&lt;'a&gt; {
+    // some fields omitted
+}</pre><div class='docblock'><p>Builds the AST from the parsed ioreg!() macro.</p>
+</div><h2 id='methods'>Methods</h2><h3 class='impl'><span class='in-band'><code>impl&lt;'a&gt; <a class='struct' href='../../../dynamo/ioreg/builder/struct.Builder.html' title='dynamo::ioreg::builder::Builder'>Builder</a>&lt;'a&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a id='src-602' class='srclink' href='../../../src/dynamo/src/ioreg/builder.rs.html#144-590' title='goto source code'>[src]</a></span></h3>
+<div class='impl-items'><h4 id='method.new' class='method'><code>fn <a href='#method.new' class='fnname'>new</a>(ioreg: <a class='struct' href='../../../dynamo/ioreg/common/struct.IoRegInfo.html' title='dynamo::ioreg::common::IoRegInfo'>IoRegInfo</a>, parser: <a class='type' href='../../../dynamo/ioreg/parser/type.Parser.html' title='dynamo::ioreg::parser::Parser'>Parser</a>, verbose: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.bool.html'>bool</a>) -&gt; <a class='struct' href='../../../dynamo/ioreg/builder/struct.Builder.html' title='dynamo::ioreg::builder::Builder'>Builder</a></code></h4>
+<div class='docblock'><p>Consumes the parsed IoRegInfo as well as the parser (for later syntax error placement).</p>
+</div><h4 id='method.build' class='method'><code>fn <a href='#method.build' class='fnname'>build</a>(&amp;self) -&gt; <a class='struct' href='https://doc.rust-lang.org/nightly/collections/vec/struct.Vec.html' title='collections::vec::Vec'>Vec</a>&lt;<a class='struct' href='https://doc.rust-lang.org/nightly/syntax/ptr/struct.P.html' title='syntax::ptr::P'>P</a>&lt;<a class='struct' href='https://doc.rust-lang.org/nightly/syntax/ast/struct.Item.html' title='syntax::ast::Item'>Item</a>&gt;&gt;</code></h4>
+<div class='docblock'><p>Outputs Rust AST items representing the generated ioreg.</p>
+</div><h4 id='method.build_read_register' class='method'><code>fn <a href='#method.build_read_register' class='fnname'>build_read_register</a>&lt;T&gt;(&amp;self, addr: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.u32.html'>u32</a>, sp: <a class='struct' href='https://doc.rust-lang.org/nightly/syntax_pos/struct.Span.html' title='syntax_pos::Span'>Span</a>) -&gt; <a class='struct' href='https://doc.rust-lang.org/nightly/syntax/ptr/struct.P.html' title='syntax::ptr::P'>P</a>&lt;<a class='struct' href='https://doc.rust-lang.org/nightly/syntax/ast/struct.Expr.html' title='syntax::ast::Expr'>Expr</a>&gt; <span class='where'>where T: <a class='trait' href='../../../dynamo/parser/trait.ToAstType.html' title='dynamo::parser::ToAstType'>ToAstType</a>&lt;T&gt;</span></code></h4>
+<div class='docblock'><p>Builds a <code>volatile_read()</code> call that reads the entire mcu-proper-register (internally called an Segment).</p>
+
+<p>For setters that are not fully-byte-aligned, a read is done before the write and the current value is masked
+and the re-written with the new bits properly set.</p>
+</div><h4 id='method.build_volatile_store_base' class='method'><code>fn <a href='#method.build_volatile_store_base' class='fnname'>build_volatile_store_base</a>&lt;T&gt;(&amp;self, addr: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.u32.html'>u32</a>, sp: <a class='struct' href='https://doc.rust-lang.org/nightly/syntax_pos/struct.Span.html' title='syntax_pos::Span'>Span</a>) -&gt; <a class='struct' href='../../../aster/expr/struct.ExprCallArgsBuilder.html' title='aster::expr::ExprCallArgsBuilder'>ExprCallArgsBuilder</a>&lt;<a class='struct' href='../../../aster/stmt/struct.StmtExprBuilder.html' title='aster::stmt::StmtExprBuilder'>StmtExprBuilder</a>&lt;<a class='struct' href='../../../aster/invoke/struct.Identity.html' title='aster::invoke::Identity'>Identity</a>&gt;&gt; <span class='where'>where T: <a class='trait' href='../../../dynamo/parser/trait.ToAstType.html' title='dynamo::parser::ToAstType'>ToAstType</a>&lt;T&gt;</span></code></h4>
+<div class='docblock'><p>Builds the skeleton of a <code>volatile_store()</code> call, with only the destination location set.</p>
+</div><h4 id='method.build_volatile_store' class='method'><code>fn <a href='#method.build_volatile_store' class='fnname'>build_volatile_store</a>&lt;T&gt;(&amp;self, addr: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.u32.html'>u32</a>, fn_def: &amp;<a class='struct' href='../../../dynamo/ioreg/common/struct.IoRegFuncDef.html' title='dynamo::ioreg::common::IoRegFuncDef'>IoRegFuncDef</a>, seg: &amp;<a class='struct' href='../../../dynamo/ioreg/common/struct.IoRegSegmentInfo.html' title='dynamo::ioreg::common::IoRegSegmentInfo'>IoRegSegmentInfo</a>, v: &amp;<a class='enum' href='../../../dynamo/ioreg/common/enum.FunctionValueType.html' title='dynamo::ioreg::common::FunctionValueType'>FunctionValueType</a>) -&gt; <a class='struct' href='https://doc.rust-lang.org/nightly/syntax/ast/struct.Stmt.html' title='syntax::ast::Stmt'>Stmt</a> <span class='where'>where T: <a class='trait' href='../../../dynamo/parser/trait.ToAstType.html' title='dynamo::parser::ToAstType'>ToAstType</a>&lt;T&gt; + <a class='trait' href='../../../dynamo/parser/trait.Narrow.html' title='dynamo::parser::Narrow'>Narrow</a>&lt;<a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.u32.html'>u32</a>&gt;</span></code></h4>
+<div class='docblock'><p>Builds the <code>volatile_store(dst, src, len)</code> statement for a setter.</p>
+</div><h4 id='method.get_uint_const_val' class='method'><code>fn <a href='#method.get_uint_const_val' class='fnname'>get_uint_const_val</a>&lt;T&gt;(&amp;self, v: &amp;<a class='enum' href='../../../dynamo/ioreg/common/enum.FunctionValueType.html' title='dynamo::ioreg::common::FunctionValueType'>FunctionValueType</a>, seg: &amp;<a class='struct' href='../../../dynamo/ioreg/common/struct.IoRegSegmentInfo.html' title='dynamo::ioreg::common::IoRegSegmentInfo'>IoRegSegmentInfo</a>) -&gt; T <span class='where'>where T: <a class='trait' href='../../../dynamo/parser/trait.ToAstType.html' title='dynamo::parser::ToAstType'>ToAstType</a>&lt;T&gt; + <a class='trait' href='../../../dynamo/parser/trait.Narrow.html' title='dynamo::parser::Narrow'>Narrow</a>&lt;<a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.u32.html'>u32</a>&gt;</span></code></h4>
+<div class='docblock'><p>Reads into the defined constants for this ioreg and returns the numeric literal behind the constant.</p>
+
+<p>If not found as a defined internal-constant, a syntax error is placed an 0u32 is returned.</p>
+</div><h4 id='method.optimize_write' class='method'><code>fn <a href='#method.optimize_write' class='fnname'>optimize_write</a>&lt;T&gt;(&amp;self, fn_def: &amp;<a class='struct' href='../../../dynamo/ioreg/common/struct.IoRegFuncDef.html' title='dynamo::ioreg::common::IoRegFuncDef'>IoRegFuncDef</a>, fn_prev: <a class='struct' href='../../../aster/block/struct.BlockBuilder.html' title='aster::block::BlockBuilder'>BlockBuilder</a>&lt;<a class='struct' href='../../../aster/expr/struct.ExprBuilder.html' title='aster::expr::ExprBuilder'>ExprBuilder</a>&lt;<a class='struct' href='../../../aster/block/struct.BlockBuilder.html' title='aster::block::BlockBuilder'>BlockBuilder</a>&lt;<a class='struct' href='../../../aster/item/struct.ItemImplMethodBuilder.html' title='aster::item::ItemImplMethodBuilder'>ItemImplMethodBuilder</a>&lt;<a class='struct' href='../../../aster/item/struct.ItemImplBuilder.html' title='aster::item::ItemImplBuilder'>ItemImplBuilder</a>&lt;<a class='struct' href='../../../aster/invoke/struct.Identity.html' title='aster::invoke::Identity'>Identity</a>&gt;&gt;&gt;&gt;&gt;, off: &amp;<a class='struct' href='../../../dynamo/ioreg/common/struct.IoRegOffsetIndexInfo.html' title='dynamo::ioreg::common::IoRegOffsetIndexInfo'>IoRegOffsetIndexInfo</a>, seg: &amp;<a class='struct' href='../../../dynamo/ioreg/common/struct.IoRegSegmentInfo.html' title='dynamo::ioreg::common::IoRegSegmentInfo'>IoRegSegmentInfo</a>) -&gt; <a class='struct' href='../../../aster/block/struct.BlockBuilder.html' title='aster::block::BlockBuilder'>BlockBuilder</a>&lt;<a class='struct' href='../../../aster/expr/struct.ExprBuilder.html' title='aster::expr::ExprBuilder'>ExprBuilder</a>&lt;<a class='struct' href='../../../aster/block/struct.BlockBuilder.html' title='aster::block::BlockBuilder'>BlockBuilder</a>&lt;<a class='struct' href='../../../aster/item/struct.ItemImplMethodBuilder.html' title='aster::item::ItemImplMethodBuilder'>ItemImplMethodBuilder</a>&lt;<a class='struct' href='../../../aster/item/struct.ItemImplBuilder.html' title='aster::item::ItemImplBuilder'>ItemImplBuilder</a>&lt;<a class='struct' href='../../../aster/invoke/struct.Identity.html' title='aster::invoke::Identity'>Identity</a>&gt;&gt;&gt;&gt;&gt; <span class='where'>where T: <a class='trait' href='../../../dynamo/parser/trait.ToAstType.html' title='dynamo::parser::ToAstType'>ToAstType</a>&lt;T&gt; + <a class='trait' href='../../../dynamo/parser/trait.Narrow.html' title='dynamo::parser::Narrow'>Narrow</a>&lt;<a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.u32.html'>u32</a>&gt; + <a class='trait' href='https://doc.rust-lang.org/nightly/core/ops/trait.BitAnd.html' title='core::ops::BitAnd'>BitAnd</a>&lt;T&gt;</span></code></h4>
+<div class='docblock'><p>Considers the register, offset, and idex to be written to. Then optimizes and reads/writes needed to achieve the action.</p>
+
+<p>If writing to a partial register, add a statement that says <code>let fetched = volatile_load(addr as *const T)</code>.
+Then, we will mask this value and then do a <code>volatile_store(addr as *mut T, masked | val)</code></p>
+
+<p>TODO: This function is a little heavy duty to be done in a loop -- same responsibilities, but
+      perhaps pass in the mask and address so their &quot;expensive&quot; calculations can be reduced</p>
+</div><h4 id='method.build_setter' class='method'><code>fn <a href='#method.build_setter' class='fnname'>build_setter</a>&lt;T&gt;(&amp;self, fn_def: &amp;<a class='struct' href='../../../dynamo/ioreg/common/struct.IoRegFuncDef.html' title='dynamo::ioreg::common::IoRegFuncDef'>IoRegFuncDef</a>, seg: &amp;<a class='struct' href='../../../dynamo/ioreg/common/struct.IoRegSegmentInfo.html' title='dynamo::ioreg::common::IoRegSegmentInfo'>IoRegSegmentInfo</a>, off: &amp;<a class='struct' href='../../../dynamo/ioreg/common/struct.IoRegOffsetIndexInfo.html' title='dynamo::ioreg::common::IoRegOffsetIndexInfo'>IoRegOffsetIndexInfo</a>, fn_sig: <a class='struct' href='../../../aster/block/struct.BlockBuilder.html' title='aster::block::BlockBuilder'>BlockBuilder</a>&lt;<a class='struct' href='../../../aster/expr/struct.ExprBuilder.html' title='aster::expr::ExprBuilder'>ExprBuilder</a>&lt;<a class='struct' href='../../../aster/block/struct.BlockBuilder.html' title='aster::block::BlockBuilder'>BlockBuilder</a>&lt;<a class='struct' href='../../../aster/item/struct.ItemImplMethodBuilder.html' title='aster::item::ItemImplMethodBuilder'>ItemImplMethodBuilder</a>&lt;<a class='struct' href='../../../aster/item/struct.ItemImplBuilder.html' title='aster::item::ItemImplBuilder'>ItemImplBuilder</a>&lt;<a class='struct' href='../../../aster/invoke/struct.Identity.html' title='aster::invoke::Identity'>Identity</a>&gt;&gt;&gt;&gt;&gt;) -&gt; <a class='struct' href='../../../aster/item/struct.ItemImplBuilder.html' title='aster::item::ItemImplBuilder'>ItemImplBuilder</a>&lt;<a class='struct' href='../../../aster/invoke/struct.Identity.html' title='aster::invoke::Identity'>Identity</a>&gt; <span class='where'>where T: <a class='trait' href='../../../dynamo/parser/trait.ToAstType.html' title='dynamo::parser::ToAstType'>ToAstType</a>&lt;T&gt; + <a class='trait' href='../../../dynamo/parser/trait.Narrow.html' title='dynamo::parser::Narrow'>Narrow</a>&lt;<a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.u32.html'>u32</a>&gt;</span></code></h4>
+<div class='docblock'><p>Generates a setter for a given offset+index.</p>
+
+<p>Given the offset+index type, it will optimize read-before-write unless fully byte aligned.
+Also generates documentation for the setter.</p>
+</div><h4 id='method.build_setters' class='method'><code>fn <a href='#method.build_setters' class='fnname'>build_setters</a>(&amp;self, off: &amp;<a class='struct' href='../../../dynamo/ioreg/common/struct.IoRegOffsetInfo.html' title='dynamo::ioreg::common::IoRegOffsetInfo'>IoRegOffsetInfo</a>, seg: &amp;<a class='struct' href='../../../dynamo/ioreg/common/struct.IoRegSegmentInfo.html' title='dynamo::ioreg::common::IoRegSegmentInfo'>IoRegSegmentInfo</a>, prev: <a class='struct' href='../../../aster/item/struct.ItemImplBuilder.html' title='aster::item::ItemImplBuilder'>ItemImplBuilder</a>&lt;<a class='struct' href='../../../aster/invoke/struct.Identity.html' title='aster::invoke::Identity'>Identity</a>&gt;) -&gt; <a class='struct' href='../../../aster/item/struct.ItemImplBuilder.html' title='aster::item::ItemImplBuilder'>ItemImplBuilder</a>&lt;<a class='struct' href='../../../aster/invoke/struct.Identity.html' title='aster::invoke::Identity'>Identity</a>&gt;</code></h4>
+<div class='docblock'><p>Loops the offset+info blocks for this segment and generates all setters.</p>
+</div><h4 id='method.lookup_const_val' class='method'><code>fn <a href='#method.lookup_const_val' class='fnname'>lookup_const_val</a>&lt;'b&gt;(&amp;'b self, name: &amp;<a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.str.html'>str</a>, seg: &amp;'b <a class='struct' href='../../../dynamo/ioreg/common/struct.IoRegSegmentInfo.html' title='dynamo::ioreg::common::IoRegSegmentInfo'>IoRegSegmentInfo</a>) -&gt; <a class='enum' href='https://doc.rust-lang.org/nightly/core/result/enum.Result.html' title='core::result::Result'>Result</a>&lt;&amp;<a class='enum' href='../../../dynamo/parser/enum.StaticValue.html' title='dynamo::parser::StaticValue'>StaticValue</a>,&nbsp;<a class='struct' href='https://doc.rust-lang.org/nightly/collections/string/struct.String.html' title='collections::string::String'>String</a>&gt;</code></h4>
+<div class='docblock'><p>Gets the StaticValue from the constants defined from this ioreg, with an error if it does not exist.</p>
+
+<p><strong>NOTE:</strong> this looks up the constants using the scoped name, but scope prefix is done for you by the function.</p>
+</div></div></section>
+    <section id='search' class="content hidden"></section>
+
+    <section class="footer"></section>
+
+    <aside id="help" class="hidden">
+        <div>
+            <h1 class="hidden">Help</h1>
+
+            <div class="shortcuts">
+                <h2>Keyboard Shortcuts</h2>
+
+                <dl>
+                    <dt>?</dt>
+                    <dd>Show this help dialog</dd>
+                    <dt>S</dt>
+                    <dd>Focus the search field</dd>
+                    <dt>&larrb;</dt>
+                    <dd>Move up in search results</dd>
+                    <dt>&rarrb;</dt>
+                    <dd>Move down in search results</dd>
+                    <dt>&#9166;</dt>
+                    <dd>Go to active search result</dd>
+                    <dt>+</dt>
+                    <dd>Collapse/expand all sections</dd>
+                </dl>
+            </div>
+
+            <div class="infos">
+                <h2>Search Tricks</h2>
+
+                <p>
+                    Prefix searches with a type followed by a colon (e.g.
+                    <code>fn:</code>) to restrict the search to a given type.
+                </p>
+
+                <p>
+                    Accepted types are: <code>fn</code>, <code>mod</code>,
+                    <code>struct</code>, <code>enum</code>,
+                    <code>trait</code>, <code>type</code>, <code>macro</code>,
+                    and <code>const</code>.
+                </p>
+
+                <p>
+                    Search functions by type signature (e.g.
+                    <code>vec -> usize</code> or <code>* -> vec</code>)
+                </p>
+            </div>
+        </div>
+    </aside>
+
+    
+
+    <script>
+        window.rootPath = "../../../";
+        window.currentCrate = "dynamo";
+        window.playgroundUrl = "";
+    </script>
+    <script src="../../../jquery.js"></script>
+    <script src="../../../main.js"></script>
+    
+    <script defer src="../../../search-index.js"></script>
+</body>
+</html>

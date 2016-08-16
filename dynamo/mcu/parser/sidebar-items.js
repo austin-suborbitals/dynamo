@@ -1,0 +1,1 @@
+initSidebarItems({"type":[["Parser","Extends the ::parser::CommonParser struct to add mcu-specific parsing functions."]]});
