@@ -67,46 +67,6 @@ mcu!(
         uart    => uart::UART @ UART_1;         // can also be a const/extern
         i2c     => i2c::I2C @ i2c_loc;          // can also be an internal constant
     };
-
-
-    // NOTE: functions with empty () args after the ident get an implicit `&mut self`
-    // NOTE: actions cannot have return values
-    actions => [
-        // NOTE: init is a special cased action.
-        //       if it is defined we will not generate one -- if it is not defined, the generated MCU::init() would
-        //          1. unlock the watchdog (assumes self.wdog.unlock() exists)
-        //          2. disable the watchdog (assumes self.wdog.disable() exists)
-        //          3. memcpy the .data section to RAM using generated copy_data_section() method
-        //
-        // NOTE: this function should be the first thing called in the reset_handler.
-        //       from there, additional peripherals can be setup and/or app-code-jumping can be implemented
-        init() => {
-            // use a local peripheral to unlock the wdog and disable it
-            self.wdog.unlock();
-            self.wdog.disable()
-
-            // use the generated copy_data_section() function to copy the .data section to RAM
-            self.copy_data_section();
-
-            // use a self-defined action in another action!!!
-            self.enable_hardfloat();
-        };
-
-
-        enable_hardfloat() => {
-            self.my_periph.enable();
-        }
-
-        // sets the given pin to digital mode.
-        // just an example -- so probably not realistic
-        digital_pin(pin: u8) => {
-            match pin / PINS_PER_PORT {
-                1 => { self.port_a.digital(pin % PINS_PER_PORT); }
-                2 => { self.port_a.digital(pin % PINS_PER_PORT); }
-                _ => { panic!("could not find pin"); }
-            }
-        }
-    ];
 );
 
 */

@@ -19,15 +19,14 @@ macro_rules! read_uint_for_register {
     }}
 }
 
+/// Thin wrapper around the CommonParser so we can add ioreg-specific functions to it.
 pub type Parser<'a> = parser::CommonParser<'a>;
 
 
 impl<'a> Parser<'a> {
-
-    // parse and index span
-    // can be a single number (i.e. 3) or a range (i.e. 1..5)
-    // returned as a tuple of (begin, length)
-    // TODO: Result<(u8,u8), _> perhaps?
+    /// Parses a register offset and index.
+    ///
+    /// Checks the range is not inverted, and width >= 1.
     pub fn parse_index(&mut self) -> common::IoRegOffsetIndexInfo {
         let start_span = self.parser.span;
         let begin = self.parse_uint::<u8>() as u8;
@@ -59,11 +58,16 @@ impl<'a> Parser<'a> {
     // parse function parts
     //
 
+    /// Parses a setter definition that uses static/literal values.
+    ///
+    /// The values used may be internal constants or literals.
+    /// If an internal constant is specified, we lookup up the constant value and use it directly.
+    /// If a constant (StaticValue) is found to not be numeric, a syntax error is placed.
     fn parse_static_setter_values(&mut self, result: &mut common::IoRegFuncDef, width: &common::RegisterWidth) {
         // until the end of the values
         while ! self.eat(&token::CloseDelim(token::DelimToken::Bracket)) {
             // inspect the token we are currently considering
-            match self.raw_parser().token {
+            match self.parser.token {
                 // if we have a literal, we expect it to be an integral, so parse that
                 token::Token::Literal(token::Lit::Integer(_), _) => {  // TODO: consider float
                     match read_uint_for_register!(self, width) {
@@ -93,7 +97,9 @@ impl<'a> Parser<'a> {
         self.expect_semi();                       // expect a close to the definition
     }
 
-    // parse a function definition from the name to the semicolon after the argument values
+    /// Parses a function definition on a register.
+    ///
+    /// Consumes `fn_name => [....];` or `fn_name => ();` depending on function type.
     pub fn parse_func_def(&mut self, name: String, width: &common::RegisterWidth) -> common::IoRegFuncDef {
         let span = self.parser.span.clone();
 
@@ -133,6 +139,7 @@ impl<'a> Parser<'a> {
     // register metadata
     //
 
+    /// Parses the width of a register (i.e. r8, r16, r32) into the internal representation common::RegisterWidth.
     pub fn parse_reg_width(&mut self) -> common::RegisterWidth {
         match self.parse_ident_string().as_str() {
             "r8" => { common::RegisterWidth::R8 },
@@ -145,6 +152,7 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// Parses the access permissions of a register (i.e. ro, rw, wo) into the internal representation common::RegisterPermissions.
     pub fn parse_reg_access(&mut self) -> common::RegisterPermissions {
         match self.parse_ident_string().as_str() {
             "ro" => { common::RegisterPermissions::ReadOnly },
@@ -162,12 +170,14 @@ impl<'a> Parser<'a> {
     // passthrough
     //
 
+    /// Shortcut to self.parser.eat()
     pub fn eat(&mut self, tok: &token::Token) -> bool {
         let r = self.parser.eat(tok);
         if ! r { self.parser.expected_tokens.pop(); }
         r
     }
 
+    /// Shortcut to self.parser.token
     pub fn curr_token(&self) -> &token::Token {
         &self.parser.token
     }

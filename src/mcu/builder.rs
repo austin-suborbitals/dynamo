@@ -13,6 +13,7 @@ type ImplBuilder = aster::item::ItemImplBuilder<aster::invoke::Identity>;
 
 
 // TODO: dedupe with ioreg
+/// Creates a ptr type to the ast::Ty given as $ty with a bool for mutability.
 macro_rules! ptr_type {
     ($ty:expr, true) => { ptr_type!($ty, ast::Mutability::Mutable) };
     ($ty:expr, false) => { ptr_type!($ty, ast::Mutability::Immutable) };
@@ -28,6 +29,7 @@ macro_rules! ptr_type {
 }
 
 // TODO: dedupe with ioreg
+/// Casts the $lhs argument as a pointer of type $rhs and takes a bool for mutability.
 macro_rules! ptr_cast {
     ($lhs:expr, $rhs:expr, true) => { ptr_cast!($lhs, $rhs, ast::Mutability::Mutable) };
     ($lhs:expr, $rhs:expr, false) => { ptr_cast!($lhs, $rhs, ast::Mutability::Immutable) };
@@ -40,6 +42,10 @@ macro_rules! ptr_cast {
 }
 
 
+/// Takes a StaticValue as $val, and converts it to an ast::Expr if compatible.
+///
+/// Only StaticValue::Uint, StaticValue::Int, and StaticValue::Ident are compatible.
+/// All other types will result in a fata syntax error and a dummy 0 value returned.
 macro_rules! integral_or_ident_to_expr {
     ($val:expr, $err:expr, $self_:ident) => {
         match $val {
@@ -62,7 +68,9 @@ macro_rules! integral_or_ident_to_expr {
 
 
 
-
+/// Builds the generated AST from the parsed mcu!() block.
+///
+/// Consumes the parser to later set syntax errors.
 pub struct Builder<'a> {
     verbose: bool,
     mcu: common::McuInfo,
@@ -71,6 +79,7 @@ pub struct Builder<'a> {
 }
 
 impl<'a> Builder<'a> {
+    /// Consumes the parsed common::McuInfo descriptor and parser to construct a Builder.
     pub fn new(mcu: common::McuInfo, parser: parser::Parser<'a>, verbose: bool) -> Builder {
         Builder {
             verbose: verbose,
@@ -82,6 +91,17 @@ impl<'a> Builder<'a> {
 
     // TODO: better name?
     // TODO: better return?
+    /// Generates the AST from the descriptor block.
+    ///
+    /// This includes:
+    ///     1. externs
+    ///     2, the MCU struct
+    ///     3. the MCU impl (including the ::new() function)
+    ///     4. the interrupt array
+    ///
+    /// If the `no_static` keyword is omitted, the following are also generated:
+    ///     1. the Sync trait as locking is left to the implementor
+    ///     2. a static version of the mcu exported as MCU
     pub fn build(&self) -> Vec<ptr::P<ast::Item>> {
         let mut result = Vec::<ptr::P<ast::Item>>::new();
         if ! self.mcu.externs.is_empty() {
@@ -107,6 +127,9 @@ impl<'a> Builder<'a> {
     }
 
     // TODO: lots of clones
+    /// Builds the MCU structure definition including derived traits, doc comments, and doc sources.
+    ///
+    /// Only the definition, traits, and doc comments are generated directly. Everything else uses helpers.
     pub fn build_struct(&self) -> ptr::P<ast::Item> {
         // make the struct builder and add the doc attributes
         let mut preamble = self.base_builder.item()
@@ -135,12 +158,16 @@ impl<'a> Builder<'a> {
         preamble.pub_().struct_(self.mcu.name.clone()).with_fields(fields).build()
     }
 
+    /// Generate the Sync trait for our type.
+    ///
+    /// This is onyl done if a static version of the mcu is generated.
     pub fn build_sync_impl(&self) -> ptr::P<ast::Item> {
         self.base_builder.item().impl_().unsafe_()
             .trait_().id("Sync").build()
             .ty().id(self.mcu.name.clone())
     }
 
+    /// Generates the structure initializer used in both the ::new() function and to initialize the static version (if generated).
     pub fn build_new_struct(&self) -> ptr::P<ast::Expr> {
         let mut built_struct = self.base_builder.expr().struct_().id(self.mcu.name.clone()).build();
 
@@ -185,6 +212,7 @@ impl<'a> Builder<'a> {
     }
 
     // TODO: minimize clones
+    /// Generates the `static MCU: MyMcu = MyMcu{...};` statement if specified in the expansion.
     pub fn build_static_instantiation(&self) -> ptr::P<ast::Item> {
         self.base_builder.item().build_item_kind(
             "MCU",
@@ -197,6 +225,7 @@ impl<'a> Builder<'a> {
     }
 
     // TODO: no cloning the tykind
+    /// Generates the `extern "C" { ... }` block for any defined externs in the expansion.
     pub fn build_externs(&self) -> ptr::P<ast::Item> {
         let mut externs: Vec<ast::ForeignItem> = vec!();
         for (k, e) in &self.mcu.externs {
@@ -216,6 +245,7 @@ impl<'a> Builder<'a> {
         }))
     }
 
+    /// Entry for generating the impl block for the mcu.
     pub fn build_impl(&self) -> ptr::P<ast::Item> {
         let mut impl_block = self.base_builder.item().impl_();
         impl_block = self.build_const_vals(impl_block);
@@ -231,6 +261,9 @@ impl<'a> Builder<'a> {
         impl_block.ty().id(self.mcu.name.clone())
     }
 
+    /// Builds the `::copy_data_section()` function for the MCU definition.
+    ///
+    /// This function will copy the range [src_begin, src_end] to the data destination location in memory.
     pub fn build_copy_data(&self, impl_block: ImplBuilder) -> ImplBuilder {
         // create the ::copy_data_section() method
         let begin_expr = integral_or_ident_to_expr!(self.mcu.data.src_begin, "data src must be a numeric literal or ident", self);
@@ -253,6 +286,9 @@ impl<'a> Builder<'a> {
             .build()       
     }
 
+    /// Builds all associated constants for the mcu.
+    ///
+    /// Idents and Paths cannot be used as constants.
     fn build_const_vals(&self, impl_block: ImplBuilder) -> ImplBuilder {
         let mut builder = impl_block;
 
@@ -311,6 +347,9 @@ impl<'a> Builder<'a> {
         builder
     }
 
+    /// Builds the interrupts table and associates the #[link_section = ".some_location"] attribute with it.
+    ///
+    /// The array generated is of type `[Option<fn()>; NUM_INTERRUPTS]` and defaults to `None` for all interrupts.
     pub fn build_interrupts(&self) -> ptr::P<ast::Item> {
         let mut ints: Vec<ptr::P<ast::Expr>> = vec![
             self.base_builder.expr().none();
@@ -371,6 +410,10 @@ impl<'a> Builder<'a> {
             )
     }
 
+    // TODO
+    /// Generates the static values for the stack_base and code_entry pointers.
+    ///
+    /// These need to be places at specific locations, so a static value with a #[link_section] attr is used.
     pub fn build_stack_and_entry_ptrs(&self) -> Vec<ptr::P<ast::Item>> {
 		vec![
 		]

@@ -4,3 +4,7 @@ language: rust
 # TODO: use rustup to pin version?
 rust:
     - nightly
+
+after_success:
+    - cargo doc
+    - ./scripts/ghp_upload.sh

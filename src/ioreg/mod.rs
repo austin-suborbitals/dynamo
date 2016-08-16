@@ -146,6 +146,11 @@ pub fn expand_ioreg_debug(cx: &mut ExtCtxt, _: Span, args: &[tokenstream::TokenT
 // ioreg parsing
 //
 
+/// Parses offsets into the given ioreg offset and all associated functions.
+///
+/// The block being parsed are those of the form `1..5 => { some_func => [...]; other_func => [...]; };`.
+///
+/// **NOTE:** this will move into the parser proper soon.
 fn parse_offset(parser: &mut parser::Parser, seg: &mut common::IoRegSegmentInfo) -> Result<common::IoRegOffsetInfo, &'static str> {
     let start_span = parser.parser.span;
 
@@ -188,7 +193,7 @@ fn parse_offset(parser: &mut parser::Parser, seg: &mut common::IoRegSegmentInfo)
 
 
 
-// determine if a given parser::StaticValue can fit in the needed register
+/// Determine if a given parser::StaticValue can fit in the needed register
 fn fits_into(val: &::parser::StaticValue, width: &common::RegisterWidth) -> bool {
     match val {
         &::parser::StaticValue::Error(_, _) => { false }
@@ -220,9 +225,7 @@ fn fits_into(val: &::parser::StaticValue, width: &common::RegisterWidth) -> bool
     }
 }
 
-
-
-
+/// Validate parsed constants using `fits_into()`.
 fn validate_constant(
     width: &common::RegisterWidth, val: &::parser::StaticValue, _: &mut BTreeMap<String, StaticValue>
 )
@@ -236,9 +239,12 @@ fn validate_constant(
 }
 
 
-// parse a segment of the register block.
-// these are typically _actual_ registers.... but for code sanity
-// we group them together in logical structs.
+/// Parses an entire segment block i.e. `0x1234 => some_segment r16 ro { ... };`.
+///
+/// While "segments" are typically registers in and of themselves, they are more often than not accessed as a logical group.
+/// This grouping allows multiple related registers to be accessed as if they were one large (contiguous) register.
+///
+/// **NOTE:** this will move into the parser proper soon.
 fn parse_segment(parser: &mut parser::Parser) -> common::IoRegSegmentInfo {
     let start_span = parser.parser.span;
 
@@ -292,7 +298,9 @@ fn parse_segment(parser: &mut parser::Parser) -> common::IoRegSegmentInfo {
     result
 }
 
-// entry to the ioreg macro parsing
+/// Entry to parsing the entire ioreg!() expansion.
+///
+/// **NOTE:** this will move into the parser proper soon.
 fn parse_ioreg(parser: &mut parser::Parser) -> common::IoRegInfo {
     let start_span = parser.parser.span;
 

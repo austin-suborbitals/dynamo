@@ -26,6 +26,7 @@ type FnInternalBlockBuilder = aster::block::BlockBuilder<
 type FnArgsBuilder = aster::expr::ExprCallArgsBuilder<aster::stmt::StmtExprBuilder<aster::invoke::Identity>>;
 
 
+/// Creates a ptr type to the ast::Ty given as $ty with a bool for mutability.
 macro_rules! ptr_type {
     ($ty:expr, true) => { ptr_type!($ty, ast::Mutability::Mutable) };
     ($ty:expr, false) => { ptr_type!($ty, ast::Mutability::Immutable) };
@@ -40,6 +41,7 @@ macro_rules! ptr_type {
     };
 }
 
+/// Casts the $lhs argument as a pointer of type $rhs and takes a bool for mutability.
 macro_rules! ptr_cast {
     ($lhs:expr, $rhs:expr, true) => { ptr_cast!($lhs, $rhs, ast::Mutability::Mutable) };
     ($lhs:expr, $rhs:expr, false) => { ptr_cast!($lhs, $rhs, ast::Mutability::Immutable) };
@@ -51,6 +53,7 @@ macro_rules! ptr_cast {
     };
 }
 
+/// Takes a StaticValue and expects a uint. If not, a syntax error is generated and dummy value of 0 returned.
 macro_rules! expect_uint {
     ($self_:ident, $expect:ident, $t:ident) => {
         match $expect {
@@ -71,6 +74,7 @@ macro_rules! expect_uint {
     }
 }
 
+/// Used to have non-quoted strings in the Debug printer.
 struct NonQuoteString(String);
 impl fmt::Display for NonQuoteString {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> { write!(f, "{}", self.0) }
@@ -79,6 +83,7 @@ impl fmt::Debug for NonQuoteString {
     fn fmt(&self, f: &mut fmt::Formatter) -> Result<(), fmt::Error> { write!(f, "{}", self.0) }
 }
 
+/// Generate documentation attributes for the given setter function.
 fn make_setter_doc(func: &common::IoRegFuncDef, seg: &common::IoRegSegmentInfo, off: &common::IoRegOffsetInfo) -> String {
     let mut mask_qual = "";
     let mask_str = "\n\n**NOTE**: all values in unaligned writes are subject to masking which is not displayed here.";
@@ -128,6 +133,7 @@ fn make_setter_doc(func: &common::IoRegFuncDef, seg: &common::IoRegSegmentInfo, 
     }
 }
 
+/// Builds the AST from the parsed ioreg!() macro.
 pub struct Builder<'a> {
     verbose: bool,
     reg: common::IoRegInfo,
@@ -136,6 +142,7 @@ pub struct Builder<'a> {
 }
 
 impl<'a> Builder<'a> {
+    /// Consumes the parsed IoRegInfo as well as the parser (for later syntax error placement).
     pub fn new(ioreg: common::IoRegInfo, parser: ::ioreg::parser::Parser, verbose: bool) -> Builder {
         Builder {
             verbose: verbose,
@@ -147,6 +154,7 @@ impl<'a> Builder<'a> {
 
     // TODO: better name?
     // TODO: better return?
+    /// Outputs Rust AST items representing the generated ioreg.
     pub fn build(&self) -> Vec<ptr::P<ast::Item>> {
         if self.verbose { println!("\n\n=====   Generating: {}   =====\n", self.reg.name); }
 
@@ -205,6 +213,7 @@ impl<'a> Builder<'a> {
         items
     }
 
+    /// Builds associated constants for the given ioreg as defined in the `constants => { ... }` block.
     fn build_const_vals(&self, vals: &BTreeMap<String, parser::StaticValue>, prev_build: ImplBuilder) -> ImplBuilder {
         let mut builder = prev_build;
         // generate associated constants in the impl block
@@ -240,6 +249,11 @@ impl<'a> Builder<'a> {
         builder
     }
 
+    /// Builds a getter function for a given Segment.
+    ///
+    /// The generated function has the signature `pub fn read_{seg_name}() -> {u8, u16, u32}` depending on the Segment info.
+    ///
+    /// Getters are only generated for segments that can be read.
     fn build_getter(&self, seg: &common::IoRegSegmentInfo, prev_builder: ImplBuilder) -> ImplBuilder {
         let fn_bldr = prev_builder
             .item(format!("read_{}", seg.name)).attr().doc(
@@ -271,7 +285,11 @@ impl<'a> Builder<'a> {
     }
 
     // TODO: assumes u32 address space
-    fn build_read_register<T>(&self, addr: u32, sp: Span) -> ptr::P<ast::Expr>
+    /// Builds a `volatile_read()` call that reads the entire mcu-proper-register (internally called an Segment).
+    ///
+    /// For setters that are not fully-byte-aligned, a read is done before the write and the current value is masked
+    /// and the re-written with the new bits properly set.
+    pub fn build_read_register<T>(&self, addr: u32, sp: Span) -> ptr::P<ast::Expr>
         where T: parser::ToAstType<T>
     {
         let self_offset = self.base_builder.expr().span(sp)
@@ -285,7 +303,8 @@ impl<'a> Builder<'a> {
             .build()
     }
 
-    fn build_volatile_store_base<T>(&self, addr: u32, sp: Span) -> FnArgsBuilder
+    /// Builds the skeleton of a `volatile_store()` call, with only the destination location set.
+    pub fn build_volatile_store_base<T>(&self, addr: u32, sp: Span) -> FnArgsBuilder
         where T: parser::ToAstType<T>
     {
         let self_offset = self.base_builder.expr().span(sp)
@@ -298,7 +317,8 @@ impl<'a> Builder<'a> {
             .with_arg(ptr_cast!(self_offset, T::to_type(), true)) // mutable
     }
 
-    fn build_volatile_store<T>(
+    /// Builds the `volatile_store(dst, src, len)` statement for a setter.
+    pub fn build_volatile_store<T>(
         &self, addr: u32, fn_def: &common::IoRegFuncDef, seg: &common::IoRegSegmentInfo, v: &common::FunctionValueType
     )
         -> ast::Stmt
@@ -327,7 +347,10 @@ impl<'a> Builder<'a> {
         }
     }
 
-    fn get_uint_const_val<T>(&self, v: &common::FunctionValueType, seg: &common::IoRegSegmentInfo) -> T
+    /// Reads into the defined constants for this ioreg and returns the numeric literal behind the constant.
+    ///
+    /// If not found as a defined internal-constant, a syntax error is placed an 0u32 is returned.
+    pub fn get_uint_const_val<T>(&self, v: &common::FunctionValueType, seg: &common::IoRegSegmentInfo) -> T
         where T: parser::ToAstType<T> + parser::Narrow<u32>
     {
         match v {
@@ -348,12 +371,14 @@ impl<'a> Builder<'a> {
     }
 
 
-    // if writing to a partial register, add a statement that says `let fetched = volatile_load(addr as *const T)`
-    // we will mask this value and then do a `volatile_store(addr as *mut T, masked | val)`
-    //
-    // TODO: this function is a little heavy duty to be done in a loop -- same responsibilities, but
-    //       perhaps pass in the mask and address so their "expensive" calculations can be reduced
-    fn optimize_write<T>(&self,
+    /// Considers the register, offset, and idex to be written to. Then optimizes and reads/writes needed to achieve the action.
+    ///
+    /// If writing to a partial register, add a statement that says `let fetched = volatile_load(addr as *const T)`.
+    /// Then, we will mask this value and then do a `volatile_store(addr as *mut T, masked | val)`
+    ///
+    /// TODO: This function is a little heavy duty to be done in a loop -- same responsibilities, but
+    ///       perhaps pass in the mask and address so their "expensive" calculations can be reduced
+    pub fn optimize_write<T>(&self,
         fn_def: &common::IoRegFuncDef, fn_prev: FnInternalBlockBuilder,
         off: &common::IoRegOffsetIndexInfo, seg: &common::IoRegSegmentInfo
     )
@@ -448,8 +473,11 @@ impl<'a> Builder<'a> {
     }
 
 
-
-    fn build_setter<T>(&self, fn_def: &common::IoRegFuncDef, seg: &common::IoRegSegmentInfo, off: &common::IoRegOffsetIndexInfo,  fn_sig: FnInternalBlockBuilder)
+    /// Generates a setter for a given offset+index.
+    ///
+    /// Given the offset+index type, it will optimize read-before-write unless fully byte aligned.
+    /// Also generates documentation for the setter.
+    pub fn build_setter<T>(&self, fn_def: &common::IoRegFuncDef, seg: &common::IoRegSegmentInfo, off: &common::IoRegOffsetIndexInfo,  fn_sig: FnInternalBlockBuilder)
         -> ImplBuilder
         where T: parser::ToAstType<T> + parser::Narrow<u32>
     {
@@ -502,7 +530,8 @@ impl<'a> Builder<'a> {
         fn_block.build()
     }
 
-    fn build_setters(&self, off: &common::IoRegOffsetInfo, seg: &common::IoRegSegmentInfo, prev: ImplBuilder)
+    /// Loops the offset+info blocks for this segment and generates all setters.
+    pub fn build_setters(&self, off: &common::IoRegOffsetInfo, seg: &common::IoRegSegmentInfo, prev: ImplBuilder)
         -> ImplBuilder {
 
         let mut bldr = prev;
@@ -538,7 +567,11 @@ impl<'a> Builder<'a> {
         bldr
     }
 
-    fn lookup_const_val<'b>(&'b self, name: &str, seg: &'b common::IoRegSegmentInfo) -> Result<&parser::StaticValue, String> {
+
+    /// Gets the StaticValue from the constants defined from this ioreg, with an error if it does not exist.
+    ///
+    /// **NOTE:** this looks up the constants using the scoped name, but scope prefix is done for you by the function.
+    pub fn lookup_const_val<'b>(&'b self, name: &str, seg: &'b common::IoRegSegmentInfo) -> Result<&parser::StaticValue, String> {
         // first, check for global def
         let mut val = self.reg.const_vals.get(name);
         if val.is_some() {

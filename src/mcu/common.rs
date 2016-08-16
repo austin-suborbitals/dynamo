@@ -11,17 +11,24 @@ use parser::StaticValue;
 use ::mcu::common;
 
 #[derive(Debug)]
+/// Structure representing either an index (single number) or a range (1..3).
+///
+/// **NOTE:** for a single index, end == begin.
 pub struct RangeInfo {
     pub begin: usize,
     pub end: usize,
 }
 
 impl RangeInfo {
+    /// Width of the range. If a single index, this is 0.
     pub fn width(&self) -> usize { self.end - self.begin }
+
+    /// Boolean on whether `i` is equal to the index or in the range.
     pub fn contains(&self, i: usize) -> bool { i >= self.begin && i <= self.end }
 }
 
 #[derive(Debug)]
+/// Internal structure representing the parsed `stack` block.
 pub struct StackInfo {
     pub base:   StaticValue,
     pub limit:  StaticValue,
@@ -30,6 +37,7 @@ pub struct StackInfo {
 }
 
 #[derive(Debug)]
+/// Internal structure representing the parsed `data` block.
 pub struct DataInfo {
     pub src_begin:  StaticValue,
     pub src_end:    StaticValue,
@@ -38,6 +46,7 @@ pub struct DataInfo {
 }
 
 #[derive(Debug)]
+/// Internal structure representing the parsed `heap` block.
 pub struct HeapInfo {
     pub base:   StaticValue,
     pub limit:  StaticValue,
@@ -45,6 +54,7 @@ pub struct HeapInfo {
 }
 
 #[derive(Debug)]
+/// Internal structure representing the parsed `interrupts` block.
 pub struct InterruptsInfo {
     pub total_ints: u8,
     pub ints: Vec<(common::RangeInfo, StaticValue)>,
@@ -52,6 +62,7 @@ pub struct InterruptsInfo {
     pub span: Span,
 }
 impl InterruptsInfo {
+    /// Generates a basic, nulled, interrupts structure that can be built into.
     pub fn default() -> Self {
         InterruptsInfo{
             total_ints: 0,
@@ -63,6 +74,7 @@ impl InterruptsInfo {
 }
 
 #[derive(Debug)]
+/// Internal structure describing a peripheral to be used by the builder to add it to the MCU.
 pub struct PeripheralInfo {
     pub name: String,
     pub path: ast::TyKind,
@@ -71,6 +83,7 @@ pub struct PeripheralInfo {
 }
 
 #[derive(Debug)]
+/// Internal structure for the builder which describes the parsed MCU block.
 pub struct McuInfo {
     pub name: String,
     pub docs: Vec<String>,
@@ -88,6 +101,7 @@ pub struct McuInfo {
 }
 
 impl McuInfo {
+    /// Returns a basic, nulled, MCU to be parsed into.
     pub fn default() -> Self {
         McuInfo{
             name: "".to_string(),

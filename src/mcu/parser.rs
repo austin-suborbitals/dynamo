@@ -20,9 +20,15 @@ fn validate_constant(_: &(), _: &::parser::StaticValue, _: &mut BTreeMap<String,
 }
 
 
+/// Extends the ::parser::CommonParser struct to add mcu-specific parsing functions.
+///
+/// Inherits the `from()` initializer function.
 pub type Parser<'a> = parser::CommonParser<'a>;
 
 impl<'a> Parser<'a> {
+    /// Once the parser is created, use this function to consume the entire syntax of the mcu.
+    ///
+    /// For MCU parsing, blocks can be in any order. However, some things may depend on order of definition.
     pub fn parse(&mut self) -> common::McuInfo {
         let mut result = common::McuInfo::default();
         result.span = self.parser.span;
@@ -104,6 +110,7 @@ impl<'a> Parser<'a> {
         result
     }
 
+    /// Parses the `link_script => "some/path/script.ld";` syntax statement
     pub fn parse_link_script(&mut self, into: &mut common::McuInfo) {
         self.expect_ident_value("link_script");
         self.expect_fat_arrow();
@@ -118,6 +125,9 @@ impl<'a> Parser<'a> {
         self.expect_semi();
     }
 
+    /// Parses the entire `externs => { ... };` block.
+    ///
+    /// These externs will be used by the builder to generate the definitions so they can be used in the MCU code.
     pub fn parse_externs_block(&mut self, into: &mut BTreeMap<String, (ast::TyKind, Span)>) {
         self.expect_ident_value("externs");
         self.expect_fat_arrow();
@@ -134,6 +144,15 @@ impl<'a> Parser<'a> {
         self.expect_semi();
     }
 
+    /// Parses the entire `interrupts => [num_ints] @ .link_location { ... };` block.
+    ///
+    /// This block allows ranging of interrupts i.e. `1..5 => some_handler;` for easy bulk setting.
+    /// However, if ranges overlap or an interrupt is set more than once a syntax error is placed.
+    ///
+    /// ast::Ident and ast::Path are the only supported types that can be assigned to an interrupt.
+    ///
+    /// When using a path as the handler, be sure to prefix it with `::` even though it will not be used in the
+    /// generated code. This prefix is to simplify parsing between paths and idents and may go away in later versions.
     pub fn parse_interrupts(&mut self, into: &mut common::InterruptsInfo) {
         self.expect_ident_value("interrupts");
         self.expect_fat_arrow();
@@ -193,6 +212,11 @@ impl<'a> Parser<'a> {
         self.expect_semi();
     }
 
+    /// Parses the entire `stack => { base => val @ .link_location; limit => val; };` block.
+    ///
+    /// Values to either the `base` or `limit` keywords can be either a numeric literal or identifier.
+    ///
+    /// The link location __must__ be a string, and prefixed with a period ('.').
     pub fn parse_stack(&mut self, into: &mut common::StackInfo, consts: &BTreeMap<String, parser::StaticValue>) {
         // parse base
         self.expect_ident_value("base");
@@ -219,6 +243,9 @@ impl<'a> Parser<'a> {
         self.expect_semi();
     }
 
+    /// Parses the entire `data => { src_begin => val; src_end => val; dest => val };` block.
+    ///
+    /// Values can be either a numeric literal or identifier.
     pub fn parse_data(&mut self, into: &mut common::DataInfo, consts: &BTreeMap<String, parser::StaticValue>) {
         // parse src
         self.expect_ident_value("src_begin");
@@ -244,6 +271,9 @@ impl<'a> Parser<'a> {
         self.expect_semi();
     }
 
+    /// Parses the entire `heap => { base => val; limit => val; };` block.
+    ///
+    /// Values can be either a numeric literal or identifier.
     pub fn parse_heap(&mut self, into: &mut common::HeapInfo, consts: &BTreeMap<String, parser::StaticValue>) {
         // parse base
         self.expect_ident_value("base");
@@ -263,6 +293,11 @@ impl<'a> Parser<'a> {
         self.expect_semi();
     }
 
+    /// Parses the entire `peripherals => { name => ty_path @ ptr_loc; ... };` block.
+    ///
+    /// This is the block that associates all ioreg-defined peripherals with the generated MCU.
+    /// Each peripheral is added as a field to the MCU structure and when initialized with `::new()` or using the
+    /// generated static instantialization, each ioreg's pointer is set to the given value.
     pub fn parse_peripherals(&mut self, into: &mut Vec<common::PeripheralInfo>, consts: &BTreeMap<String, parser::StaticValue>) {
         while ! self.eat(&token::CloseDelim(token::DelimToken::Brace)) {
             let sp = self.parser.span;
@@ -283,13 +318,21 @@ impl<'a> Parser<'a> {
     // helpers
     //
 
+    /// Helper to:
+    ///     1. assert keyword
+    ///     2. expect fat arrow
+    ///     3. expect open curly
     pub fn assert_keyword_preamble(&mut self, expect: &str) {
         self.expect_ident_value(expect);
         self.expect_fat_arrow();
         self.expect_open_curly();
     }
 
-    // NOTE: will return a literal if the ident is an internal constant
+    /// Parses the current token as either a literal or an ident.
+    ///
+    /// If the token is a literal, it is assumed to be an unsigned int. If not, a syntax error is placed.
+    ///
+    /// **NOTE:** will return a literal if the ident is an internal constant
     pub fn parse_lit_or_ident(&mut self, name: &str, consts: &BTreeMap<String, parser::StaticValue>) -> parser::StaticValue {
         let sp = self.parser.span.clone();
         match self.curr_token() {
@@ -311,6 +354,11 @@ impl<'a> Parser<'a> {
         }
     }
 
+    /// Parses an expression in the form of either:
+    ///     1. `5` i.e. a simple index
+    ///     2. `3..7` i.e. a range
+    ///
+    /// **Note:** RangeInfo::width() is 0 for all indices (as opposed to a range).
     pub fn parse_index_or_range(&mut self) -> common::RangeInfo {
         let start = self.parse_uint::<u8>();
         let mut end = start;
