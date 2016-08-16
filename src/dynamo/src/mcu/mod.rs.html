@@ -157,6 +157,53 @@
 <span id="113">113</span>
 <span id="114">114</span>
 <span id="115">115</span>
+<span id="116">116</span>
+<span id="117">117</span>
+<span id="118">118</span>
+<span id="119">119</span>
+<span id="120">120</span>
+<span id="121">121</span>
+<span id="122">122</span>
+<span id="123">123</span>
+<span id="124">124</span>
+<span id="125">125</span>
+<span id="126">126</span>
+<span id="127">127</span>
+<span id="128">128</span>
+<span id="129">129</span>
+<span id="130">130</span>
+<span id="131">131</span>
+<span id="132">132</span>
+<span id="133">133</span>
+<span id="134">134</span>
+<span id="135">135</span>
+<span id="136">136</span>
+<span id="137">137</span>
+<span id="138">138</span>
+<span id="139">139</span>
+<span id="140">140</span>
+<span id="141">141</span>
+<span id="142">142</span>
+<span id="143">143</span>
+<span id="144">144</span>
+<span id="145">145</span>
+<span id="146">146</span>
+<span id="147">147</span>
+<span id="148">148</span>
+<span id="149">149</span>
+<span id="150">150</span>
+<span id="151">151</span>
+<span id="152">152</span>
+<span id="153">153</span>
+<span id="154">154</span>
+<span id="155">155</span>
+<span id="156">156</span>
+<span id="157">157</span>
+<span id="158">158</span>
+<span id="159">159</span>
+<span id="160">160</span>
+<span id="161">161</span>
+<span id="162">162</span>
 </pre><pre class='rust '>
 <span class='comment'>/*
 
@@ -227,6 +274,53 @@ mcu!(
         uart    =&gt; uart::UART @ UART_1;         // can also be a const/extern
         i2c     =&gt; i2c::I2C @ i2c_loc;          // can also be an internal constant
     };
+
+    // NOTE: this will be ignored if there is an init() in the actions block.
+    init =&gt; {
+        watchdog: wdog; // access the watchdog as self.wdog
+        exit: main;     // call some externally defined main(mcu: &amp;MyMcu) {...} to take over
+    };
+
+    actions =&gt; [
+        // NOTE: init is a special cased action.
+        //       if it is defined we will not generate one.
+        //
+        //       if it is not defined, the generated init() would use values from the above, but would
+        //       follow the below pattern exactly.
+        //
+        // NOTE: this function should be the first thing called in the reset_handler.
+        //       from there, additional peripherals can be setup and/or app-code-jumping can be implemented
+        pub fn init(&amp;self) {
+            // use a local peripheral to unlock the wdog and disable it
+            self.wdog.unlock();
+            self.wdog.disable();
+
+            // use the generated copy_data_section() function to copy the .data section to RAM
+            self.copy_data_section();
+
+            // use a self-defined action in another action!!!
+            // NOTE: this is an example, and would not be in the auto-generated init
+            self.enable_hardfloat();
+
+            // exit the bootloader
+            main(self);
+        };
+
+        // an example function you may want to add
+        pub fn enable_hardfloat(&amp;self) {
+            self.my_periph.enable();
+        }
+
+        // sets the given pin to digital mode.
+        // just an example -- so probably not realistic
+        pub fn digital_pin(&amp;self, pin: u8) {
+            match pin / PINS_PER_PORT {
+                1 =&gt; { self.port_a.digital(pin % PINS_PER_PORT); }
+                2 =&gt; { self.port_a.digital(pin % PINS_PER_PORT); }
+                _ =&gt; { panic!(&quot;could not find pin&quot;); }
+            }
+        }
+    ];
 );
 
 */</span>

@@ -644,6 +644,18 @@
 <span id="600">600</span>
 <span id="601">601</span>
 <span id="602">602</span>
+<span id="603">603</span>
+<span id="604">604</span>
+<span id="605">605</span>
+<span id="606">606</span>
+<span id="607">607</span>
+<span id="608">608</span>
+<span id="609">609</span>
+<span id="610">610</span>
+<span id="611">611</span>
+<span id="612">612</span>
+<span id="613">613</span>
+<span id="614">614</span>
 </pre><pre class='rust '>
 <span class='attribute'>#<span class='op'>!</span>[<span class='ident'>macro_use</span>]</span>
 
@@ -774,6 +786,18 @@
 <span class='kw'>impl</span> <span class='ident'>StaticValue</span> {
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>default_uint</span>() <span class='op'>-&gt;</span> <span class='ident'>StaticValue</span> {
         <span class='ident'>StaticValue</span>::<span class='ident'>Uint</span>(<span class='number'>0</span>, <span class='string'>&quot;default_static_uint&quot;</span>.<span class='ident'>to_string</span>(), <span class='ident'>DUMMY_SP</span>)
+    }
+
+    <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>to_string</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>String</span> {
+        <span class='kw'>match</span> <span class='self'>self</span> {
+            <span class='kw-2'>&amp;</span><span class='ident'>StaticValue</span>::<span class='ident'>Int</span>(<span class='ident'>i</span>, _, _) <span class='op'>=&gt;</span> { <span class='ident'>i</span>.<span class='ident'>to_string</span>() }
+            <span class='kw-2'>&amp;</span><span class='ident'>StaticValue</span>::<span class='ident'>Uint</span>(<span class='ident'>u</span>, _, _) <span class='op'>=&gt;</span> { <span class='ident'>u</span>.<span class='ident'>to_string</span>() }
+            <span class='kw-2'>&amp;</span><span class='ident'>StaticValue</span>::<span class='ident'>Float</span>(<span class='ident'>f</span>, _, _, _) <span class='op'>=&gt;</span> { <span class='ident'>f</span>.<span class='ident'>to_string</span>() }
+            <span class='kw-2'>&amp;</span><span class='ident'>StaticValue</span>::<span class='ident'>Str</span>(<span class='kw-2'>ref</span> <span class='ident'>s</span>, _, _) <span class='op'>=&gt;</span> { <span class='ident'>s</span>.<span class='ident'>clone</span>() }
+            <span class='kw-2'>&amp;</span><span class='ident'>StaticValue</span>::<span class='ident'>Ident</span>(<span class='kw-2'>ref</span> <span class='ident'>s</span>, _, _) <span class='op'>=&gt;</span> { <span class='ident'>s</span>.<span class='ident'>clone</span>() }
+            <span class='kw-2'>&amp;</span><span class='ident'>StaticValue</span>::<span class='ident'>Path</span>(<span class='kw-2'>ref</span> <span class='ident'>p</span>, _) <span class='op'>=&gt;</span> { <span class='macro'>format</span><span class='macro'>!</span>(<span class='string'>&quot;{:?}&quot;</span>, <span class='ident'>p</span>) }
+            <span class='kw-2'>&amp;</span><span class='ident'>StaticValue</span>::<span class='ident'>Error</span>(<span class='kw-2'>ref</span> <span class='ident'>e</span>, _) <span class='op'>=&gt;</span> { <span class='ident'>e</span>.<span class='ident'>clone</span>() }
+        }
     }
 }
 

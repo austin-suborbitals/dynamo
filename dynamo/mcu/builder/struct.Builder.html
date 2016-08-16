@@ -47,13 +47,13 @@
                    <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
                        [<span class='inner'>&#x2212;</span>]
                    </a>
-               </span><a id='src-976' class='srclink' href='../../../src/dynamo/src/mcu/builder.rs.html#74-79' title='goto source code'>[src]</a></span></h1>
+               </span><a id='src-1016' class='srclink' href='../../../src/dynamo/src/mcu/builder.rs.html#74-79' title='goto source code'>[src]</a></span></h1>
 <pre class='rust struct'>pub struct Builder&lt;'a&gt; {
     // some fields omitted
 }</pre><div class='docblock'><p>Builds the generated AST from the parsed mcu!() block.</p>
 
 <p>Consumes the parser to later set syntax errors.</p>
-</div><h2 id='methods'>Methods</h2><h3 class='impl'><span class='in-band'><code>impl&lt;'a&gt; <a class='struct' href='../../../dynamo/mcu/builder/struct.Builder.html' title='dynamo::mcu::builder::Builder'>Builder</a>&lt;'a&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a id='src-982' class='srclink' href='../../../src/dynamo/src/mcu/builder.rs.html#81-421' title='goto source code'>[src]</a></span></h3>
+</div><h2 id='methods'>Methods</h2><h3 class='impl'><span class='in-band'><code>impl&lt;'a&gt; <a class='struct' href='../../../dynamo/mcu/builder/struct.Builder.html' title='dynamo::mcu::builder::Builder'>Builder</a>&lt;'a&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a id='src-1022' class='srclink' href='../../../src/dynamo/src/mcu/builder.rs.html#81-498' title='goto source code'>[src]</a></span></h3>
 <div class='impl-items'><h4 id='method.new' class='method'><code>fn <a href='#method.new' class='fnname'>new</a>(mcu: <a class='struct' href='../../../dynamo/mcu/common/struct.McuInfo.html' title='dynamo::mcu::common::McuInfo'>McuInfo</a>, parser: <a class='type' href='../../../dynamo/mcu/parser/type.Parser.html' title='dynamo::mcu::parser::Parser'>Parser</a>&lt;'a&gt;, verbose: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.bool.html'>bool</a>) -&gt; <a class='struct' href='../../../dynamo/mcu/builder/struct.Builder.html' title='dynamo::mcu::builder::Builder'>Builder</a></code></h4>
 <div class='docblock'><p>Consumes the parsed common::McuInfo descriptor and parser to construct a Builder.</p>
 </div><h4 id='method.build' class='method'><code>fn <a href='#method.build' class='fnname'>build</a>(&amp;self) -&gt; <a class='struct' href='https://doc.rust-lang.org/nightly/collections/vec/struct.Vec.html' title='collections::vec::Vec'>Vec</a>&lt;<a class='struct' href='https://doc.rust-lang.org/nightly/syntax/ptr/struct.P.html' title='syntax::ptr::P'>P</a>&lt;<a class='struct' href='https://doc.rust-lang.org/nightly/syntax/ast/struct.Item.html' title='syntax::ast::Item'>Item</a>&gt;&gt;</code></h4>
@@ -92,10 +92,27 @@
 <div class='docblock'><p>Builds the interrupts table and associates the #[link_section = &quot;.some_location&quot;] attribute with it.</p>
 
 <p>The array generated is of type <code>[Option&lt;fn()&gt;; NUM_INTERRUPTS]</code> and defaults to <code>None</code> for all interrupts.</p>
-</div><h4 id='method.build_stack_and_entry_ptrs' class='method'><code>fn <a href='#method.build_stack_and_entry_ptrs' class='fnname'>build_stack_and_entry_ptrs</a>(&amp;self) -&gt; <a class='struct' href='https://doc.rust-lang.org/nightly/collections/vec/struct.Vec.html' title='collections::vec::Vec'>Vec</a>&lt;<a class='struct' href='https://doc.rust-lang.org/nightly/syntax/ptr/struct.P.html' title='syntax::ptr::P'>P</a>&lt;<a class='struct' href='https://doc.rust-lang.org/nightly/syntax/ast/struct.Item.html' title='syntax::ast::Item'>Item</a>&gt;&gt;</code></h4>
-<div class='docblock'><p>Generates the static values for the stack_base and code_entry pointers.</p>
+</div><h4 id='method.build_stack_entry_ptr' class='method'><code>fn <a href='#method.build_stack_entry_ptr' class='fnname'>build_stack_entry_ptr</a>(&amp;self) -&gt; <a class='struct' href='https://doc.rust-lang.org/nightly/syntax/ptr/struct.P.html' title='syntax::ptr::P'>P</a>&lt;<a class='struct' href='https://doc.rust-lang.org/nightly/syntax/ast/struct.Item.html' title='syntax::ast::Item'>Item</a>&gt;</code></h4>
+<div class='docblock'><p>Generates the static value for the stack_base pointer.</p>
 
-<p>These need to be places at specific locations, so a static value with a #[link_section] attr is used.</p>
+<p>This needs to be places at specific locations, so a static value with a #[link_section] attr is used.</p>
+
+<p>A static u32 is generated in the module, and is linked to the relevant section.</p>
+</div><h4 id='method.build_actions' class='method'><code>fn <a href='#method.build_actions' class='fnname'>build_actions</a>(&amp;self, impl_block: <a class='struct' href='../../../aster/item/struct.ItemImplBuilder.html' title='aster::item::ItemImplBuilder'>ItemImplBuilder</a>&lt;<a class='struct' href='../../../aster/invoke/struct.Identity.html' title='aster::invoke::Identity'>Identity</a>&gt;) -&gt; <a class='struct' href='../../../aster/item/struct.ItemImplBuilder.html' title='aster::item::ItemImplBuilder'>ItemImplBuilder</a>&lt;<a class='struct' href='../../../aster/invoke/struct.Identity.html' title='aster::invoke::Identity'>Identity</a>&gt;</code></h4>
+<div class='docblock'><p>Builds additional methods for the mcu.</p>
+
+<p>If no <code>init(&amp;self) { ... }</code> action is defined, one is generated.
+This generation assumes the following:</p>
+
+<ol>
+<li>the watchdog given contains the following methods:
+
+<ul>
+<li>unlock()</li>
+<li>disable()</li>
+</ul></li>
+<li>the exit function given takes the generates MCU by reference as the only argument.</li>
+</ol>
 </div></div></section>
     <section id='search' class="content hidden"></section>
 

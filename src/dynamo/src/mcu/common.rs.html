@@ -180,6 +180,36 @@
 <span id="136">136</span>
 <span id="137">137</span>
 <span id="138">138</span>
+<span id="139">139</span>
+<span id="140">140</span>
+<span id="141">141</span>
+<span id="142">142</span>
+<span id="143">143</span>
+<span id="144">144</span>
+<span id="145">145</span>
+<span id="146">146</span>
+<span id="147">147</span>
+<span id="148">148</span>
+<span id="149">149</span>
+<span id="150">150</span>
+<span id="151">151</span>
+<span id="152">152</span>
+<span id="153">153</span>
+<span id="154">154</span>
+<span id="155">155</span>
+<span id="156">156</span>
+<span id="157">157</span>
+<span id="158">158</span>
+<span id="159">159</span>
+<span id="160">160</span>
+<span id="161">161</span>
+<span id="162">162</span>
+<span id="163">163</span>
+<span id="164">164</span>
+<span id="165">165</span>
+<span id="166">166</span>
+<span id="167">167</span>
+<span id="168">168</span>
 </pre><pre class='rust '>
 <span class='kw'>extern</span> <span class='kw'>crate</span> <span class='ident'>aster</span>;
 <span class='kw'>extern</span> <span class='kw'>crate</span> <span class='ident'>syntax</span>;
@@ -266,6 +296,23 @@
 }
 
 <span class='attribute'>#[<span class='ident'>derive</span>(<span class='ident'>Debug</span>)]</span>
+<span class='kw'>pub</span> <span class='kw'>struct</span> <span class='ident'>ActionInfo</span> {
+    <span class='kw'>pub</span> <span class='ident'>name</span>: <span class='ident'>String</span>,
+    <span class='comment'>//pub args: Vec&lt;ast::Arg&gt;,</span>
+    <span class='comment'>//pub decl: ptr::P&lt;ast::FnDecl&gt;,</span>
+    <span class='comment'>//pub block: ptr::P&lt;ast::Block&gt;,</span>
+    <span class='kw'>pub</span> <span class='ident'>item</span>: <span class='ident'>ast</span>::<span class='ident'>ImplItem</span>,
+    <span class='kw'>pub</span> <span class='ident'>span</span>: <span class='ident'>Span</span>,
+}
+
+<span class='attribute'>#[<span class='ident'>derive</span>(<span class='ident'>Debug</span>)]</span>
+<span class='kw'>pub</span> <span class='kw'>struct</span> <span class='ident'>InitInfo</span> {
+    <span class='kw'>pub</span> <span class='ident'>watchdog</span>: <span class='ident'>ast</span>::<span class='ident'>Ident</span>,
+    <span class='kw'>pub</span> <span class='ident'>exit</span>: <span class='ident'>StaticValue</span>,
+    <span class='kw'>pub</span> <span class='ident'>span</span>: <span class='ident'>Span</span>,
+}
+
+<span class='attribute'>#[<span class='ident'>derive</span>(<span class='ident'>Debug</span>)]</span>
 <span class='doccomment'>/// Internal structure for the builder which describes the parsed MCU block.</span>
 <span class='kw'>pub</span> <span class='kw'>struct</span> <span class='ident'>McuInfo</span> {
     <span class='kw'>pub</span> <span class='ident'>name</span>: <span class='ident'>String</span>,
@@ -277,6 +324,8 @@
     <span class='kw'>pub</span> <span class='ident'>data</span>: <span class='ident'>DataInfo</span>,
     <span class='kw'>pub</span> <span class='ident'>heap</span>: <span class='ident'>HeapInfo</span>,                                     <span class='comment'>// TODO: builder</span>
     <span class='kw'>pub</span> <span class='ident'>peripherals</span>: <span class='ident'>Vec</span><span class='op'>&lt;</span><span class='ident'>PeripheralInfo</span><span class='op'>&gt;</span>,
+    <span class='kw'>pub</span> <span class='ident'>actions</span>: <span class='ident'>BTreeMap</span><span class='op'>&lt;</span><span class='ident'>String</span>, <span class='ident'>ActionInfo</span><span class='op'>&gt;</span>,
+    <span class='kw'>pub</span> <span class='ident'>init</span>: <span class='ident'>InitInfo</span>,
     <span class='kw'>pub</span> <span class='ident'>entry_ptr_link</span>: <span class='ident'>String</span>,
     <span class='kw'>pub</span> <span class='ident'>link_script</span>: <span class='ident'>String</span>,                                <span class='comment'>// TODO: builder and make sure #[link_flags = &quot;&quot;] escape crate-level</span>
     <span class='kw'>pub</span> <span class='ident'>span</span>: <span class='ident'>Span</span>,
@@ -286,6 +335,7 @@
 <span class='kw'>impl</span> <span class='ident'>McuInfo</span> {
     <span class='doccomment'>/// Returns a basic, nulled, MCU to be parsed into.</span>
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>default</span>() <span class='op'>-&gt;</span> <span class='self'>Self</span> {
+        <span class='kw'>let</span> <span class='ident'>bldr</span> <span class='op'>=</span> <span class='ident'>aster</span>::<span class='ident'>AstBuilder</span>::<span class='ident'>new</span>();
         <span class='ident'>McuInfo</span>{
             <span class='ident'>name</span>: <span class='string'>&quot;&quot;</span>.<span class='ident'>to_string</span>(),
             <span class='ident'>docs</span>: <span class='macro'>vec</span><span class='macro'>!</span>(),
@@ -310,6 +360,16 @@
                 <span class='ident'>span</span>: <span class='ident'>DUMMY_SP</span>,
             },
             <span class='ident'>peripherals</span>: <span class='macro'>vec</span><span class='macro'>!</span>(),
+            <span class='ident'>actions</span>: <span class='ident'>BTreeMap</span>::<span class='ident'>new</span>(),
+            <span class='ident'>init</span>:  <span class='ident'>InitInfo</span>{
+                <span class='ident'>watchdog</span>: <span class='ident'>ast</span>::<span class='ident'>Ident</span>::<span class='ident'>with_empty_ctxt</span>(<span class='ident'>bldr</span>.<span class='ident'>name</span>(<span class='string'>&quot;wdog&quot;</span>)),
+                <span class='ident'>exit</span>: <span class='ident'>StaticValue</span>::<span class='ident'>Ident</span>(
+                    <span class='string'>&quot;main&quot;</span>.<span class='ident'>to_string</span>(),
+                    <span class='ident'>ast</span>::<span class='ident'>Ident</span>::<span class='ident'>with_empty_ctxt</span>(<span class='ident'>bldr</span>.<span class='ident'>name</span>(<span class='string'>&quot;main&quot;</span>)),
+                    <span class='ident'>DUMMY_SP</span>
+                ),
+                <span class='ident'>span</span>: <span class='ident'>DUMMY_SP</span>,
+            },
             <span class='ident'>entry_ptr_link</span>: <span class='string'>&quot;&quot;</span>.<span class='ident'>to_string</span>(),
             <span class='ident'>link_script</span>: <span class='string'>&quot;&quot;</span>.<span class='ident'>to_string</span>(),
             <span class='ident'>span</span>: <span class='ident'>DUMMY_SP</span>,
