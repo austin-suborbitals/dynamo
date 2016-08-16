@@ -1,6 +1,8 @@
 dynamo [![Build Status](https://travis-ci.org/austin-suborbitals/dynamo.svg?branch=master)](https://travis-ci.org/austin-suborbitals/dynamo)
 ======
 
+[Documentation](https://austin-suborbitals.github.io/dynamo/)
+
 rust version
 ============
 
