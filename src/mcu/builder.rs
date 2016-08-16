@@ -108,6 +108,7 @@ impl<'a> Builder<'a> {
             result.push(self.build_externs());
         }
 
+		result.push(self.build_stack_entry_ptr());
         result.push(self.build_struct());
         result.push(self.build_impl());
 
@@ -251,12 +252,13 @@ impl<'a> Builder<'a> {
         impl_block = self.build_const_vals(impl_block);
 
         // create the ::new() method
-        impl_block = impl_block.method("new").span(self.mcu.span).fn_decl()
+        impl_block = impl_block.item("new").pub_().method().span(self.mcu.span).fn_decl()
             .return_().path().id(self.mcu.name.clone()).build()
             .block()
                 .build_expr(self.build_new_struct());
 
         impl_block = self.build_copy_data(impl_block);
+        impl_block = self.build_actions(impl_block);
 
         impl_block.ty().id(self.mcu.name.clone())
     }
@@ -266,11 +268,14 @@ impl<'a> Builder<'a> {
     /// This function will copy the range [src_begin, src_end] to the data destination location in memory.
     pub fn build_copy_data(&self, impl_block: ImplBuilder) -> ImplBuilder {
         // create the ::copy_data_section() method
-        let begin_expr = integral_or_ident_to_expr!(self.mcu.data.src_begin, "data src must be a numeric literal or ident", self);
-        let end_expr = integral_or_ident_to_expr!(self.mcu.data.src_end, "data src_end must be a numeric literal or ident", self);
-        let dest_expr = integral_or_ident_to_expr!(self.mcu.data.dest, "data dest must be a numeric literal or ident", self);
+        let begin_expr = integral_or_ident_to_expr!(
+            self.mcu.data.src_begin, "data src must be a numeric literal or ident", self);
+        let end_expr = integral_or_ident_to_expr!(
+            self.mcu.data.src_end, "data src_end must be a numeric literal or ident", self);
+        let dest_expr = integral_or_ident_to_expr!(
+            self.mcu.data.dest, "data dest must be a numeric literal or ident", self);
 
-        impl_block.method("copy_data_section").span(self.mcu.data.span).fn_decl()
+        impl_block.item("copy_data_section").pub_().method().span(self.mcu.data.span).fn_decl()
             .self_().ref_().default_return()
             .block().unsafe_()
                 .stmt().expr().span(self.mcu.data.span).call().id("volatile_copy_nonoverlapping_memory")
@@ -283,7 +288,7 @@ impl<'a> Builder<'a> {
                         ))
                     )
                 .build()
-            .build()       
+            .build()
     }
 
     /// Builds all associated constants for the mcu.
@@ -351,6 +356,7 @@ impl<'a> Builder<'a> {
     ///
     /// The array generated is of type `[Option<fn()>; NUM_INTERRUPTS]` and defaults to `None` for all interrupts.
     pub fn build_interrupts(&self) -> ptr::P<ast::Item> {
+        // TODO: need to set int0 to reset?
         let mut ints: Vec<ptr::P<ast::Expr>> = vec![
             self.base_builder.expr().none();
             self.mcu.interrupts.total_ints as usize
@@ -410,12 +416,83 @@ impl<'a> Builder<'a> {
             )
     }
 
-    // TODO
-    /// Generates the static values for the stack_base and code_entry pointers.
+    /// Generates the static value for the stack_base pointer.
     ///
-    /// These need to be places at specific locations, so a static value with a #[link_section] attr is used.
-    pub fn build_stack_and_entry_ptrs(&self) -> Vec<ptr::P<ast::Item>> {
-		vec![
-		]
+    /// This needs to be places at specific locations, so a static value with a #[link_section] attr is used.
+    ///
+    /// A static u32 is generated in the module, and is linked to the relevant section.
+    pub fn build_stack_entry_ptr(&self) -> ptr::P<ast::Item> {
+        self.base_builder.item()
+        	.attr().name_value("link_section").str(self.mcu.stack.ptr_link.as_str())
+        	.build_item_kind(
+        	    "STACK_BASE_PTR",
+        	    ast::ItemKind::Static(
+        	        self.base_builder.ty().u32(),
+        	        ast::Mutability::Immutable,
+        			integral_or_ident_to_expr!(self.mcu.stack.base, "invalid stack base ptr type", self)
+        	    )
+        	)
 	}
+
+    /// Builds additional methods for the mcu.
+    ///
+    /// If no `init(&self) { ... }` action is defined, one is generated.
+    /// This generation assumes the following:
+    ///
+    /// 1. the watchdog given contains the following methods:
+    ///     * unlock()
+    ///     * disable()
+    /// 2. the exit function given takes the generates MCU by reference as the only argument.
+    pub fn build_actions(&self, impl_block: ImplBuilder) -> ImplBuilder {
+        let mut bldr = impl_block;
+
+        if ! self.mcu.actions.contains_key("init") {
+            // TODO: generate init
+        }
+
+        let mut init_is_defined = false;
+        for a in &self.mcu.actions {
+            if ! init_is_defined && a.0 == "init" {
+                init_is_defined = true;
+                bldr = bldr.item("init")
+                    .attr().name_value("link_section").str(self.mcu.entry_ptr_link.as_str())
+                    .build_item(a.1.item.node.clone());
+            } else {
+                bldr = bldr.with_item(a.1.item.clone());
+            }
+        }
+
+        if ! init_is_defined {
+            let wdog_unlock = self.base_builder.stmt().span(self.mcu.init.span.clone()).semi()
+                .method_call("unlock").field(self.mcu.init.watchdog.clone()).self_().build();
+
+            let wdog_disable = self.base_builder.stmt().span(self.mcu.init.span.clone()).semi()
+                .method_call("disable").field(self.mcu.init.watchdog.clone()).self_().build();
+
+            let copy_data = self.base_builder.stmt().span(self.mcu.init.span.clone()).semi()
+                .method_call("copy_data_section").self_().build();
+
+            let exit_bootloader = self.base_builder.stmt().span(self.mcu.init.span.clone()).semi()
+                .call().id(self.mcu.init.exit.to_string())
+                .arg().self_()
+                .build();
+
+
+            // TODO: if ::init not defined.... make one
+            bldr = bldr.item("init")
+                .span(self.mcu.init.span.clone())
+                .attr().name_value("link_section").str(self.mcu.entry_ptr_link.as_str())
+                .method().fn_decl().span(self.mcu.init.span.clone())
+                .self_().ref_()
+                .default_return()
+                .block()
+                    .with_stmt(wdog_unlock).span(self.mcu.init.span.clone())
+                    .with_stmt(wdog_disable).span(self.mcu.init.span.clone())
+                    .with_stmt(copy_data).span(self.mcu.init.span.clone())
+                    .with_stmt(exit_bootloader).span(self.mcu.init.span.clone())
+                .build();
+        }
+
+        bldr
+    }
 }

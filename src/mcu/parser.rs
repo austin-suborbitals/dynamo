@@ -1,6 +1,7 @@
 extern crate syntax;
 use syntax::ast;
 use syntax::parse::token;
+use syntax::parse::parser::PathStyle;
 use syntax::codemap::Span;
 use syntax::ext::quote::rt::DUMMY_SP;
 
@@ -99,6 +100,12 @@ impl<'a> Parser<'a> {
                 "peripherals" => {
                     self.assert_keyword_preamble("peripherals");
                     self.parse_peripherals(&mut result.peripherals, &result.constants);
+                }
+                "actions" => {
+                    self.parse_actions(&mut result.actions);
+                }
+                "init" => {
+                    self.parse_init(&mut result.init);
                 }
                 _ => {
                     self.parser.span_fatal(span, format!("unexpected block keyword '{}'", tok).as_str()).emit();
@@ -311,6 +318,76 @@ impl<'a> Parser<'a> {
             into.push(common::PeripheralInfo{name: name, path: periph, ptr: addr, span: sp});
             self.expect_semi();
         }
+        self.expect_semi();
+    }
+
+    /// Parses the `actions => [ ... ];` block where the contents are valid Rust impl items.
+    pub fn parse_actions(&mut self, into: &mut BTreeMap<String, common::ActionInfo>) {
+        self.expect_ident_value("actions");
+        self.expect_fat_arrow();
+        self.expect_open_bracket();
+
+        while ! self.eat(&token::CloseDelim(token::DelimToken::Bracket)) {
+            let span = self.parser.span;
+
+            let item_res = self.parser.parse_impl_item();
+            if item_res.is_err() { item_res.err().unwrap().emit(); return ; }
+            let item = item_res.unwrap();
+
+            let name = item.ident.name.to_string();
+            if into.contains_key(name.as_str()) {
+                self.parser.span_fatal(span, "duplicate function definition here").emit(); break;
+            }
+            into.insert(name.clone(), common::ActionInfo{
+                name: name,
+                item: item,
+                span: span,
+            });
+        }
+        self.expect_semi();
+    }
+
+    /// Parses the init block that generates the `::init()` function.
+    ///
+    /// Consumes the entire `init => { watchdog => ident; exit => ident/path/uint; };` block.
+    ///
+    /// If the user does not define an `init(&self) {}` action, one is generated from the init block.
+    pub fn parse_init(&mut self, into: &mut common::InitInfo) {
+        into.span = self.parser.span;
+        self.assert_keyword_preamble("init");
+
+        self.expect_ident_value("watchdog");
+        self.expect_fat_arrow();
+        into.watchdog = self.get_ident();
+        self.expect_semi();
+
+        self.expect_ident_value("exit");
+        self.expect_fat_arrow();
+        let sp = self.parser.span;
+        into.exit = match &self.parser.token {
+            &token::Token::Ident(_) => {
+                if self.parser.look_ahead(1, |ref t| {
+                    match t {
+                        &&token::Token::ModSep => { true }
+                        _ => { false }
+                    }
+                }) {
+                    let res = self.parser.parse_path(PathStyle::Expr);
+                    if res.is_err() { res.err().unwrap().emit(); return; }
+                    parser::StaticValue::Path(res.unwrap(), sp)
+                } else {
+                    let id = self.get_ident();
+                    parser::StaticValue::Ident(id.name.to_string(), id, sp)
+                }
+            }
+            &token::Token::Literal(_,_) => {
+                self.parse_constant_literal(&"exit_fn".to_string())
+            }
+            _ => {
+                self.parser.span_fatal(sp, "unexpected token type for exit function").emit();
+                parser::StaticValue::Uint(0, "0".to_string(), sp.clone())
+            }
+        };
         self.expect_semi();
     }
 

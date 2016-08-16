@@ -128,6 +128,18 @@ impl StaticValue {
     pub fn default_uint() -> StaticValue {
         StaticValue::Uint(0, "default_static_uint".to_string(), DUMMY_SP)
     }
+
+    pub fn to_string(&self) -> String {
+        match self {
+            &StaticValue::Int(i, _, _) => { i.to_string() }
+            &StaticValue::Uint(u, _, _) => { u.to_string() }
+            &StaticValue::Float(f, _, _, _) => { f.to_string() }
+            &StaticValue::Str(ref s, _, _) => { s.clone() }
+            &StaticValue::Ident(ref s, _, _) => { s.clone() }
+            &StaticValue::Path(ref p, _) => { format!("{:?}", p) }
+            &StaticValue::Error(ref e, _) => { e.clone() }
+        }
+    }
 }
 
 impl fmt::Debug for StaticValue {

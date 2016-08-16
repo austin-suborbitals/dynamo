@@ -83,6 +83,23 @@ pub struct PeripheralInfo {
 }
 
 #[derive(Debug)]
+pub struct ActionInfo {
+    pub name: String,
+    //pub args: Vec<ast::Arg>,
+    //pub decl: ptr::P<ast::FnDecl>,
+    //pub block: ptr::P<ast::Block>,
+    pub item: ast::ImplItem,
+    pub span: Span,
+}
+
+#[derive(Debug)]
+pub struct InitInfo {
+    pub watchdog: ast::Ident,
+    pub exit: StaticValue,
+    pub span: Span,
+}
+
+#[derive(Debug)]
 /// Internal structure for the builder which describes the parsed MCU block.
 pub struct McuInfo {
     pub name: String,
@@ -94,6 +111,8 @@ pub struct McuInfo {
     pub data: DataInfo,
     pub heap: HeapInfo,                                     // TODO: builder
     pub peripherals: Vec<PeripheralInfo>,
+    pub actions: BTreeMap<String, ActionInfo>,
+    pub init: InitInfo,
     pub entry_ptr_link: String,
     pub link_script: String,                                // TODO: builder and make sure #[link_flags = ""] escape crate-level
     pub span: Span,
@@ -103,6 +122,7 @@ pub struct McuInfo {
 impl McuInfo {
     /// Returns a basic, nulled, MCU to be parsed into.
     pub fn default() -> Self {
+        let bldr = aster::AstBuilder::new();
         McuInfo{
             name: "".to_string(),
             docs: vec!(),
@@ -127,6 +147,16 @@ impl McuInfo {
                 span: DUMMY_SP,
             },
             peripherals: vec!(),
+            actions: BTreeMap::new(),
+            init:  InitInfo{
+                watchdog: ast::Ident::with_empty_ctxt(bldr.name("wdog")),
+                exit: StaticValue::Ident(
+                    "main".to_string(),
+                    ast::Ident::with_empty_ctxt(bldr.name("main")),
+                    DUMMY_SP
+                ),
+                span: DUMMY_SP,
+            },
             entry_ptr_link: "".to_string(),
             link_script: "".to_string(),
             span: DUMMY_SP,

@@ -11,7 +11,23 @@ mod sanity {
     extern crate core;
     use self::core::intrinsics::volatile_copy_nonoverlapping_memory;
 
-    mod wdog { ioreg!( name => Watchdog; ); }
+    mod wdog {
+        use sanity::core::intrinsics::{volatile_load, volatile_store};
+        ioreg!(
+            name => Watchdog;
+            0x0000 => unlock r16 rw {
+                constants => {
+                    value_one = 0x1234;
+                    value_two = 0x3456;
+                };
+                0..15 => { unlock => [value_one, value_two]; }
+            };
+
+            0x0000 => control r16 rw {
+                7 => { disable => [0x1]; }
+            };
+        );
+    }
     mod uart { ioreg!( name => UART; ); }
     mod i2c { ioreg!( name => I2C; ); }
 
@@ -38,7 +54,7 @@ mod sanity {
 
 	static mut main_value: u32 = 0x12345678;
 	static mut common_hndl_value: u32 = 0x12345678;
-    fn main() { unsafe{main_value = 0x87654321;} }
+    fn main(_: &SomeMcuName) { }
     fn some_common_handler() { unsafe{common_hndl_value = 0x87654321;} }
 
     mod peregrine { pub mod isr { pub mod default {
@@ -75,7 +91,6 @@ mod sanity {
         //
         // if no interrupts are defined, no structure is created.
         interrupts => [64] @ .interrupts {
-            0       => main;
             1..5    => some_common_handler;
             6       => ::peregrine::isr::default::some_default_handler; // NOTE: paths must start with :: but will not be included
 			7..32   => None;
@@ -104,6 +119,12 @@ mod sanity {
             uart    => uart::UART @ UART_1;         // can also be a const/extern
             i2c     => i2c::I2C @ i2c_loc;          // can also be an internal constant
         };
+
+        actions => [
+            pub fn some_helper_function(&self, pin: u8) -> bool {
+                return pin > 0x04;
+            }
+        ];
     );
 
 
@@ -146,9 +167,6 @@ mod sanity {
     fn correct_interrupts() {
 		unsafe { // TODO: because of static mut
 
-		INTERRUPTS[0].unwrap()();
-		assert_eq!(main_value, 0x87654321);
-
 		for i in 1..6 {
 			INTERRUPTS[i].unwrap()();
 			assert_eq!(common_hndl_value, 0x87654321);
@@ -160,6 +178,12 @@ mod sanity {
 
 		} // unsafe
     }
+
+    #[test]
+    fn actions() {
+        let mcu = SomeMcuName::new();
+        assert_eq!(true, mcu.some_helper_function(5));
+    }
 }
 
 #[cfg(test)]
@@ -169,6 +193,9 @@ mod with_static {
 
     mcu!(
         name => TestMcu;
+        actions => [
+            pub fn init(&self) {} // needed to squelch undefined errors
+        ];
     );
 
     #[test]

@@ -67,6 +67,53 @@ mcu!(
         uart    => uart::UART @ UART_1;         // can also be a const/extern
         i2c     => i2c::I2C @ i2c_loc;          // can also be an internal constant
     };
+
+    // NOTE: this will be ignored if there is an init() in the actions block.
+    init => {
+        watchdog: wdog; // access the watchdog as self.wdog
+        exit: main;     // call some externally defined main(mcu: &MyMcu) {...} to take over
+    };
+
+    actions => [
+        // NOTE: init is a special cased action.
+        //       if it is defined we will not generate one.
+        //
+        //       if it is not defined, the generated init() would use values from the above, but would
+        //       follow the below pattern exactly.
+        //
+        // NOTE: this function should be the first thing called in the reset_handler.
+        //       from there, additional peripherals can be setup and/or app-code-jumping can be implemented
+        pub fn init(&self) {
+            // use a local peripheral to unlock the wdog and disable it
+            self.wdog.unlock();
+            self.wdog.disable();
+
+            // use the generated copy_data_section() function to copy the .data section to RAM
+            self.copy_data_section();
+
+            // use a self-defined action in another action!!!
+            // NOTE: this is an example, and would not be in the auto-generated init
+            self.enable_hardfloat();
+
+            // exit the bootloader
+            main(self);
+        };
+
+        // an example function you may want to add
+        pub fn enable_hardfloat(&self) {
+            self.my_periph.enable();
+        }
+
+        // sets the given pin to digital mode.
+        // just an example -- so probably not realistic
+        pub fn digital_pin(&self, pin: u8) {
+            match pin / PINS_PER_PORT {
+                1 => { self.port_a.digital(pin % PINS_PER_PORT); }
+                2 => { self.port_a.digital(pin % PINS_PER_PORT); }
+                _ => { panic!("could not find pin"); }
+            }
+        }
+    ];
 );
 
 */
