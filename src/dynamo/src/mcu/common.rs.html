@@ -214,6 +214,9 @@
 <span id="170">170</span>
 <span id="171">171</span>
 <span id="172">172</span>
+<span id="173">173</span>
+<span id="174">174</span>
+<span id="175">175</span>
 </pre><pre class='rust '>
 <span class='kw'>extern</span> <span class='kw'>crate</span> <span class='ident'>aster</span>;
 <span class='kw'>extern</span> <span class='kw'>crate</span> <span class='ident'>syntax</span>;
@@ -300,6 +303,7 @@
 }
 
 <span class='attribute'>#[<span class='ident'>derive</span>(<span class='ident'>Debug</span>)]</span>
+<span class='attribute'>#[<span class='ident'>derive</span>(<span class='ident'>Clone</span>)]</span>
 <span class='kw'>pub</span> <span class='kw'>struct</span> <span class='ident'>ActionInfo</span> {
     <span class='kw'>pub</span> <span class='ident'>name</span>: <span class='ident'>String</span>,
     <span class='kw'>pub</span> <span class='ident'>item</span>: <span class='ident'>ast</span>::<span class='ident'>ImplItem</span>,
@@ -335,6 +339,7 @@
     <span class='kw'>pub</span> <span class='ident'>peripherals</span>: <span class='ident'>Vec</span><span class='op'>&lt;</span><span class='ident'>PeripheralInfo</span><span class='op'>&gt;</span>,
     <span class='kw'>pub</span> <span class='ident'>actions</span>: <span class='ident'>BTreeMap</span><span class='op'>&lt;</span><span class='ident'>String</span>, <span class='ident'>ActionInfo</span><span class='op'>&gt;</span>,
     <span class='kw'>pub</span> <span class='ident'>init</span>: <span class='ident'>InitInfo</span>,
+    <span class='kw'>pub</span> <span class='ident'>no_init</span>: <span class='ident'>bool</span>,
     <span class='kw'>pub</span> <span class='ident'>entry_ptr_link</span>: <span class='ident'>String</span>,
     <span class='kw'>pub</span> <span class='ident'>link_script</span>: <span class='ident'>String</span>,                                <span class='comment'>// TODO: builder and make sure #[link_flags = &quot;&quot;] escape crate-level</span>
     <span class='kw'>pub</span> <span class='ident'>span</span>: <span class='ident'>Span</span>,
@@ -379,6 +384,7 @@
                 ),
                 <span class='ident'>span</span>: <span class='ident'>DUMMY_SP</span>,
             },
+            <span class='ident'>no_init</span>: <span class='bool-val'>false</span>,
             <span class='ident'>entry_ptr_link</span>: <span class='string'>&quot;&quot;</span>.<span class='ident'>to_string</span>(),
             <span class='ident'>link_script</span>: <span class='string'>&quot;&quot;</span>.<span class='ident'>to_string</span>(),
             <span class='ident'>span</span>: <span class='ident'>DUMMY_SP</span>,
