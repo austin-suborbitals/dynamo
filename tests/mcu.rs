@@ -190,6 +190,10 @@ mod sanity {
     }
 }
 
+//
+// static
+//
+
 #[cfg(test)]
 mod static_instance {
     extern crate core;
@@ -207,6 +211,91 @@ mod static_instance {
     fn make_static() {}
 }
 
+//
+// init
+//
+
+#[cfg(test)]
+mod init {
+    //
+    // no init
+    //
+
+    #[cfg(test)]
+    mod no_init {
+        extern crate core;
+        use self::core::intrinsics::volatile_copy_nonoverlapping_memory;
+
+        mcu!(
+            name => TestMcu;
+            no_init;
+        );
+
+        static MCU: TestMcu = TestMcu::new();
+        unsafe impl Sync for TestMcu {}
+
+        #[test]
+        fn compiles() {}
+    }
+
+
+    //
+    // generated init
+    //
+
+    #[cfg(test)]
+    mod generated {
+        extern crate core;
+        use self::core::intrinsics::volatile_copy_nonoverlapping_memory;
+
+        mod some {
+            pub mod module {
+                // TODO: make a trait so these can be genericized
+                pub fn some_entry_code(_: &super::super::TestMcu) {
+                }
+            }
+        }
+
+        mod wdog {
+            use super::core::intrinsics::{volatile_load, volatile_store};
+            ioreg!(
+                name => Watchdog;
+                0x0000 => unlock r16 rw {
+                    constants => {
+                        value_one = 0x1234;
+                        value_two = 0x3456;
+                    };
+                    0..15 => { unlock => [value_one, value_two]; }
+                };
+
+                0x0010 => control r16 rw {
+                    7 => { disable => [0x1]; }
+                };
+            );
+        }
+
+        mcu!(
+            name => TestMcu;
+            peripherals => {
+                wdog    => wdog::Watchdog @ 0x5000;
+            };
+            init => {
+                watchdog => wdog;
+                exit => some::module::some_entry_code;
+            };
+        );
+
+        #[test]
+        fn compiles() {}
+    }
+}
+
+
+
+
+//
+// nvic
+//
 
 #[cfg(test)]
 mod nvic {

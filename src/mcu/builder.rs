@@ -791,13 +791,23 @@ impl<'a> Builder<'a> {
         let copy_data = self.base_builder.stmt().span(self.mcu.init.span.clone()).semi()
             .method_call("copy_data_section").id("mcu").build();
 
-        let exit_bootloader = self.base_builder.stmt().span(self.mcu.init.span.clone()).expr().span(self.mcu.init.span.clone())
+        let exit_bootloader_base = self.base_builder.stmt().span(self.mcu.init.span.clone()).expr().span(self.mcu.init.span.clone())
             .block().span(self.mcu.init.span.clone()).unsafe_()
                 .stmt().span(self.mcu.init.span.clone()).semi()
-                    .call().id(self.mcu.init.exit.to_string())
-                    .arg().ref_().id("mcu")
-                    .build()
-                .build();
+                    .call();
+        let exit_bootloader = match &self.mcu.init.exit {
+            &StaticValue::Path(ref p, sp) => {
+                exit_bootloader_base.span(sp.clone()).build_path(p.clone())
+            }
+            &StaticValue::Ident(_, i, sp) => {
+                exit_bootloader_base.span(sp.clone()).id(i.name.to_string())
+            }
+            _ => {
+                exit_bootloader_base.id("INVALID_FN_TYPE_PARSED")
+            }
+        }.arg().ref_().id("mcu")
+              .build()
+          .build();
 
         return self.base_builder.item().span(self.mcu.init.span.clone())
             .attr().name_value("link_section").str(self.mcu.entry_ptr_link.as_str())
