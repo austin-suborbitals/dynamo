@@ -494,6 +494,16 @@
 <span id="450">450</span>
 <span id="451">451</span>
 <span id="452">452</span>
+<span id="453">453</span>
+<span id="454">454</span>
+<span id="455">455</span>
+<span id="456">456</span>
+<span id="457">457</span>
+<span id="458">458</span>
+<span id="459">459</span>
+<span id="460">460</span>
+<span id="461">461</span>
+<span id="462">462</span>
 </pre><pre class='rust '>
 <span class='kw'>extern</span> <span class='kw'>crate</span> <span class='ident'>syntax</span>;
 <span class='kw'>use</span> <span class='ident'>syntax</span>::<span class='ident'>ast</span>;
@@ -531,17 +541,6 @@
         <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>result</span> <span class='op'>=</span> <span class='ident'>common</span>::<span class='ident'>McuInfo</span>::<span class='ident'>default</span>();
         <span class='ident'>result</span>.<span class='ident'>span</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>parser</span>.<span class='ident'>span</span>;
 
-        <span class='kw'>match</span> <span class='self'>self</span>.<span class='ident'>curr_token</span>() {
-            <span class='kw-2'>&amp;</span><span class='ident'>token</span>::<span class='ident'>Token</span>::<span class='ident'>Ident</span>(<span class='ident'>n</span>) <span class='op'>=&gt;</span> {
-                <span class='kw'>if</span> <span class='ident'>n</span>.<span class='ident'>to_string</span>() <span class='op'>==</span> <span class='string'>&quot;no_static&quot;</span> {
-                    <span class='self'>self</span>.<span class='ident'>parser</span>.<span class='ident'>bump</span>();
-                    <span class='self'>self</span>.<span class='ident'>expect_semi</span>();
-                    <span class='ident'>result</span>.<span class='ident'>no_static</span> <span class='op'>=</span> <span class='bool-val'>true</span>;
-                }
-            }
-            _ <span class='op'>=&gt;</span> {}
-        }
-
         <span class='comment'>// parse the mcu name</span>
         <span class='self'>self</span>.<span class='ident'>expect_ident_value</span>(<span class='string'>&quot;name&quot;</span>);
         <span class='self'>self</span>.<span class='ident'>expect_fat_arrow</span>();
@@ -578,6 +577,9 @@
                 <span class='string'>&quot;interrupts&quot;</span> <span class='op'>=&gt;</span> {
                     <span class='ident'>result</span>.<span class='ident'>interrupts</span>.<span class='ident'>span</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>parser</span>.<span class='ident'>span</span>.<span class='ident'>clone</span>();
                     <span class='self'>self</span>.<span class='ident'>parse_interrupts</span>(<span class='kw-2'>&amp;</span><span class='kw-2'>mut</span> <span class='ident'>result</span>.<span class='ident'>interrupts</span>);
+                }
+                <span class='string'>&quot;nvic&quot;</span> <span class='op'>=&gt;</span> {
+                    <span class='self'>self</span>.<span class='ident'>parse_nvic</span>(<span class='kw-2'>&amp;</span><span class='kw-2'>mut</span> <span class='ident'>result</span>.<span class='ident'>nvic</span>);
                 }
                 <span class='string'>&quot;stack&quot;</span> <span class='op'>=&gt;</span> {
                     <span class='ident'>result</span>.<span class='ident'>stack</span>.<span class='ident'>span</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>parser</span>.<span class='ident'>span</span>.<span class='ident'>clone</span>();
@@ -716,6 +718,25 @@
         <span class='self'>self</span>.<span class='ident'>expect_semi</span>();
     }
 
+    <span class='doccomment'>/// Parses the NVIC information block, informing us of the address and number of priority bits.</span>
+    <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>parse_nvic</span>(<span class='kw-2'>&amp;</span><span class='kw-2'>mut</span> <span class='self'>self</span>, <span class='ident'>into</span>: <span class='kw-2'>&amp;</span><span class='kw-2'>mut</span> <span class='ident'>common</span>::<span class='ident'>NvicInfo</span>) {
+        <span class='ident'>into</span>.<span class='ident'>span</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>parser</span>.<span class='ident'>span</span>.<span class='ident'>clone</span>();
+        <span class='self'>self</span>.<span class='ident'>assert_keyword_preamble</span>(<span class='string'>&quot;nvic&quot;</span>);
+
+        <span class='self'>self</span>.<span class='ident'>expect_ident_value</span>(<span class='string'>&quot;addr&quot;</span>);
+        <span class='self'>self</span>.<span class='ident'>expect_fat_arrow</span>();
+        <span class='ident'>into</span>.<span class='ident'>addr</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>parse_uint</span>::<span class='op'>&lt;</span><span class='ident'>u32</span><span class='op'>&gt;</span>() <span class='kw'>as</span> <span class='ident'>u32</span>;
+        <span class='self'>self</span>.<span class='ident'>expect_semi</span>();
+
+        <span class='self'>self</span>.<span class='ident'>expect_ident_value</span>(<span class='string'>&quot;prio_bits&quot;</span>);
+        <span class='self'>self</span>.<span class='ident'>expect_fat_arrow</span>();
+        <span class='ident'>into</span>.<span class='ident'>prio_bits</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>parse_uint</span>::<span class='op'>&lt;</span><span class='ident'>u8</span><span class='op'>&gt;</span>() <span class='kw'>as</span> <span class='ident'>u8</span>;
+        <span class='self'>self</span>.<span class='ident'>expect_semi</span>();
+
+        <span class='self'>self</span>.<span class='ident'>expect_close_curly</span>();
+        <span class='self'>self</span>.<span class='ident'>expect_semi</span>();
+    }
+
     <span class='doccomment'>/// Parses the entire `stack =&gt; { base =&gt; val @ .link_location; limit =&gt; val; };` block.</span>
     <span class='doccomment'>///</span>
     <span class='doccomment'>/// Values to either the `base` or `limit` keywords can be either a numeric literal or identifier.</span>
@@ -800,8 +821,7 @@
     <span class='doccomment'>/// Parses the entire `peripherals =&gt; { name =&gt; ty_path @ ptr_loc; ... };` block.</span>
     <span class='doccomment'>///</span>
     <span class='doccomment'>/// This is the block that associates all ioreg-defined peripherals with the generated MCU.</span>
-    <span class='doccomment'>/// Each peripheral is added as a field to the MCU structure and when initialized with `::new()` or using the</span>
-    <span class='doccomment'>/// generated static instantialization, each ioreg&#39;s pointer is set to the given value.</span>
+    <span class='doccomment'>/// Each peripheral is added as a field to the MCU structure and initialized with each ioreg&#39;s memory address.</span>
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>parse_peripherals</span>(<span class='kw-2'>&amp;</span><span class='kw-2'>mut</span> <span class='self'>self</span>, <span class='ident'>into</span>: <span class='kw-2'>&amp;</span><span class='kw-2'>mut</span> <span class='ident'>Vec</span><span class='op'>&lt;</span><span class='ident'>common</span>::<span class='ident'>PeripheralInfo</span><span class='op'>&gt;</span>, <span class='ident'>consts</span>: <span class='kw-2'>&amp;</span><span class='ident'>BTreeMap</span><span class='op'>&lt;</span><span class='ident'>String</span>, <span class='ident'>parser</span>::<span class='ident'>StaticValue</span><span class='op'>&gt;</span>) {
         <span class='kw'>while</span> <span class='op'>!</span> <span class='self'>self</span>.<span class='ident'>eat</span>(<span class='kw-2'>&amp;</span><span class='ident'>token</span>::<span class='ident'>CloseDelim</span>(<span class='ident'>token</span>::<span class='ident'>DelimToken</span>::<span class='ident'>Brace</span>)) {
             <span class='kw'>let</span> <span class='ident'>sp</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>parser</span>.<span class='ident'>span</span>;

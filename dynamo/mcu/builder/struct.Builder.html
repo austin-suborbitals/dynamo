@@ -47,13 +47,13 @@
                    <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
                        [<span class='inner'>&#x2212;</span>]
                    </a>
-               </span><a id='src-1016' class='srclink' href='../../../src/dynamo/src/mcu/builder.rs.html#74-79' title='goto source code'>[src]</a></span></h1>
+               </span><a id='src-1028' class='srclink' href='../../../src/dynamo/src/mcu/builder.rs.html#78-83' title='goto source code'>[src]</a></span></h1>
 <pre class='rust struct'>pub struct Builder&lt;'a&gt; {
     // some fields omitted
 }</pre><div class='docblock'><p>Builds the generated AST from the parsed mcu!() block.</p>
 
 <p>Consumes the parser to later set syntax errors.</p>
-</div><h2 id='methods'>Methods</h2><h3 class='impl'><span class='in-band'><code>impl&lt;'a&gt; <a class='struct' href='../../../dynamo/mcu/builder/struct.Builder.html' title='dynamo::mcu::builder::Builder'>Builder</a>&lt;'a&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a id='src-1022' class='srclink' href='../../../src/dynamo/src/mcu/builder.rs.html#81-498' title='goto source code'>[src]</a></span></h3>
+</div><h2 id='methods'>Methods</h2><h3 class='impl'><span class='in-band'><code>impl&lt;'a&gt; <a class='struct' href='../../../dynamo/mcu/builder/struct.Builder.html' title='dynamo::mcu::builder::Builder'>Builder</a>&lt;'a&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a id='src-1034' class='srclink' href='../../../src/dynamo/src/mcu/builder.rs.html#85-826' title='goto source code'>[src]</a></span></h3>
 <div class='impl-items'><h4 id='method.new' class='method'><code>fn <a href='#method.new' class='fnname'>new</a>(mcu: <a class='struct' href='../../../dynamo/mcu/common/struct.McuInfo.html' title='dynamo::mcu::common::McuInfo'>McuInfo</a>, parser: <a class='type' href='../../../dynamo/mcu/parser/type.Parser.html' title='dynamo::mcu::parser::Parser'>Parser</a>&lt;'a&gt;, verbose: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.bool.html'>bool</a>) -&gt; <a class='struct' href='../../../dynamo/mcu/builder/struct.Builder.html' title='dynamo::mcu::builder::Builder'>Builder</a></code></h4>
 <div class='docblock'><p>Consumes the parsed common::McuInfo descriptor and parser to construct a Builder.</p>
 </div><h4 id='method.build' class='method'><code>fn <a href='#method.build' class='fnname'>build</a>(&amp;self) -&gt; <a class='struct' href='https://doc.rust-lang.org/nightly/collections/vec/struct.Vec.html' title='collections::vec::Vec'>Vec</a>&lt;<a class='struct' href='https://doc.rust-lang.org/nightly/syntax/ptr/struct.P.html' title='syntax::ptr::P'>P</a>&lt;<a class='struct' href='https://doc.rust-lang.org/nightly/syntax/ast/struct.Item.html' title='syntax::ast::Item'>Item</a>&gt;&gt;</code></h4>
@@ -64,22 +64,12 @@
     2, the MCU struct
     3. the MCU impl (including the ::new() function)
     4. the interrupt array</p>
-
-<p>If the <code>no_static</code> keyword is omitted, the following are also generated:
-    1. the Sync trait as locking is left to the implementor
-    2. a static version of the mcu exported as MCU</p>
 </div><h4 id='method.build_struct' class='method'><code>fn <a href='#method.build_struct' class='fnname'>build_struct</a>(&amp;self) -&gt; <a class='struct' href='https://doc.rust-lang.org/nightly/syntax/ptr/struct.P.html' title='syntax::ptr::P'>P</a>&lt;<a class='struct' href='https://doc.rust-lang.org/nightly/syntax/ast/struct.Item.html' title='syntax::ast::Item'>Item</a>&gt;</code></h4>
 <div class='docblock'><p>Builds the MCU structure definition including derived traits, doc comments, and doc sources.</p>
 
 <p>Only the definition, traits, and doc comments are generated directly. Everything else uses helpers.</p>
-</div><h4 id='method.build_sync_impl' class='method'><code>fn <a href='#method.build_sync_impl' class='fnname'>build_sync_impl</a>(&amp;self) -&gt; <a class='struct' href='https://doc.rust-lang.org/nightly/syntax/ptr/struct.P.html' title='syntax::ptr::P'>P</a>&lt;<a class='struct' href='https://doc.rust-lang.org/nightly/syntax/ast/struct.Item.html' title='syntax::ast::Item'>Item</a>&gt;</code></h4>
-<div class='docblock'><p>Generate the Sync trait for our type.</p>
-
-<p>This is onyl done if a static version of the mcu is generated.</p>
 </div><h4 id='method.build_new_struct' class='method'><code>fn <a href='#method.build_new_struct' class='fnname'>build_new_struct</a>(&amp;self) -&gt; <a class='struct' href='https://doc.rust-lang.org/nightly/syntax/ptr/struct.P.html' title='syntax::ptr::P'>P</a>&lt;<a class='struct' href='https://doc.rust-lang.org/nightly/syntax/ast/struct.Expr.html' title='syntax::ast::Expr'>Expr</a>&gt;</code></h4>
 <div class='docblock'><p>Generates the structure initializer used in both the ::new() function and to initialize the static version (if generated).</p>
-</div><h4 id='method.build_static_instantiation' class='method'><code>fn <a href='#method.build_static_instantiation' class='fnname'>build_static_instantiation</a>(&amp;self) -&gt; <a class='struct' href='https://doc.rust-lang.org/nightly/syntax/ptr/struct.P.html' title='syntax::ptr::P'>P</a>&lt;<a class='struct' href='https://doc.rust-lang.org/nightly/syntax/ast/struct.Item.html' title='syntax::ast::Item'>Item</a>&gt;</code></h4>
-<div class='docblock'><p>Generates the <code>static MCU: MyMcu = MyMcu{...};</code> statement if specified in the expansion.</p>
 </div><h4 id='method.build_externs' class='method'><code>fn <a href='#method.build_externs' class='fnname'>build_externs</a>(&amp;self) -&gt; <a class='struct' href='https://doc.rust-lang.org/nightly/syntax/ptr/struct.P.html' title='syntax::ptr::P'>P</a>&lt;<a class='struct' href='https://doc.rust-lang.org/nightly/syntax/ast/struct.Item.html' title='syntax::ast::Item'>Item</a>&gt;</code></h4>
 <div class='docblock'><p>Generates the <code>extern &quot;C&quot; { ... }</code> block for any defined externs in the expansion.</p>
 </div><h4 id='method.build_impl' class='method'><code>fn <a href='#method.build_impl' class='fnname'>build_impl</a>(&amp;self) -&gt; <a class='struct' href='https://doc.rust-lang.org/nightly/syntax/ptr/struct.P.html' title='syntax::ptr::P'>P</a>&lt;<a class='struct' href='https://doc.rust-lang.org/nightly/syntax/ast/struct.Item.html' title='syntax::ast::Item'>Item</a>&gt;</code></h4>
@@ -92,6 +82,17 @@
 <div class='docblock'><p>Builds the interrupts table and associates the #[link_section = &quot;.some_location&quot;] attribute with it.</p>
 
 <p>The array generated is of type <code>[Option&lt;fn()&gt;; NUM_INTERRUPTS]</code> and defaults to <code>None</code> for all interrupts.</p>
+</div><h4 id='method.build_nvic_ty' class='method'><code>fn <a href='#method.build_nvic_ty' class='fnname'>build_nvic_ty</a>(&amp;self) -&gt; <a class='struct' href='https://doc.rust-lang.org/nightly/syntax/ptr/struct.P.html' title='syntax::ptr::P'>P</a>&lt;<a class='struct' href='https://doc.rust-lang.org/nightly/syntax/ast/struct.Item.html' title='syntax::ast::Item'>Item</a>&gt;</code></h4>
+<div class='docblock'><p>Generates the NVIC type we will add to the generated MCU.</p>
+
+<p>This structure contains the function needed to enable/disable ints, set prios, etc.
+It will look and function just like an ioreg peripheral, but generated here instead.</p>
+</div><h4 id='method.build_nvic_instance' class='method'><code>fn <a href='#method.build_nvic_instance' class='fnname'>build_nvic_instance</a>(&amp;self) -&gt; <a class='struct' href='https://doc.rust-lang.org/nightly/syntax/ptr/struct.P.html' title='syntax::ptr::P'>P</a>&lt;<a class='struct' href='https://doc.rust-lang.org/nightly/syntax/ast/struct.Expr.html' title='syntax::ast::Expr'>Expr</a>&gt;</code></h4>
+<div class='docblock'><p>Generates an <code>ast::Expr</code> that describes the instantiation of the NVIC.</p>
+
+<p>This is used for NVIC::new() as well as the MCU instantiation.</p>
+</div><h4 id='method.build_nvic_impl' class='method'><code>fn <a href='#method.build_nvic_impl' class='fnname'>build_nvic_impl</a>(&amp;self) -&gt; <a class='struct' href='https://doc.rust-lang.org/nightly/syntax/ptr/struct.P.html' title='syntax::ptr::P'>P</a>&lt;<a class='struct' href='https://doc.rust-lang.org/nightly/syntax/ast/struct.Item.html' title='syntax::ast::Item'>Item</a>&gt;</code></h4>
+<div class='docblock'><p>Generates the functions that will exist on the NVIC handler.</p>
 </div><h4 id='method.build_stack_entry_ptr' class='method'><code>fn <a href='#method.build_stack_entry_ptr' class='fnname'>build_stack_entry_ptr</a>(&amp;self) -&gt; <a class='struct' href='https://doc.rust-lang.org/nightly/syntax/ptr/struct.P.html' title='syntax::ptr::P'>P</a>&lt;<a class='struct' href='https://doc.rust-lang.org/nightly/syntax/ast/struct.Item.html' title='syntax::ast::Item'>Item</a>&gt;</code></h4>
 <div class='docblock'><p>Generates the static value for the stack_base pointer.</p>
 

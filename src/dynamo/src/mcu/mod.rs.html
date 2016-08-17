@@ -204,6 +204,13 @@
 <span id="160">160</span>
 <span id="161">161</span>
 <span id="162">162</span>
+<span id="163">163</span>
+<span id="164">164</span>
+<span id="165">165</span>
+<span id="166">166</span>
+<span id="167">167</span>
+<span id="168">168</span>
+<span id="169">169</span>
 </pre><pre class='rust '>
 <span class='comment'>/*
 
@@ -240,6 +247,13 @@ mcu!(
         1..5    =&gt; some_common_handler;
         6       =&gt; ::peregrine::isr::default::some_default_handler;
         7..127  =&gt; None;
+    };
+
+    // in combination with the above interrupts (mainly the number of), generate the
+    // NVIC interface as if it was an ioreg, but we know the needed functions ahead of time.
+    nvic =&gt; {
+        addr =&gt; 0xE000_E000;
+        prio_bits =&gt; 4;
     };
 
     // NOTE: the `base` field requires a link section to place the base pointer -- generally right before the IVT
