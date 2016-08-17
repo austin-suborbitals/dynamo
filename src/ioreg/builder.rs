@@ -162,6 +162,7 @@ impl<'a> Builder<'a> {
 
         // generate the base "struct" pointer.
         let mut docced_item = self.base_builder.item().span(self.reg.span)
+            .attr().list("repr").word("C").build()
             .attr().list("derive").word("Debug").build()
             .attr().list("derive").word("Clone").build()
             .attr().list("derive").word("PartialEq").build()

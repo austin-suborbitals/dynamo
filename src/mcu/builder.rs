@@ -131,6 +131,7 @@ impl<'a> Builder<'a> {
     pub fn build_struct(&self) -> ptr::P<ast::Item> {
         // make the struct builder and add the doc attributes
         let mut preamble = self.base_builder.item()
+            .attr().list("repr").word("C").build()
             .attr().list("derive").word("Debug").build()
             .attr().list("derive").word("Clone").build()
             .attr().list("derive").word("PartialEq").build()
@@ -409,6 +410,7 @@ impl<'a> Builder<'a> {
             self.base_builder.expr().usize(240),    // TODO: verify not 256 like others
         ));
         self.base_builder.item()
+            .attr().list("repr").word("C").build()
             .attr().list("derive").word("Clone").build()
             .attr().list("derive").word("Debug").build()
             .attr().list("derive").word("PartialEq").build()
@@ -471,7 +473,7 @@ impl<'a> Builder<'a> {
     // TODO: a good number of assumptions here, but shared across cortex-M apparently
     /// Generates the functions that will exist on the NVIC handler.
     pub fn build_nvic_impl(&self) -> ptr::P<ast::Item> {
-        let mut impl_block = self.base_builder.item().impl_();
+        let mut impl_block = self.base_builder.item().span(self.mcu.nvic.span).impl_();
 
         // make the "::new()" function
         impl_block = impl_block.item("new")
@@ -800,10 +802,13 @@ impl<'a> Builder<'a> {
             let copy_data = self.base_builder.stmt().span(self.mcu.init.span.clone()).semi()
                 .method_call("copy_data_section").self_().build();
 
-            let exit_bootloader = self.base_builder.stmt().span(self.mcu.init.span.clone()).semi()
-                .call().id(self.mcu.init.exit.to_string())
-                .arg().self_()
-                .build();
+            let exit_bootloader = self.base_builder.stmt().span(self.mcu.init.span.clone()).expr().span(self.mcu.init.span.clone())
+                .block().span(self.mcu.init.span.clone()).unsafe_()
+                    .stmt().span(self.mcu.init.span.clone()).semi()
+                        .call().id(self.mcu.init.exit.to_string())
+                        .arg().self_()
+                        .build()
+                    .build();
 
 
             // TODO: if ::init not defined.... make one
