@@ -868,6 +868,11 @@
 <span id="824">824</span>
 <span id="825">825</span>
 <span id="826">826</span>
+<span id="827">827</span>
+<span id="828">828</span>
+<span id="829">829</span>
+<span id="830">830</span>
+<span id="831">831</span>
 </pre><pre class='rust '>
 <span class='kw'>extern</span> <span class='kw'>crate</span> <span class='ident'>aster</span>;
 
@@ -1002,6 +1007,7 @@
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>build_struct</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>ptr</span>::<span class='ident'>P</span><span class='op'>&lt;</span><span class='ident'>ast</span>::<span class='ident'>Item</span><span class='op'>&gt;</span> {
         <span class='comment'>// make the struct builder and add the doc attributes</span>
         <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>preamble</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>item</span>()
+            .<span class='ident'>attr</span>().<span class='ident'>list</span>(<span class='string'>&quot;repr&quot;</span>).<span class='ident'>word</span>(<span class='string'>&quot;C&quot;</span>).<span class='ident'>build</span>()
             .<span class='ident'>attr</span>().<span class='ident'>list</span>(<span class='string'>&quot;derive&quot;</span>).<span class='ident'>word</span>(<span class='string'>&quot;Debug&quot;</span>).<span class='ident'>build</span>()
             .<span class='ident'>attr</span>().<span class='ident'>list</span>(<span class='string'>&quot;derive&quot;</span>).<span class='ident'>word</span>(<span class='string'>&quot;Clone&quot;</span>).<span class='ident'>build</span>()
             .<span class='ident'>attr</span>().<span class='ident'>list</span>(<span class='string'>&quot;derive&quot;</span>).<span class='ident'>word</span>(<span class='string'>&quot;PartialEq&quot;</span>).<span class='ident'>build</span>()
@@ -1280,6 +1286,7 @@
             <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>expr</span>().<span class='ident'>usize</span>(<span class='number'>240</span>),    <span class='comment'>// TODO: verify not 256 like others</span>
         ));
         <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>item</span>()
+            .<span class='ident'>attr</span>().<span class='ident'>list</span>(<span class='string'>&quot;repr&quot;</span>).<span class='ident'>word</span>(<span class='string'>&quot;C&quot;</span>).<span class='ident'>build</span>()
             .<span class='ident'>attr</span>().<span class='ident'>list</span>(<span class='string'>&quot;derive&quot;</span>).<span class='ident'>word</span>(<span class='string'>&quot;Clone&quot;</span>).<span class='ident'>build</span>()
             .<span class='ident'>attr</span>().<span class='ident'>list</span>(<span class='string'>&quot;derive&quot;</span>).<span class='ident'>word</span>(<span class='string'>&quot;Debug&quot;</span>).<span class='ident'>build</span>()
             .<span class='ident'>attr</span>().<span class='ident'>list</span>(<span class='string'>&quot;derive&quot;</span>).<span class='ident'>word</span>(<span class='string'>&quot;PartialEq&quot;</span>).<span class='ident'>build</span>()
@@ -1342,7 +1349,7 @@
     <span class='comment'>// TODO: a good number of assumptions here, but shared across cortex-M apparently</span>
     <span class='doccomment'>/// Generates the functions that will exist on the NVIC handler.</span>
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>build_nvic_impl</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>ptr</span>::<span class='ident'>P</span><span class='op'>&lt;</span><span class='ident'>ast</span>::<span class='ident'>Item</span><span class='op'>&gt;</span> {
-        <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>impl_block</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>item</span>().<span class='ident'>impl_</span>();
+        <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>impl_block</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>item</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>impl_</span>();
 
         <span class='comment'>// make the &quot;::new()&quot; function</span>
         <span class='ident'>impl_block</span> <span class='op'>=</span> <span class='ident'>impl_block</span>.<span class='ident'>item</span>(<span class='string'>&quot;new&quot;</span>)
@@ -1671,10 +1678,13 @@
             <span class='kw'>let</span> <span class='ident'>copy_data</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>stmt</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>init</span>.<span class='ident'>span</span>.<span class='ident'>clone</span>()).<span class='ident'>semi</span>()
                 .<span class='ident'>method_call</span>(<span class='string'>&quot;copy_data_section&quot;</span>).<span class='ident'>self_</span>().<span class='ident'>build</span>();
 
-            <span class='kw'>let</span> <span class='ident'>exit_bootloader</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>stmt</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>init</span>.<span class='ident'>span</span>.<span class='ident'>clone</span>()).<span class='ident'>semi</span>()
-                .<span class='ident'>call</span>().<span class='ident'>id</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>init</span>.<span class='ident'>exit</span>.<span class='ident'>to_string</span>())
-                .<span class='ident'>arg</span>().<span class='ident'>self_</span>()
-                .<span class='ident'>build</span>();
+            <span class='kw'>let</span> <span class='ident'>exit_bootloader</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>stmt</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>init</span>.<span class='ident'>span</span>.<span class='ident'>clone</span>()).<span class='ident'>expr</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>init</span>.<span class='ident'>span</span>.<span class='ident'>clone</span>())
+                .<span class='ident'>block</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>init</span>.<span class='ident'>span</span>.<span class='ident'>clone</span>()).<span class='ident'>unsafe_</span>()
+                    .<span class='ident'>stmt</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>init</span>.<span class='ident'>span</span>.<span class='ident'>clone</span>()).<span class='ident'>semi</span>()
+                        .<span class='ident'>call</span>().<span class='ident'>id</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>init</span>.<span class='ident'>exit</span>.<span class='ident'>to_string</span>())
+                        .<span class='ident'>arg</span>().<span class='ident'>self_</span>()
+                        .<span class='ident'>build</span>()
+                    .<span class='ident'>build</span>();
 
 
             <span class='comment'>// TODO: if ::init not defined.... make one</span>
