@@ -1,4 +1,5 @@
 #![feature(plugin)]
+#![feature(const_fn)]
 #![feature(core_intrinsics)]
 #![feature(associated_consts)]
 
@@ -63,8 +64,6 @@ mod sanity {
 	}}}
 
     mcu!(
-        no_static;
-
         name => SomeMcuName;
         doc_srcs => [
             "http://some.url.com/path/to/probably.pdf",
@@ -94,6 +93,11 @@ mod sanity {
             1..5    => some_common_handler;
             6       => ::peregrine::isr::default::some_default_handler; // NOTE: paths must start with :: but will not be included
 			7..32   => None;
+        };
+
+        nvic => {
+            addr => 0xE000_E000;
+            prio_bits => 4;
         };
 
         stack => {
@@ -187,31 +191,133 @@ mod sanity {
 }
 
 #[cfg(test)]
-mod with_static {
+mod static_instance {
     extern crate core;
     use self::core::intrinsics::volatile_copy_nonoverlapping_memory;
 
     mcu!(
         name => TestMcu;
         actions => [
-            pub fn init(&self) {} // needed to squelch undefined errors
+            pub fn init(&self) {}
+        ];
+    );
+
+    static MCU: TestMcu = TestMcu::new();
+    unsafe impl Sync for TestMcu {}
+
+    #[test]
+    fn make_static() {}
+}
+
+
+#[cfg(test)]
+mod nvic {
+    extern crate core;
+    use self::core::intrinsics::volatile_copy_nonoverlapping_memory;
+
+    mcu!(
+        name => TestMcu;
+        nvic => {
+            addr => 0xE000_E000;
+            prio_bits => 4;
+        };
+        actions => [
+            pub fn init(&self) {}
         ];
     );
 
     #[test]
-    fn instantiated() {
-        assert_eq!(MCU, TestMcu::new());
+    fn correct_addresses() {
+        let mcu = TestMcu::new();
+
+        assert_eq!(0xE000_E100, mcu.nvic.iser as u32);
+        assert_eq!(0xE000_E180, mcu.nvic.icer as u32);
+
+        assert_eq!(0xE000_E200, mcu.nvic.ispr as u32);
+        assert_eq!(0xE000_E280, mcu.nvic.icpr as u32);
+
+        assert_eq!(0xE000_E300, mcu.nvic.iabr as u32);
+
+        assert_eq!(0xE000_E400, mcu.nvic.ipr as u32);
     }
 
     #[test]
-    fn stack_constants_default() {
-        assert_eq!(TestMcu::STACK_BASE, 0);
-        assert_eq!(TestMcu::STACK_LIMIT, 0);
+    fn enable_disable_status() {
+        // NOTE: this function enables and disables in the same loop, which is unusual, but testable
+        let mut enable = [0u32; 8];
+        let mut clear = [0u32; 8];
+
+        let mut mcu = TestMcu::new();
+        let old_loc = mcu.nvic.iser as u32;
+
+        mcu.nvic.iser = &mut enable as *mut [u32;8];
+        assert!(old_loc != mcu.nvic.iser as u32);
+
+        mcu.nvic.icer = &mut clear as *mut [u32;8];
+        assert!(old_loc != mcu.nvic.icer as u32);
+
+        for i in 0u8..8u8 { // for every u32 in the "array"
+            for b in 0u8..32u8 { // for every bit in the u32
+                mcu.nvic.enable_irq((i*32)+b);
+                mcu.nvic.disable_irq((i*32)+b);
+                assert_eq!(true, mcu.nvic.is_enabled((i*32)+b));
+            }
+
+            unsafe { assert_eq!((*mcu.nvic.iser)[i as usize], 0xFFFFFFFF); }
+            unsafe { assert_eq!((*mcu.nvic.icer)[i as usize], 0xFFFFFFFF); }
+        }
     }
 
     #[test]
-    fn heap_constants_default() {
-        assert_eq!(TestMcu::HEAP_BASE, 0);
-        assert_eq!(TestMcu::HEAP_LIMIT, 0);
+    fn set_and_get_priority() {
+        let mut prios = [0u8; 240];
+
+        let mut mcu = TestMcu::new();
+        let old_loc = mcu.nvic.ipr as u32;
+
+        mcu.nvic.ipr = &mut prios as *mut [u8;240];
+        assert!(old_loc != mcu.nvic.ipr as u32);
+
+        for i in 0u8..240u8 {
+            mcu.nvic.set_priority(i, i);
+        }
+
+        for i in 0u8..240u8 {
+            assert_eq!((i%16), mcu.nvic.get_priority(i));
+        }
+    }
+
+    #[test]
+    fn set_and_get_pending() {
+        let mut pends = [0u32; 8];
+
+        let mut mcu = TestMcu::new();
+        let old_loc = mcu.nvic.ispr as u32;
+
+        mcu.nvic.ispr = &mut pends as *mut [u32;8];
+        assert!(old_loc != mcu.nvic.ispr as u32);
+
+        for i in 0u8..240u8 {
+            mcu.nvic.set_pending(i);
+            assert_eq!(true, mcu.nvic.is_pending(i));
+        }
+    }
+
+    #[test]
+    fn clear_pending() {
+        let mut pends = [0u32; 8];
+
+        let mut mcu = TestMcu::new();
+        let old_loc = mcu.nvic.icpr as u32;
+
+        mcu.nvic.icpr = &mut pends as *mut [u32;8];
+        assert!(old_loc != mcu.nvic.icpr as u32);
+
+        for i in 0..256u16 { // if set to 255, would not include 255
+            mcu.nvic.clear_pending(i as u8);
+        }
+        for i in 0..8usize {
+            assert_eq!(0xFFFFFFFF, pends[i]);
+        }
     }
 }

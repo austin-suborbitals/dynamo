@@ -35,6 +35,13 @@ mcu!(
         7..127  => None;
     };
 
+    // in combination with the above interrupts (mainly the number of), generate the
+    // NVIC interface as if it was an ioreg, but we know the needed functions ahead of time.
+    nvic => {
+        addr => 0xE000_E000;
+        prio_bits => 4;
+    };
+
     // NOTE: the `base` field requires a link section to place the base pointer -- generally right before the IVT
     //       the stack **will not** be located at the link section, simply a pointer to it.
     //       it is entirely reasonable to have something like:

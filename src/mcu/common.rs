@@ -85,9 +85,6 @@ pub struct PeripheralInfo {
 #[derive(Debug)]
 pub struct ActionInfo {
     pub name: String,
-    //pub args: Vec<ast::Arg>,
-    //pub decl: ptr::P<ast::FnDecl>,
-    //pub block: ptr::P<ast::Block>,
     pub item: ast::ImplItem,
     pub span: Span,
 }
@@ -100,6 +97,13 @@ pub struct InitInfo {
 }
 
 #[derive(Debug)]
+pub struct NvicInfo {
+    pub addr: u32,
+    pub prio_bits: u8,
+    pub span: Span
+}
+
+#[derive(Debug)]
 /// Internal structure for the builder which describes the parsed MCU block.
 pub struct McuInfo {
     pub name: String,
@@ -107,6 +111,7 @@ pub struct McuInfo {
     pub constants: BTreeMap<String, StaticValue>,
     pub externs: BTreeMap<String, (ast::TyKind, Span)>,
     pub interrupts: InterruptsInfo,
+    pub nvic: NvicInfo,
     pub stack: StackInfo,                                   // TODO: builder
     pub data: DataInfo,
     pub heap: HeapInfo,                                     // TODO: builder
@@ -116,7 +121,6 @@ pub struct McuInfo {
     pub entry_ptr_link: String,
     pub link_script: String,                                // TODO: builder and make sure #[link_flags = ""] escape crate-level
     pub span: Span,
-    pub no_static: bool,
 }
 
 impl McuInfo {
@@ -129,6 +133,7 @@ impl McuInfo {
             constants: BTreeMap::new(),
             externs: BTreeMap::new(),
             interrupts: InterruptsInfo::default(),
+            nvic: NvicInfo{addr:0, prio_bits:3, span:DUMMY_SP},
             stack: StackInfo{
                 base: StaticValue::default_uint(),
                 limit: StaticValue::default_uint(),
@@ -160,7 +165,6 @@ impl McuInfo {
             entry_ptr_link: "".to_string(),
             link_script: "".to_string(),
             span: DUMMY_SP,
-            no_static: false,
         }
     }
 }

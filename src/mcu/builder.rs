@@ -34,9 +34,13 @@ macro_rules! ptr_cast {
     ($lhs:expr, $rhs:expr, true) => { ptr_cast!($lhs, $rhs, ast::Mutability::Mutable) };
     ($lhs:expr, $rhs:expr, false) => { ptr_cast!($lhs, $rhs, ast::Mutability::Immutable) };
 
-    ($lhs:expr, $rhs:expr, $mutbl:expr) => {
+    ($lhs:expr, $rhs:expr, $mutbl:expr) => { cast!($lhs, ptr_type!($rhs, $mutbl)) };
+}
+
+macro_rules! cast {
+    ($lhs:expr, $rhs:expr) => {
         aster::AstBuilder::new().expr().build_expr_kind(
-            ast::ExprKind::Cast( $lhs, ptr_type!($rhs, $mutbl) )
+            ast::ExprKind::Cast( $lhs, $rhs )
         )
     };
 }
@@ -98,10 +102,6 @@ impl<'a> Builder<'a> {
     ///     2, the MCU struct
     ///     3. the MCU impl (including the ::new() function)
     ///     4. the interrupt array
-    ///
-    /// If the `no_static` keyword is omitted, the following are also generated:
-    ///     1. the Sync trait as locking is left to the implementor
-    ///     2. a static version of the mcu exported as MCU
     pub fn build(&self) -> Vec<ptr::P<ast::Item>> {
         let mut result = Vec::<ptr::P<ast::Item>>::new();
         if ! self.mcu.externs.is_empty() {
@@ -109,16 +109,13 @@ impl<'a> Builder<'a> {
         }
 
 		result.push(self.build_stack_entry_ptr());
+        result.push(self.build_nvic_ty());
+        result.push(self.build_nvic_impl());
         result.push(self.build_struct());
         result.push(self.build_impl());
 
         if ! self.mcu.interrupts.ints.is_empty() {
             result.push(self.build_interrupts());
-        }
-
-        if ! self.mcu.no_static {
-            result.push(self.build_sync_impl());
-            result.push(self.build_static_instantiation());
         }
 
         if self.verbose {
@@ -151,7 +148,9 @@ impl<'a> Builder<'a> {
         }
 
         // and add the peripheral fields
-        let mut fields: Vec<ast::StructField> = vec!();
+        let mut fields: Vec<ast::StructField> = vec![
+            self.base_builder.struct_field("nvic").pub_().ty().id("NVIC"),
+        ];
         for p in &self.mcu.peripherals {
             fields.push(self.base_builder.span(p.span).struct_field(p.name.clone()).pub_().ty().build_ty_kind(p.path.clone()));
         }
@@ -159,18 +158,11 @@ impl<'a> Builder<'a> {
         preamble.pub_().struct_(self.mcu.name.clone()).with_fields(fields).build()
     }
 
-    /// Generate the Sync trait for our type.
-    ///
-    /// This is onyl done if a static version of the mcu is generated.
-    pub fn build_sync_impl(&self) -> ptr::P<ast::Item> {
-        self.base_builder.item().impl_().unsafe_()
-            .trait_().id("Sync").build()
-            .ty().id(self.mcu.name.clone())
-    }
-
     /// Generates the structure initializer used in both the ::new() function and to initialize the static version (if generated).
     pub fn build_new_struct(&self) -> ptr::P<ast::Expr> {
-        let mut built_struct = self.base_builder.expr().struct_().id(self.mcu.name.clone()).build();
+        let mut built_struct = self.base_builder.expr()
+            .struct_().id(self.mcu.name.clone()).build()
+                .field("nvic").build(self.build_nvic_instance());
 
         // TODO: do this in a .map(|x| x) style if possible
         for p in &self.mcu.peripherals {
@@ -212,19 +204,6 @@ impl<'a> Builder<'a> {
         built_struct.build()
     }
 
-    // TODO: minimize clones
-    /// Generates the `static MCU: MyMcu = MyMcu{...};` statement if specified in the expansion.
-    pub fn build_static_instantiation(&self) -> ptr::P<ast::Item> {
-        self.base_builder.item().build_item_kind(
-            "MCU",
-            ast::ItemKind::Static(
-                self.base_builder.ty().id(self.mcu.name.clone()),
-                ast::Mutability::Immutable,
-                self.build_new_struct()
-            )
-        )
-    }
-
     // TODO: no cloning the tykind
     /// Generates the `extern "C" { ... }` block for any defined externs in the expansion.
     pub fn build_externs(&self) -> ptr::P<ast::Item> {
@@ -252,7 +231,7 @@ impl<'a> Builder<'a> {
         impl_block = self.build_const_vals(impl_block);
 
         // create the ::new() method
-        impl_block = impl_block.item("new").pub_().method().span(self.mcu.span).fn_decl()
+        impl_block = impl_block.item("new").pub_().method().const_().span(self.mcu.span).fn_decl()
             .return_().path().id(self.mcu.name.clone()).build()
             .block()
                 .build_expr(self.build_new_struct());
@@ -414,6 +393,355 @@ impl<'a> Builder<'a> {
                     self.base_builder.expr().slice().with_exprs(ints).build()
                 )
             )
+    }
+
+    /// Generates the NVIC type we will add to the generated MCU.
+    ///
+    /// This structure contains the function needed to enable/disable ints, set prios, etc.
+    /// It will look and function just like an ioreg peripheral, but generated here instead.
+    pub fn build_nvic_ty(&self) -> ptr::P<ast::Item> {
+        let bitslice = self.base_builder.ty().build_ty_kind(ast::TyKind::FixedLengthVec(
+            self.base_builder.ty().u32(),
+            self.base_builder.expr().usize(8),
+        ));
+        let byteslice = self.base_builder.ty().build_ty_kind(ast::TyKind::FixedLengthVec(
+            self.base_builder.ty().u8(),
+            self.base_builder.expr().usize(240),    // TODO: verify not 256 like others
+        ));
+        self.base_builder.item()
+            .attr().list("derive").word("Clone").build()
+            .attr().list("derive").word("Debug").build()
+            .attr().list("derive").word("PartialEq").build()
+            .attr().doc(format!("/// NVIC interface generated for the {} mcu.", self.mcu.name).as_str())
+            .attr().doc("///")
+            .attr().doc("/// This structure holds a set of pointers to [u32; 8] slices working as bitmaps.")
+            .attr().doc("/// Functions acting on this structure act on the bitmaps themselves.")
+            .pub_().struct_("NVIC")
+                .field("iser").pub_().build_ty( ptr_type!(bitslice.clone(), true) )
+                .field("icer").pub_().build_ty( ptr_type!(bitslice.clone(), true) )
+                .field("ispr").pub_().build_ty( ptr_type!(bitslice.clone(), true) )
+                .field("icpr").pub_().build_ty( ptr_type!(bitslice.clone(), true) )
+                .field("iabr").pub_().build_ty( ptr_type!(bitslice.clone(), true) )
+                .field("ipr").pub_().build_ty(  ptr_type!(byteslice, true) )
+            .build()
+    }
+
+
+    /// Generates an `ast::Expr` that describes the instantiation of the NVIC.
+    ///
+    /// This is used for NVIC::new() as well as the MCU instantiation.
+    pub fn build_nvic_instance(&self) -> ptr::P<ast::Expr> {
+        let bitslice = self.base_builder.ty().build_ty_kind(ast::TyKind::FixedLengthVec(
+            self.base_builder.ty().u32(),
+            self.base_builder.expr().usize(8),
+        ));
+        let byteslice = self.base_builder.ty().build_ty_kind(ast::TyKind::FixedLengthVec(
+            self.base_builder.ty().u8(),
+            self.base_builder.expr().usize(240),    // TODO: verify not 256 like others
+        ));
+
+        self.base_builder.expr().span(self.mcu.nvic.span).struct_().id("NVIC").build()
+            .field("iser").build(ptr_cast!(
+                self.base_builder.expr().u32(self.mcu.nvic.addr + 0x100), // TODO: verify offset
+                bitslice.clone(),true
+            ))
+            .field("icer").build(ptr_cast!(
+                self.base_builder.expr().u32(self.mcu.nvic.addr + 0x180), // TODO: verify offset
+                bitslice.clone(),true
+            ))
+            .field("ispr").build(ptr_cast!(
+                self.base_builder.expr().u32(self.mcu.nvic.addr + 0x200), // TODO: verify offset
+                bitslice.clone(),true
+            ))
+            .field("icpr").build(ptr_cast!(
+                self.base_builder.expr().u32(self.mcu.nvic.addr + 0x280), // TODO: verify offset
+                bitslice.clone(),true
+            ))
+            .field("iabr").build(ptr_cast!(
+                self.base_builder.expr().u32(self.mcu.nvic.addr + 0x300), // TODO: verify offset
+                bitslice.clone(),true
+            ))
+            .field("ipr").build(ptr_cast!(
+                self.base_builder.expr().u32(self.mcu.nvic.addr + 0x400), // TODO: verify offset
+                byteslice,true
+            ))
+            .build()
+    }
+
+    // TODO: a good number of assumptions here, but shared across cortex-M apparently
+    /// Generates the functions that will exist on the NVIC handler.
+    pub fn build_nvic_impl(&self) -> ptr::P<ast::Item> {
+        let mut impl_block = self.base_builder.item().impl_();
+
+        // make the "::new()" function
+        impl_block = impl_block.item("new")
+            .attr().doc("/// Returns a new, and valid, NVIC instantiation.")
+            .method().const_().fn_decl()
+            .return_().id("NVIC")
+            .block()
+            .build_expr(self.build_nvic_instance());
+
+        //
+        // enable and disable
+        //
+
+        // make the "::enable_irq(&self, irq: u8)" function
+        impl_block = impl_block.item("enable_irq").span(self.mcu.nvic.span)
+            .attr().doc("/// Enables the given IRQ in the NVIC.")
+            .method().fn_decl()
+            .self_().ref_()
+            .arg().id("irq").ty().u8()
+            .default_return() // TODO: return a status?
+            .block().unsafe_()
+                .stmt().semi().span(self.mcu.nvic.span).bit_or_assign()
+                    .index()
+                        .paren().deref().field("iser").self_()
+                        .div()
+                            .build(cast!(
+                                self.base_builder.expr().span(self.mcu.nvic.span).id("irq"),
+                                self.base_builder.ty().span(self.mcu.nvic.span).usize()
+                            ))
+                            .lit().span(self.mcu.nvic.span).usize(32)
+                    .shl()
+                        .lit().span(self.mcu.nvic.span).u32(1)
+                        .paren().rem()
+                            .build(cast!(
+                                self.base_builder.expr().span(self.mcu.nvic.span).id("irq"),
+                                self.base_builder.ty().span(self.mcu.nvic.span).u32()
+                            ))
+                            .lit().span(self.mcu.nvic.span).u32(32)
+            .build();
+
+
+        // make the "::disable_irq(&self, irq: u8)" function
+        impl_block = impl_block.item("disable_irq").span(self.mcu.nvic.span)
+            .attr().doc("/// Disables the given IRQ in the NVIC.")
+            .method().fn_decl()
+            .self_().ref_()
+            .arg().id("irq").ty().u8()
+            .default_return() // TODO: return a status?
+            .block().unsafe_()
+                .stmt().semi().span(self.mcu.nvic.span).bit_or_assign()
+                    .index()
+                        .paren().deref().field("icer").self_()
+                        .div()
+                            .build(cast!(
+                                self.base_builder.expr().span(self.mcu.nvic.span).id("irq"),
+                                self.base_builder.ty().span(self.mcu.nvic.span).usize()
+                            ))
+                            .lit().span(self.mcu.nvic.span).usize(32)
+                    .shl()
+                        .lit().span(self.mcu.nvic.span).u32(1)
+                        .paren().rem()
+                            .build(cast!(
+                                self.base_builder.expr().span(self.mcu.nvic.span).id("irq"),
+                                self.base_builder.ty().span(self.mcu.nvic.span).u32()
+                            ))
+                            .lit().span(self.mcu.nvic.span).u32(32)
+            .build();
+
+        // make the "::is_enabled(&self, irq: u8) -> bool" function
+        impl_block = impl_block.item("is_enabled").span(self.mcu.nvic.span)
+            .attr().doc("/// Returns whether the given IRQ is enabled or not.")
+            .method().fn_decl()
+            .self_().ref_()
+            .arg().id("irq").ty().u8()
+            .return_().bool()
+            .block().unsafe_()
+                .expr().span(self.mcu.nvic.span).gt()
+                    .bit_and()
+                        .index()
+                            .paren().deref().field("iser").self_()
+                            .div()
+                                .build(cast!(
+                                    self.base_builder.expr().span(self.mcu.nvic.span).id("irq"),
+                                    self.base_builder.ty().span(self.mcu.nvic.span).usize()
+                                ))
+                                .lit().span(self.mcu.nvic.span).usize(32)
+                        .shl()
+                            .lit().span(self.mcu.nvic.span).u32(1)
+                            .paren().rem()
+                                .build(cast!(
+                                    self.base_builder.expr().span(self.mcu.nvic.span).id("irq"),
+                                    self.base_builder.ty().span(self.mcu.nvic.span).u32()
+                                ))
+                                .lit().span(self.mcu.nvic.span).u32(32)
+                    .lit().u32(0);
+
+        //
+        // pending
+        //
+
+        // make the "::set_pending(&self, irq: u8)" function
+        impl_block = impl_block.item("set_pending").span(self.mcu.nvic.span)
+            .attr().doc("/// Sets the given IRQ status to pending in the NVIC.")
+            .method().fn_decl()
+            .self_().ref_()
+            .arg().id("irq").ty().u8()
+            .default_return() // TODO: return a status?
+            .block().unsafe_()
+                .stmt().semi().span(self.mcu.nvic.span).bit_or_assign()
+                    .index()
+                        .paren().deref().field("ispr").self_()
+                        .div()
+                            .build(cast!(
+                                self.base_builder.expr().span(self.mcu.nvic.span).id("irq"),
+                                self.base_builder.ty().span(self.mcu.nvic.span).usize()
+                            ))
+                            .lit().span(self.mcu.nvic.span).usize(32)
+                    .shl()
+                        .lit().span(self.mcu.nvic.span).u32(1)
+                        .paren().rem()
+                            .build(cast!(
+                                self.base_builder.expr().span(self.mcu.nvic.span).id("irq"),
+                                self.base_builder.ty().span(self.mcu.nvic.span).u32()
+                            ))
+                            .lit().span(self.mcu.nvic.span).u32(32)
+            .build();
+
+
+        // make the "::clear_pending(&self, irq: u8)" function
+        impl_block = impl_block.item("clear_pending").span(self.mcu.nvic.span)
+            .attr().doc("/// Removes the given IRQ from the pending list.")
+            .method().fn_decl()
+            .self_().ref_()
+            .arg().id("irq").ty().u8()
+            .default_return() // TODO: return a status?
+            .block().unsafe_()
+                .stmt().semi().span(self.mcu.nvic.span).bit_or_assign()
+                    .index()
+                        .paren().deref().field("icpr").self_()
+                        .div()
+                            .build(cast!(
+                                self.base_builder.expr().span(self.mcu.nvic.span).id("irq"),
+                                self.base_builder.ty().span(self.mcu.nvic.span).usize()
+                            ))
+                            .lit().span(self.mcu.nvic.span).usize(32)
+                    .shl()
+                        .lit().span(self.mcu.nvic.span).u32(1)
+                        .paren().rem()
+                            .build(cast!(
+                                self.base_builder.expr().span(self.mcu.nvic.span).id("irq"),
+                                self.base_builder.ty().span(self.mcu.nvic.span).u32()
+                            ))
+                            .lit().span(self.mcu.nvic.span).u32(32)
+            .build();
+
+        // make the "::is_pending(&self, irq: u8) -> bool" function
+        impl_block = impl_block.item("is_pending").span(self.mcu.nvic.span)
+            .attr().doc("/// Returns whether the given IRQ is pending or not.")
+            .method().fn_decl()
+            .self_().ref_()
+            .arg().id("irq").ty().u8()
+            .return_().bool()
+            .block().unsafe_()
+                .expr().span(self.mcu.nvic.span).gt()
+                    .bit_and()
+                        .index()
+                            .paren().deref().field("ispr").self_()
+                            .div()
+                                .build(cast!(
+                                    self.base_builder.expr().span(self.mcu.nvic.span).id("irq"),
+                                    self.base_builder.ty().span(self.mcu.nvic.span).usize()
+                                ))
+                                .lit().span(self.mcu.nvic.span).usize(32)
+                        .shl()
+                            .lit().span(self.mcu.nvic.span).u32(1)
+                            .paren().rem()
+                                .build(cast!(
+                                    self.base_builder.expr().span(self.mcu.nvic.span).id("irq"),
+                                    self.base_builder.ty().span(self.mcu.nvic.span).u32()
+                                ))
+                                .lit().span(self.mcu.nvic.span).u32(32)
+                    .lit().u32(0);
+
+        //
+        // active
+        //
+
+        // make the "::is_active(&self, irq: u8) -> bool" function
+        impl_block = impl_block.item("is_active").span(self.mcu.nvic.span)
+            .attr().doc("/// Returns whether the given IRQ is actively running or not.")
+            .method().fn_decl()
+            .self_().ref_()
+            .arg().id("irq").ty().u8()
+            .return_().bool()
+            .block().unsafe_()
+                .expr().span(self.mcu.nvic.span).gt()
+                    .bit_and()
+                        .index()
+                            .paren().deref().field("iabr").self_()
+                            .div()
+                                .build(cast!(
+                                    self.base_builder.expr().span(self.mcu.nvic.span).id("irq"),
+                                    self.base_builder.ty().span(self.mcu.nvic.span).usize()
+                                ))
+                                .lit().span(self.mcu.nvic.span).usize(32)
+                        .shl()
+                            .lit().span(self.mcu.nvic.span).u32(1)
+                            .paren().rem()
+                                .build(cast!(
+                                    self.base_builder.expr().span(self.mcu.nvic.span).id("irq"),
+                                    self.base_builder.ty().span(self.mcu.nvic.span).u32()
+                                ))
+                                .lit().span(self.mcu.nvic.span).u32(32)
+                    .lit().u32(0);
+
+        //
+        // priority
+        //
+
+        // make the "::set_priority(&self, irq: u8, prio: u8)" function
+        impl_block = impl_block.item("set_priority").span(self.mcu.nvic.span)
+            .attr().doc("/// Sets the given IRQ's priority to the given value in the NVIC.")
+            .attr().doc("///")
+            .attr().doc("/// **NOTE:** the priority is limited by the priority bits, but all shifts are done for you")
+            .method().fn_decl()
+            .self_().ref_()
+            .arg().id("irq").ty().u8()
+            .arg().id("prio").ty().u8()
+            .default_return() // TODO: return a status?
+            .block().unsafe_()
+                .stmt().semi().span(self.mcu.nvic.span).assign()
+                    .index()
+                        .paren().deref().field("ipr").self_()
+                        .build(cast!(
+                            self.base_builder.expr().span(self.mcu.nvic.span).id("irq"),
+                            self.base_builder.ty().span(self.mcu.nvic.span).usize()
+                        ))
+                    .shl()
+                        .paren().rem()
+                            .id("prio")
+                            .lit().u8(self.mcu.nvic.prio_bits << 2)
+                        .lit().u8(8 - self.mcu.nvic.prio_bits)
+            .build();
+
+
+        // make the "::get_priority(&self, irq: u8) -> u8" function
+        impl_block = impl_block.item("get_priority").span(self.mcu.nvic.span)
+            .attr().doc("/// Gets the given IRQ's priority from the NVIC.")
+            .attr().doc("///")
+            .attr().doc("/// The returned priority is shifted and will be in the range [0, priot_bits<<2].")
+            .method().fn_decl()
+            .self_().ref_()
+            .arg().id("irq").ty().u8()
+            .return_().u8()
+            .block().unsafe_()
+                .expr().span(self.mcu.nvic.span)
+                    .shr()
+                        .index()
+                            .paren().deref().field("ipr").self_()
+                            .build(cast!(
+                                self.base_builder.expr().span(self.mcu.nvic.span).id("irq"),
+                                self.base_builder.ty().span(self.mcu.nvic.span).usize()
+                            ))
+                        .lit().u8(8 - self.mcu.nvic.prio_bits);
+
+
+        //
+        // finalize
+        //
+        impl_block.ty().id("NVIC")
     }
 
     /// Generates the static value for the stack_base pointer.

@@ -34,17 +34,6 @@ impl<'a> Parser<'a> {
         let mut result = common::McuInfo::default();
         result.span = self.parser.span;
 
-        match self.curr_token() {
-            &token::Token::Ident(n) => {
-                if n.to_string() == "no_static" {
-                    self.parser.bump();
-                    self.expect_semi();
-                    result.no_static = true;
-                }
-            }
-            _ => {}
-        }
-
         // parse the mcu name
         self.expect_ident_value("name");
         self.expect_fat_arrow();
@@ -81,6 +70,9 @@ impl<'a> Parser<'a> {
                 "interrupts" => {
                     result.interrupts.span = self.parser.span.clone();
                     self.parse_interrupts(&mut result.interrupts);
+                }
+                "nvic" => {
+                    self.parse_nvic(&mut result.nvic);
                 }
                 "stack" => {
                     result.stack.span = self.parser.span.clone();
@@ -219,6 +211,25 @@ impl<'a> Parser<'a> {
         self.expect_semi();
     }
 
+    /// Parses the NVIC information block, informing us of the address and number of priority bits.
+    pub fn parse_nvic(&mut self, into: &mut common::NvicInfo) {
+        into.span = self.parser.span.clone();
+        self.assert_keyword_preamble("nvic");
+
+        self.expect_ident_value("addr");
+        self.expect_fat_arrow();
+        into.addr = self.parse_uint::<u32>() as u32;
+        self.expect_semi();
+
+        self.expect_ident_value("prio_bits");
+        self.expect_fat_arrow();
+        into.prio_bits = self.parse_uint::<u8>() as u8;
+        self.expect_semi();
+
+        self.expect_close_curly();
+        self.expect_semi();
+    }
+
     /// Parses the entire `stack => { base => val @ .link_location; limit => val; };` block.
     ///
     /// Values to either the `base` or `limit` keywords can be either a numeric literal or identifier.
@@ -303,8 +314,7 @@ impl<'a> Parser<'a> {
     /// Parses the entire `peripherals => { name => ty_path @ ptr_loc; ... };` block.
     ///
     /// This is the block that associates all ioreg-defined peripherals with the generated MCU.
-    /// Each peripheral is added as a field to the MCU structure and when initialized with `::new()` or using the
-    /// generated static instantialization, each ioreg's pointer is set to the given value.
+    /// Each peripheral is added as a field to the MCU structure and initialized with each ioreg's memory address.
     pub fn parse_peripherals(&mut self, into: &mut Vec<common::PeripheralInfo>, consts: &BTreeMap<String, parser::StaticValue>) {
         while ! self.eat(&token::CloseDelim(token::DelimToken::Brace)) {
             let sp = self.parser.span;
