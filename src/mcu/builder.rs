@@ -95,13 +95,7 @@ impl<'a> Builder<'a> {
 
     // TODO: better name?
     // TODO: better return?
-    /// Generates the AST from the descriptor block.
-    ///
-    /// This includes:
-    ///     1. externs
-    ///     2, the MCU struct
-    ///     3. the MCU impl (including the ::new() function)
-    ///     4. the interrupt array
+    /// Generates the AST from the consumed descriptor block.
     pub fn build(&self) -> Vec<ptr::P<ast::Item>> {
         let mut result = Vec::<ptr::P<ast::Item>>::new();
         if ! self.mcu.externs.is_empty() {
@@ -116,6 +110,10 @@ impl<'a> Builder<'a> {
 
         if ! self.mcu.interrupts.ints.is_empty() {
             result.push(self.build_interrupts());
+        }
+
+        if ! self.mcu.no_init {
+            result.push(ptr::P(self.build_init()));
         }
 
         if self.verbose {
@@ -238,7 +236,9 @@ impl<'a> Builder<'a> {
                 .build_expr(self.build_new_struct());
 
         impl_block = self.build_copy_data(impl_block);
-        impl_block = self.build_actions(impl_block);
+
+        // copy the parsed impl items to our new impl
+        impl_block = impl_block.with_items(self.mcu.actions.values().map(|a| a.item.clone()));
 
         impl_block.ty().id(self.mcu.name.clone())
     }
@@ -764,68 +764,55 @@ impl<'a> Builder<'a> {
         	)
 	}
 
-    /// Builds additional methods for the mcu.
+
+    // TODO: trigger reset on exit of main
+    /// Build the init() function that instantiates the mcu.
     ///
-    /// If no `init(&self) { ... }` action is defined, one is generated.
-    /// This generation assumes the following:
+    /// The generated code is as follows:
     ///
-    /// 1. the watchdog given contains the following methods:
-    ///     * unlock()
-    ///     * disable()
-    /// 2. the exit function given takes the generates MCU by reference as the only argument.
-    pub fn build_actions(&self, impl_block: ImplBuilder) -> ImplBuilder {
-        let mut bldr = impl_block;
+    /// ```
+    /// #[link_section = ".your_link_section"]
+    /// pub fn init() {
+    ///     let mcu = FooMcu::new();
+    ///     mcu.wdog.unlock();
+    ///     mcu.wdog.disable();
+    ///     mcu.copy_data_section();
+    ///     unsafe { main(mcu); }
+    /// }
+    /// ```
+    ///
+    pub fn build_init(&self) -> ast::Item {
+        let wdog_unlock = self.base_builder.stmt().span(self.mcu.init.span.clone()).semi()
+            .method_call("unlock").field(self.mcu.init.watchdog.clone()).id("mcu").build();
 
-        if ! self.mcu.actions.contains_key("init") {
-            // TODO: generate init
-        }
+        let wdog_disable = self.base_builder.stmt().span(self.mcu.init.span.clone()).semi()
+            .method_call("disable").field(self.mcu.init.watchdog.clone()).id("mcu").build();
 
-        let mut init_is_defined = false;
-        for a in &self.mcu.actions {
-            if ! init_is_defined && a.0 == "init" {
-                init_is_defined = true;
-                bldr = bldr.item("init")
-                    .attr().name_value("link_section").str(self.mcu.entry_ptr_link.as_str())
-                    .build_item(a.1.item.node.clone());
-            } else {
-                bldr = bldr.with_item(a.1.item.clone());
-            }
-        }
+        let copy_data = self.base_builder.stmt().span(self.mcu.init.span.clone()).semi()
+            .method_call("copy_data_section").id("mcu").build();
 
-        if ! init_is_defined {
-            let wdog_unlock = self.base_builder.stmt().span(self.mcu.init.span.clone()).semi()
-                .method_call("unlock").field(self.mcu.init.watchdog.clone()).self_().build();
-
-            let wdog_disable = self.base_builder.stmt().span(self.mcu.init.span.clone()).semi()
-                .method_call("disable").field(self.mcu.init.watchdog.clone()).self_().build();
-
-            let copy_data = self.base_builder.stmt().span(self.mcu.init.span.clone()).semi()
-                .method_call("copy_data_section").self_().build();
-
-            let exit_bootloader = self.base_builder.stmt().span(self.mcu.init.span.clone()).expr().span(self.mcu.init.span.clone())
-                .block().span(self.mcu.init.span.clone()).unsafe_()
-                    .stmt().span(self.mcu.init.span.clone()).semi()
-                        .call().id(self.mcu.init.exit.to_string())
-                        .arg().self_()
-                        .build()
-                    .build();
-
-
-            // TODO: if ::init not defined.... make one
-            bldr = bldr.item("init")
-                .span(self.mcu.init.span.clone())
-                .attr().name_value("link_section").str(self.mcu.entry_ptr_link.as_str())
-                .method().fn_decl().span(self.mcu.init.span.clone())
-                .self_().ref_()
-                .default_return()
-                .block()
-                    .with_stmt(wdog_unlock).span(self.mcu.init.span.clone())
-                    .with_stmt(wdog_disable).span(self.mcu.init.span.clone())
-                    .with_stmt(copy_data).span(self.mcu.init.span.clone())
-                    .with_stmt(exit_bootloader).span(self.mcu.init.span.clone())
+        let exit_bootloader = self.base_builder.stmt().span(self.mcu.init.span.clone()).expr().span(self.mcu.init.span.clone())
+            .block().span(self.mcu.init.span.clone()).unsafe_()
+                .stmt().span(self.mcu.init.span.clone()).semi()
+                    .call().id(self.mcu.init.exit.to_string())
+                    .arg().ref_().id("mcu")
+                    .build()
                 .build();
-        }
 
-        bldr
+        return self.base_builder.item().span(self.mcu.init.span.clone())
+            .attr().name_value("link_section").str(self.mcu.entry_ptr_link.as_str())
+            .pub_().fn_("init").span(self.mcu.init.span.clone())
+            .default_return()
+            .block()
+                .stmt().span(self.mcu.init.span.clone())
+                    .let_id("mcu")
+                        .call()
+                            .path().id(self.mcu.name.clone()).id("new").build()
+                        .build()
+                .with_stmt(wdog_unlock).span(self.mcu.init.span.clone())
+                .with_stmt(wdog_disable).span(self.mcu.init.span.clone())
+                .with_stmt(copy_data).span(self.mcu.init.span.clone())
+                .with_stmt(exit_bootloader).span(self.mcu.init.span.clone())
+            .build().unwrap();
     }
 }

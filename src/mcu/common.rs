@@ -83,6 +83,7 @@ pub struct PeripheralInfo {
 }
 
 #[derive(Debug)]
+#[derive(Clone)]
 pub struct ActionInfo {
     pub name: String,
     pub item: ast::ImplItem,
@@ -118,6 +119,7 @@ pub struct McuInfo {
     pub peripherals: Vec<PeripheralInfo>,
     pub actions: BTreeMap<String, ActionInfo>,
     pub init: InitInfo,
+    pub no_init: bool,
     pub entry_ptr_link: String,
     pub link_script: String,                                // TODO: builder and make sure #[link_flags = ""] escape crate-level
     pub span: Span,
@@ -162,6 +164,7 @@ impl McuInfo {
                 ),
                 span: DUMMY_SP,
             },
+            no_init: false,
             entry_ptr_link: "".to_string(),
             link_script: "".to_string(),
             span: DUMMY_SP,

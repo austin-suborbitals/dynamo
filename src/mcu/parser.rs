@@ -45,6 +45,11 @@ impl<'a> Parser<'a> {
             let tok = extract_ident_name!(self);
             let span = self.parser.span;
             match tok.as_str() {
+                "no_init" => {
+                    self.parser.bump();
+                    self.expect_semi();
+                    result.no_init = true;
+                }
                 "constants" => {
                     self.parse_constants_block(
                         &"".to_string(), &mut result.constants, validate_constant, &()

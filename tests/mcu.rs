@@ -197,9 +197,7 @@ mod static_instance {
 
     mcu!(
         name => TestMcu;
-        actions => [
-            pub fn init(&self) {}
-        ];
+        no_init;
     );
 
     static MCU: TestMcu = TestMcu::new();
@@ -217,13 +215,12 @@ mod nvic {
 
     mcu!(
         name => TestMcu;
+        no_init;
+
         nvic => {
             addr => 0xE000_E000;
             prio_bits => 4;
         };
-        actions => [
-            pub fn init(&self) {}
-        ];
     );
 
     #[test]
