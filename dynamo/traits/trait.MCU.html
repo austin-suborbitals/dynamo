@@ -47,14 +47,20 @@
                    <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
                        [<span class='inner'>&#x2212;</span>]
                    </a>
-               </span><a id='src-1489' class='srclink' href='../../src/dynamo/src/traits/mod.rs.html#6-10' title='goto source code'>[src]</a></span></h1>
+               </span><a id='src-1489' class='srclink' href='../../src/dynamo/src/traits/mod.rs.html#14-23' title='goto source code'>[src]</a></span></h1>
 <pre class='rust trait'>pub trait MCU {
     fn <a href='#tymethod.init' class='fnname'>init</a>(&amp;self);
     fn <a href='#tymethod.get_nvic' class='fnname'>get_nvic</a>(&amp;self) -&gt; &amp;<a class='trait' href='../../dynamo/traits/trait.NVIC.html' title='dynamo::traits::NVIC'>NVIC</a>;
-}</pre>
+}</pre><div class='docblock'><p>Enables generic handling and initialization of an MCU.</p>
+</div>
             <h2 id='required-methods'>Required Methods</h2>
             <div class='methods'>
-        <h3 id='tymethod.init' class='method stab '><code>fn <a href='#tymethod.init' class='fnname'>init</a>(&amp;self)</code></h3><h3 id='tymethod.get_nvic' class='method stab '><code>fn <a href='#tymethod.get_nvic' class='fnname'>get_nvic</a>(&amp;self) -&gt; &amp;<a class='trait' href='../../dynamo/traits/trait.NVIC.html' title='dynamo::traits::NVIC'>NVIC</a></code></h3></div>
+        <h3 id='tymethod.init' class='method stab '><code>fn <a href='#tymethod.init' class='fnname'>init</a>(&amp;self)</code></h3><div class='docblock'><p>Initializes the MCU.
+Typically, this entails moving the .data section, clearing the .bss section, initializing
+all peripherals that need it, and then jumping out of the bootloader.</p>
+</div><h3 id='tymethod.get_nvic' class='method stab '><code>fn <a href='#tymethod.get_nvic' class='fnname'>get_nvic</a>(&amp;self) -&gt; &amp;<a class='trait' href='../../dynamo/traits/trait.NVIC.html' title='dynamo::traits::NVIC'>NVIC</a></code></h3><div class='docblock'><p>Returns the NVIC interface for the MCU.
+The NVIC returned must satisfy the NVIC trait.</p>
+</div></div>
         <h2 id='implementors'>Implementors</h2>
         <ul class='item-list' id='implementors-list'>
     </ul><script type="text/javascript" async

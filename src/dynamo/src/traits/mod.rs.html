@@ -67,30 +67,86 @@
 <span id="23">23</span>
 <span id="24">24</span>
 <span id="25">25</span>
+<span id="26">26</span>
+<span id="27">27</span>
+<span id="28">28</span>
+<span id="29">29</span>
+<span id="30">30</span>
+<span id="31">31</span>
+<span id="32">32</span>
+<span id="33">33</span>
+<span id="34">34</span>
+<span id="35">35</span>
+<span id="36">36</span>
+<span id="37">37</span>
+<span id="38">38</span>
+<span id="39">39</span>
+<span id="40">40</span>
+<span id="41">41</span>
+<span id="42">42</span>
+<span id="43">43</span>
+<span id="44">44</span>
+<span id="45">45</span>
+<span id="46">46</span>
+<span id="47">47</span>
+<span id="48">48</span>
+<span id="49">49</span>
+<span id="50">50</span>
+<span id="51">51</span>
+<span id="52">52</span>
+<span id="53">53</span>
 </pre><pre class='rust '>
+<span class='doccomment'>/// Trait all ioreg (or equivalent) peripherals need to implement if they</span>
+<span class='doccomment'>/// wish to be handled generically.</span>
 <span class='kw'>pub</span> <span class='kw'>trait</span> <span class='ident'>Peripheral</span> {
+    <span class='doccomment'>/// Truthy value on whether this peripheral needs to be initiated.</span>
+    <span class='doccomment'>/// This is controlled by the existence of the init keyword and fn in the ioreg definition.</span>
     <span class='kw'>fn</span> <span class='ident'>needs_init</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>bool</span>;
+
+    <span class='doccomment'>/// Does the work of getting the peripheral into a state where booting can continue.</span>
+    <span class='doccomment'>/// As much or as little work can be done here as desired.</span>
     <span class='kw'>fn</span> <span class='ident'>init</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>);
 }
 
+<span class='doccomment'>/// Enables generic handling and initialization of an MCU.</span>
 <span class='kw'>pub</span> <span class='kw'>trait</span> <span class='ident'>MCU</span> {
+    <span class='doccomment'>/// Initializes the MCU.</span>
+    <span class='doccomment'>/// Typically, this entails moving the .data section, clearing the .bss section, initializing</span>
+    <span class='doccomment'>/// all peripherals that need it, and then jumping out of the bootloader.</span>
     <span class='kw'>fn</span> <span class='ident'>init</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>);
 
+    <span class='doccomment'>/// Returns the NVIC interface for the MCU.</span>
+    <span class='doccomment'>/// The NVIC returned must satisfy the NVIC trait.</span>
     <span class='kw'>fn</span> <span class='ident'>get_nvic</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='kw-2'>&amp;</span><span class='ident'>NVIC</span>;
 }
 
+<span class='doccomment'>/// Standard interface to the Nested Vector Interrupt Controller.</span>
 <span class='kw'>pub</span> <span class='kw'>trait</span> <span class='ident'>NVIC</span> {
+    <span class='doccomment'>/// Enables the given IRQ.</span>
     <span class='kw'>fn</span> <span class='ident'>enable_irq</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>, <span class='ident'>irq</span>: <span class='ident'>u8</span>);
+    <span class='doccomment'>/// Disables the given IRQ.</span>
     <span class='kw'>fn</span> <span class='ident'>disable_irq</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>, <span class='ident'>irq</span>: <span class='ident'>u8</span>);
+    <span class='doccomment'>/// Check whether the given IRQ is enabled.</span>
     <span class='kw'>fn</span> <span class='ident'>is_enabled</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>, <span class='ident'>irq</span>: <span class='ident'>u8</span>) <span class='op'>-&gt;</span> <span class='ident'>bool</span>;
 
+    <span class='doccomment'>/// Set the given IRQ as pending, and to be run when priorities dictate.</span>
     <span class='kw'>fn</span> <span class='ident'>set_pending</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>, <span class='ident'>irq</span>: <span class='ident'>u8</span>);
+    <span class='doccomment'>/// Clear the given IRQ from the pending list.</span>
     <span class='kw'>fn</span> <span class='ident'>clear_pending</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>, <span class='ident'>irq</span>: <span class='ident'>u8</span>);
+    <span class='doccomment'>/// Check whether the given IRQ is pending.</span>
     <span class='kw'>fn</span> <span class='ident'>is_pending</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>, <span class='ident'>irq</span>: <span class='ident'>u8</span>) <span class='op'>-&gt;</span> <span class='ident'>bool</span>;
 
+    <span class='doccomment'>/// Check if the given IRQ is currently being serviced;</span>
     <span class='kw'>fn</span> <span class='ident'>is_active</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>, <span class='ident'>irq</span>: <span class='ident'>u8</span>) <span class='op'>-&gt;</span> <span class='ident'>bool</span>;
 
+    <span class='doccomment'>/// Set the priority of the given IRQ.</span>
+    <span class='doccomment'>///</span>
+    <span class='doccomment'>/// Priorities are limited to the number of priority bits, and this function should handle</span>
+    <span class='doccomment'>/// all shifting/masking needed.</span>
     <span class='kw'>fn</span> <span class='ident'>set_priority</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>, <span class='ident'>irq</span>: <span class='ident'>u8</span>, <span class='ident'>prio</span>: <span class='ident'>u8</span>);
+    <span class='doccomment'>/// Gets the priority of the given IRQ.</span>
+    <span class='doccomment'>///</span>
+    <span class='doccomment'>/// Priorities should be returned in the range [0, priority_bits&lt;&lt;2].</span>
     <span class='kw'>fn</span> <span class='ident'>get_priority</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>, <span class='ident'>irq</span>: <span class='ident'>u8</span>) <span class='op'>-&gt;</span> <span class='ident'>u8</span>;
 }
 </pre>
