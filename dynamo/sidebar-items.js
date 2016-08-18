@@ -1,1 +1,1 @@
-initSidebarItems({"fn":[["plugin_registrar",""]],"mod":[["ioreg",""],["mcu",""],["parser",""]]});
+initSidebarItems({"fn":[["plugin_registrar",""]],"mod":[["ioreg",""],["mcu",""],["parser",""],["traits",""]]});

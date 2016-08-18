@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="generator" content="rustdoc">
-    <meta name="description" content="Source to the Rust file `/home/travis/.cargo/registry/src/github.com-1ecc6299db9ec823/aster-0.21.1/src/expr.rs`.">
+    <meta name="description" content="Source to the Rust file `/home/travis/.cargo/registry/src/github.com-1ecc6299db9ec823/aster-0.24.0/src/expr.rs`.">
     <meta name="keywords" content="rust, rustlang, rust-lang">
 
     <title>expr.rs.html -- source</title>
@@ -1840,6 +1840,60 @@
 <span id="1796">1796</span>
 <span id="1797">1797</span>
 <span id="1798">1798</span>
+<span id="1799">1799</span>
+<span id="1800">1800</span>
+<span id="1801">1801</span>
+<span id="1802">1802</span>
+<span id="1803">1803</span>
+<span id="1804">1804</span>
+<span id="1805">1805</span>
+<span id="1806">1806</span>
+<span id="1807">1807</span>
+<span id="1808">1808</span>
+<span id="1809">1809</span>
+<span id="1810">1810</span>
+<span id="1811">1811</span>
+<span id="1812">1812</span>
+<span id="1813">1813</span>
+<span id="1814">1814</span>
+<span id="1815">1815</span>
+<span id="1816">1816</span>
+<span id="1817">1817</span>
+<span id="1818">1818</span>
+<span id="1819">1819</span>
+<span id="1820">1820</span>
+<span id="1821">1821</span>
+<span id="1822">1822</span>
+<span id="1823">1823</span>
+<span id="1824">1824</span>
+<span id="1825">1825</span>
+<span id="1826">1826</span>
+<span id="1827">1827</span>
+<span id="1828">1828</span>
+<span id="1829">1829</span>
+<span id="1830">1830</span>
+<span id="1831">1831</span>
+<span id="1832">1832</span>
+<span id="1833">1833</span>
+<span id="1834">1834</span>
+<span id="1835">1835</span>
+<span id="1836">1836</span>
+<span id="1837">1837</span>
+<span id="1838">1838</span>
+<span id="1839">1839</span>
+<span id="1840">1840</span>
+<span id="1841">1841</span>
+<span id="1842">1842</span>
+<span id="1843">1843</span>
+<span id="1844">1844</span>
+<span id="1845">1845</span>
+<span id="1846">1846</span>
+<span id="1847">1847</span>
+<span id="1848">1848</span>
+<span id="1849">1849</span>
+<span id="1850">1850</span>
+<span id="1851">1851</span>
+<span id="1852">1852</span>
 </pre><pre class='rust '>
 <span class='attribute'>#<span class='op'>!</span>[<span class='ident'>cfg_attr</span>(<span class='ident'>feature</span> <span class='op'>=</span> <span class='string'>&quot;unstable-testing&quot;</span>, <span class='ident'>allow</span>(<span class='ident'>should_implement_trait</span>))]</span>
 
@@ -1923,11 +1977,13 @@
     }
 
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>path</span>(<span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>PathBuilder</span><span class='op'>&lt;</span><span class='self'>Self</span><span class='op'>&gt;</span> {
-        <span class='ident'>PathBuilder</span>::<span class='ident'>with_callback</span>(<span class='self'>self</span>)
+        <span class='kw'>let</span> <span class='ident'>span</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>span</span>;
+        <span class='ident'>PathBuilder</span>::<span class='ident'>with_callback</span>(<span class='self'>self</span>).<span class='ident'>span</span>(<span class='ident'>span</span>)
     }
 
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>qpath</span>(<span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>QPathBuilder</span><span class='op'>&lt;</span><span class='self'>Self</span><span class='op'>&gt;</span> {
-        <span class='ident'>QPathBuilder</span>::<span class='ident'>with_callback</span>(<span class='self'>self</span>)
+        <span class='kw'>let</span> <span class='ident'>span</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>span</span>;
+        <span class='ident'>QPathBuilder</span>::<span class='ident'>with_callback</span>(<span class='self'>self</span>).<span class='ident'>span</span>(<span class='ident'>span</span>)
     }
 
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>id</span><span class='op'>&lt;</span><span class='ident'>I</span><span class='op'>&gt;</span>(<span class='self'>self</span>, <span class='ident'>id</span>: <span class='ident'>I</span>) <span class='op'>-&gt;</span> <span class='ident'>F</span>::<span class='prelude-ty'>Result</span>
@@ -2063,10 +2119,11 @@
     }
 
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>unary</span>(<span class='self'>self</span>, <span class='ident'>unop</span>: <span class='ident'>ast</span>::<span class='ident'>UnOp</span>) <span class='op'>-&gt;</span> <span class='ident'>ExprBuilder</span><span class='op'>&lt;</span><span class='ident'>ExprUnaryBuilder</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;&gt;</span> {
+        <span class='kw'>let</span> <span class='ident'>span</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>span</span>;
         <span class='ident'>ExprBuilder</span>::<span class='ident'>with_callback</span>(<span class='ident'>ExprUnaryBuilder</span> {
             <span class='ident'>builder</span>: <span class='self'>self</span>,
             <span class='ident'>unop</span>: <span class='ident'>unop</span>,
-        })
+        }).<span class='ident'>span</span>(<span class='ident'>span</span>)
     }
 
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>deref</span>(<span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>ExprBuilder</span><span class='op'>&lt;</span><span class='ident'>ExprUnaryBuilder</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;&gt;</span> {
@@ -2162,10 +2219,11 @@
     }
 
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>binary</span>(<span class='self'>self</span>, <span class='ident'>binop</span>: <span class='ident'>ast</span>::<span class='ident'>BinOpKind</span>) <span class='op'>-&gt;</span> <span class='ident'>ExprBuilder</span><span class='op'>&lt;</span><span class='ident'>ExprBinaryLhsBuilder</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;&gt;</span> {
+        <span class='kw'>let</span> <span class='ident'>span</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>span</span>;
         <span class='ident'>ExprBuilder</span>::<span class='ident'>with_callback</span>(<span class='ident'>ExprBinaryLhsBuilder</span> {
             <span class='ident'>builder</span>: <span class='self'>self</span>,
             <span class='ident'>binop</span>: <span class='ident'>binop</span>,
-        })
+        }).<span class='ident'>span</span>(<span class='ident'>span</span>)
     }
 
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>add</span>(<span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>ExprBuilder</span><span class='op'>&lt;</span><span class='ident'>ExprBinaryLhsBuilder</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;&gt;</span> {
@@ -2241,17 +2299,19 @@
     }
 
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>ref_</span>(<span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>ExprBuilder</span><span class='op'>&lt;</span><span class='ident'>ExprRefBuilder</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;&gt;</span> {
+        <span class='kw'>let</span> <span class='ident'>span</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>span</span>;
         <span class='ident'>ExprBuilder</span>::<span class='ident'>with_callback</span>(<span class='ident'>ExprRefBuilder</span> {
             <span class='ident'>builder</span>: <span class='self'>self</span>,
             <span class='ident'>mutability</span>: <span class='ident'>ast</span>::<span class='ident'>Mutability</span>::<span class='ident'>Immutable</span>,
-        })
+        }).<span class='ident'>span</span>(<span class='ident'>span</span>)
     }
 
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>mut_ref</span>(<span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>ExprBuilder</span><span class='op'>&lt;</span><span class='ident'>ExprRefBuilder</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;&gt;</span> {
+        <span class='kw'>let</span> <span class='ident'>span</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>span</span>;
         <span class='ident'>ExprBuilder</span>::<span class='ident'>with_callback</span>(<span class='ident'>ExprRefBuilder</span> {
             <span class='ident'>builder</span>: <span class='self'>self</span>,
             <span class='ident'>mutability</span>: <span class='ident'>ast</span>::<span class='ident'>Mutability</span>::<span class='ident'>Mutable</span>,
-        })
+        }).<span class='ident'>span</span>(<span class='ident'>span</span>)
     }
 
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>break_</span>(<span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>F</span>::<span class='prelude-ty'>Result</span> {
@@ -2281,9 +2341,10 @@
     }
 
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>return_expr</span>(<span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>ExprBuilder</span><span class='op'>&lt;</span><span class='ident'>ExprReturnBuilder</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;&gt;</span> {
+        <span class='kw'>let</span> <span class='ident'>span</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>span</span>;
         <span class='ident'>ExprBuilder</span>::<span class='ident'>with_callback</span>(<span class='ident'>ExprReturnBuilder</span> {
             <span class='ident'>builder</span>: <span class='self'>self</span>,
-        })
+        }).<span class='ident'>span</span>(<span class='ident'>span</span>)
     }
 
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>unit</span>(<span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>F</span>::<span class='prelude-ty'>Result</span> {
@@ -2335,38 +2396,44 @@
 
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>some</span>(<span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>ExprBuilder</span><span class='op'>&lt;</span><span class='ident'>ExprPathBuilder</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;&gt;</span> {
         <span class='kw'>let</span> <span class='ident'>path</span> <span class='op'>=</span> <span class='ident'>PathBuilder</span>::<span class='ident'>new</span>()
+            .<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>span</span>)
             .<span class='ident'>global</span>()
             .<span class='ident'>id</span>(<span class='string'>&quot;std&quot;</span>).<span class='ident'>id</span>(<span class='string'>&quot;option&quot;</span>).<span class='ident'>id</span>(<span class='string'>&quot;Option&quot;</span>).<span class='ident'>id</span>(<span class='string'>&quot;Some&quot;</span>)
             .<span class='ident'>build</span>();
+        <span class='kw'>let</span> <span class='ident'>span</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>span</span>;
 
         <span class='ident'>ExprBuilder</span>::<span class='ident'>with_callback</span>(<span class='ident'>ExprPathBuilder</span> {
             <span class='ident'>builder</span>: <span class='self'>self</span>,
             <span class='ident'>path</span>: <span class='ident'>path</span>,
-        })
+        }).<span class='ident'>span</span>(<span class='ident'>span</span>)
     }
 
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>ok</span>(<span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>ExprBuilder</span><span class='op'>&lt;</span><span class='ident'>ExprPathBuilder</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;&gt;</span> {
         <span class='kw'>let</span> <span class='ident'>path</span> <span class='op'>=</span> <span class='ident'>PathBuilder</span>::<span class='ident'>new</span>()
+            .<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>span</span>)
             .<span class='ident'>global</span>()
             .<span class='ident'>id</span>(<span class='string'>&quot;std&quot;</span>).<span class='ident'>id</span>(<span class='string'>&quot;result&quot;</span>).<span class='ident'>id</span>(<span class='string'>&quot;Result&quot;</span>).<span class='ident'>id</span>(<span class='string'>&quot;Ok&quot;</span>)
             .<span class='ident'>build</span>();
+        <span class='kw'>let</span> <span class='ident'>span</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>span</span>;
 
         <span class='ident'>ExprBuilder</span>::<span class='ident'>with_callback</span>(<span class='ident'>ExprPathBuilder</span> {
             <span class='ident'>builder</span>: <span class='self'>self</span>,
             <span class='ident'>path</span>: <span class='ident'>path</span>,
-        })
+        }).<span class='ident'>span</span>(<span class='ident'>span</span>)
     }
 
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>err</span>(<span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>ExprBuilder</span><span class='op'>&lt;</span><span class='ident'>ExprPathBuilder</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;&gt;</span> {
         <span class='kw'>let</span> <span class='ident'>path</span> <span class='op'>=</span> <span class='ident'>PathBuilder</span>::<span class='ident'>new</span>()
+            .<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>span</span>)
             .<span class='ident'>global</span>()
             .<span class='ident'>id</span>(<span class='string'>&quot;std&quot;</span>).<span class='ident'>id</span>(<span class='string'>&quot;result&quot;</span>).<span class='ident'>id</span>(<span class='string'>&quot;Result&quot;</span>).<span class='ident'>id</span>(<span class='string'>&quot;Err&quot;</span>)
             .<span class='ident'>build</span>();
+        <span class='kw'>let</span> <span class='ident'>span</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>span</span>;
 
         <span class='ident'>ExprBuilder</span>::<span class='ident'>with_callback</span>(<span class='ident'>ExprPathBuilder</span> {
             <span class='ident'>builder</span>: <span class='self'>self</span>,
             <span class='ident'>path</span>: <span class='ident'>path</span>,
-        })
+        }).<span class='ident'>span</span>(<span class='ident'>span</span>)
     }
 
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>phantom_data</span>(<span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>F</span>::<span class='prelude-ty'>Result</span> {
@@ -2377,19 +2444,23 @@
     }
 
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>call</span>(<span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>ExprBuilder</span><span class='op'>&lt;</span><span class='ident'>ExprCallBuilder</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;&gt;</span> {
+        <span class='kw'>let</span> <span class='ident'>span</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>span</span>;
+
         <span class='ident'>ExprBuilder</span>::<span class='ident'>with_callback</span>(<span class='ident'>ExprCallBuilder</span> {
             <span class='ident'>builder</span>: <span class='self'>self</span>,
-        })
+        }).<span class='ident'>span</span>(<span class='ident'>span</span>)
     }
 
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>method_call</span><span class='op'>&lt;</span><span class='ident'>I</span><span class='op'>&gt;</span>(<span class='self'>self</span>, <span class='ident'>id</span>: <span class='ident'>I</span>) <span class='op'>-&gt;</span> <span class='ident'>ExprBuilder</span><span class='op'>&lt;</span><span class='ident'>ExprMethodCallBuilder</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;&gt;</span>
         <span class='kw'>where</span> <span class='ident'>I</span>: <span class='ident'>ToIdent</span>,
     {
         <span class='kw'>let</span> <span class='ident'>id</span> <span class='op'>=</span> <span class='ident'>respan</span>(<span class='self'>self</span>.<span class='ident'>span</span>, <span class='ident'>id</span>.<span class='ident'>to_ident</span>());
+        <span class='kw'>let</span> <span class='ident'>span</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>span</span>;
+
         <span class='ident'>ExprBuilder</span>::<span class='ident'>with_callback</span>(<span class='ident'>ExprMethodCallBuilder</span> {
             <span class='ident'>builder</span>: <span class='self'>self</span>,
             <span class='ident'>id</span>: <span class='ident'>id</span>,
-        })
+        }).<span class='ident'>span</span>(<span class='ident'>span</span>)
     }
 
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>build_block</span>(<span class='self'>self</span>, <span class='ident'>block</span>: <span class='ident'>P</span><span class='op'>&lt;</span><span class='ident'>ast</span>::<span class='ident'>Block</span><span class='op'>&gt;</span>) <span class='op'>-&gt;</span> <span class='ident'>F</span>::<span class='prelude-ty'>Result</span> {
@@ -2405,9 +2476,11 @@
     }
 
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>assign</span>(<span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>ExprBuilder</span><span class='op'>&lt;</span><span class='ident'>ExprAssignBuilder</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;&gt;</span> {
+        <span class='kw'>let</span> <span class='ident'>span</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>span</span>;
+
         <span class='ident'>ExprBuilder</span>::<span class='ident'>with_callback</span>(<span class='ident'>ExprAssignBuilder</span> {
             <span class='ident'>builder</span>: <span class='self'>self</span>,
-        })
+        }).<span class='ident'>span</span>(<span class='ident'>span</span>)
     }
 
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>build_assign_op</span>(<span class='self'>self</span>,
@@ -2419,10 +2492,12 @@
     }
 
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>assign_op</span>(<span class='self'>self</span>, <span class='ident'>binop</span>: <span class='ident'>ast</span>::<span class='ident'>BinOpKind</span>) <span class='op'>-&gt;</span> <span class='ident'>ExprBuilder</span><span class='op'>&lt;</span><span class='ident'>ExprAssignOpBuilder</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;&gt;</span> {
+        <span class='kw'>let</span> <span class='ident'>span</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>span</span>;
+
         <span class='ident'>ExprBuilder</span>::<span class='ident'>with_callback</span>(<span class='ident'>ExprAssignOpBuilder</span> {
             <span class='ident'>builder</span>: <span class='self'>self</span>,
             <span class='ident'>binop</span>: <span class='ident'>binop</span>,
-        })
+        }).<span class='ident'>span</span>(<span class='ident'>span</span>)
     }
 
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>add_assign</span>(<span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>ExprBuilder</span><span class='op'>&lt;</span><span class='ident'>ExprAssignOpBuilder</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;&gt;</span> {
@@ -2474,9 +2549,11 @@
     }
 
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>index</span>(<span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>ExprBuilder</span><span class='op'>&lt;</span><span class='ident'>ExprIndexBuilder</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;&gt;</span> {
+        <span class='kw'>let</span> <span class='ident'>span</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>span</span>;
+
         <span class='ident'>ExprBuilder</span>::<span class='ident'>with_callback</span>(<span class='ident'>ExprIndexBuilder</span> {
             <span class='ident'>builder</span>: <span class='self'>self</span>,
-        })
+        }).<span class='ident'>span</span>(<span class='ident'>span</span>)
     }
 
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>build_repeat</span>(<span class='self'>self</span>, <span class='ident'>lhs</span>: <span class='ident'>P</span><span class='op'>&lt;</span><span class='ident'>ast</span>::<span class='ident'>Expr</span><span class='op'>&gt;</span>, <span class='ident'>rhs</span>: <span class='ident'>P</span><span class='op'>&lt;</span><span class='ident'>ast</span>::<span class='ident'>Expr</span><span class='op'>&gt;</span>) <span class='op'>-&gt;</span> <span class='ident'>F</span>::<span class='prelude-ty'>Result</span> {
@@ -2484,9 +2561,11 @@
     }
 
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>repeat</span>(<span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>ExprBuilder</span><span class='op'>&lt;</span><span class='ident'>ExprRepeatBuilder</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;&gt;</span> {
+        <span class='kw'>let</span> <span class='ident'>span</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>span</span>;
+
         <span class='ident'>ExprBuilder</span>::<span class='ident'>with_callback</span>(<span class='ident'>ExprRepeatBuilder</span> {
             <span class='ident'>builder</span>: <span class='self'>self</span>,
-        })
+        }).<span class='ident'>span</span>(<span class='ident'>span</span>)
     }
 
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>loop_</span>(<span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>ExprLoopBuilder</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;</span> {
@@ -2500,79 +2579,95 @@
     }
 
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>if_</span>(<span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>ExprBuilder</span><span class='op'>&lt;</span><span class='ident'>ExprIfBuilder</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;&gt;</span> {
+        <span class='kw'>let</span> <span class='ident'>span</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>span</span>;
         <span class='ident'>ExprBuilder</span>::<span class='ident'>with_callback</span>(<span class='ident'>ExprIfBuilder</span> {
             <span class='ident'>builder</span>: <span class='self'>self</span>,
-        })
+        }).<span class='ident'>span</span>(<span class='ident'>span</span>)
     }
 
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>match_</span>(<span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>ExprBuilder</span><span class='op'>&lt;</span><span class='ident'>ExprMatchBuilder</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;&gt;</span> {
+        <span class='kw'>let</span> <span class='ident'>span</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>span</span>;
+
         <span class='ident'>ExprBuilder</span>::<span class='ident'>with_callback</span>(<span class='ident'>ExprMatchBuilder</span> {
             <span class='ident'>builder</span>: <span class='self'>self</span>,
-        })
+        }).<span class='ident'>span</span>(<span class='ident'>span</span>)
     }
 
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>paren</span>(<span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>ExprBuilder</span><span class='op'>&lt;</span><span class='ident'>ExprParenBuilder</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;&gt;</span> {
+        <span class='kw'>let</span> <span class='ident'>span</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>span</span>;
+
         <span class='ident'>ExprBuilder</span>::<span class='ident'>with_callback</span>(<span class='ident'>ExprParenBuilder</span> {
             <span class='ident'>builder</span>: <span class='self'>self</span>,
-        })
+        }).<span class='ident'>span</span>(<span class='ident'>span</span>)
     }
 
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>field</span><span class='op'>&lt;</span><span class='ident'>I</span><span class='op'>&gt;</span>(<span class='self'>self</span>, <span class='ident'>id</span>: <span class='ident'>I</span>) <span class='op'>-&gt;</span> <span class='ident'>ExprBuilder</span><span class='op'>&lt;</span><span class='ident'>ExprFieldBuilder</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;&gt;</span>
         <span class='kw'>where</span> <span class='ident'>I</span>: <span class='ident'>ToIdent</span>,
     {
         <span class='kw'>let</span> <span class='ident'>id</span> <span class='op'>=</span> <span class='ident'>respan</span>(<span class='self'>self</span>.<span class='ident'>span</span>, <span class='ident'>id</span>.<span class='ident'>to_ident</span>());
+        <span class='kw'>let</span> <span class='ident'>span</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>span</span>;
+
         <span class='ident'>ExprBuilder</span>::<span class='ident'>with_callback</span>(<span class='ident'>ExprFieldBuilder</span> {
             <span class='ident'>builder</span>: <span class='self'>self</span>,
             <span class='ident'>id</span>: <span class='ident'>id</span>,
-        })
+        }).<span class='ident'>span</span>(<span class='ident'>span</span>)
     }
 
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>tup_field</span>(<span class='self'>self</span>, <span class='ident'>index</span>: <span class='ident'>usize</span>) <span class='op'>-&gt;</span> <span class='ident'>ExprBuilder</span><span class='op'>&lt;</span><span class='ident'>ExprTupFieldBuilder</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;&gt;</span> {
         <span class='kw'>let</span> <span class='ident'>index</span> <span class='op'>=</span> <span class='ident'>respan</span>(<span class='self'>self</span>.<span class='ident'>span</span>, <span class='ident'>index</span>);
+        <span class='kw'>let</span> <span class='ident'>span</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>span</span>;
+
         <span class='ident'>ExprBuilder</span>::<span class='ident'>with_callback</span>(<span class='ident'>ExprTupFieldBuilder</span> {
             <span class='ident'>builder</span>: <span class='self'>self</span>,
             <span class='ident'>index</span>: <span class='ident'>index</span>,
-        })
+        }).<span class='ident'>span</span>(<span class='ident'>span</span>)
     }
 
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>box_</span>(<span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>ExprBuilder</span><span class='op'>&lt;</span><span class='ident'>ExprPathBuilder</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;&gt;</span> {
         <span class='kw'>let</span> <span class='ident'>path</span> <span class='op'>=</span> <span class='ident'>PathBuilder</span>::<span class='ident'>new</span>()
+            .<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>span</span>)
             .<span class='ident'>global</span>()
             .<span class='ident'>id</span>(<span class='string'>&quot;std&quot;</span>).<span class='ident'>id</span>(<span class='string'>&quot;boxed&quot;</span>).<span class='ident'>id</span>(<span class='string'>&quot;Box&quot;</span>).<span class='ident'>id</span>(<span class='string'>&quot;new&quot;</span>)
             .<span class='ident'>build</span>();
+        <span class='kw'>let</span> <span class='ident'>span</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>span</span>;
 
         <span class='ident'>ExprBuilder</span>::<span class='ident'>with_callback</span>(<span class='ident'>ExprPathBuilder</span> {
             <span class='ident'>builder</span>: <span class='self'>self</span>,
             <span class='ident'>path</span>: <span class='ident'>path</span>,
-        })
+        }).<span class='ident'>span</span>(<span class='ident'>span</span>)
     }
 
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>rc</span>(<span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>ExprBuilder</span><span class='op'>&lt;</span><span class='ident'>ExprPathBuilder</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;&gt;</span> {
         <span class='kw'>let</span> <span class='ident'>path</span> <span class='op'>=</span> <span class='ident'>PathBuilder</span>::<span class='ident'>new</span>()
+            .<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>span</span>)
             .<span class='ident'>global</span>()
             .<span class='ident'>id</span>(<span class='string'>&quot;std&quot;</span>).<span class='ident'>id</span>(<span class='string'>&quot;rc&quot;</span>).<span class='ident'>id</span>(<span class='string'>&quot;Rc&quot;</span>).<span class='ident'>id</span>(<span class='string'>&quot;new&quot;</span>)
             .<span class='ident'>build</span>();
+        <span class='kw'>let</span> <span class='ident'>span</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>span</span>;
 
         <span class='ident'>ExprBuilder</span>::<span class='ident'>with_callback</span>(<span class='ident'>ExprPathBuilder</span> {
             <span class='ident'>builder</span>: <span class='self'>self</span>,
             <span class='ident'>path</span>: <span class='ident'>path</span>,
-        })
+        }).<span class='ident'>span</span>(<span class='ident'>span</span>)
     }
 
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>arc</span>(<span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>ExprBuilder</span><span class='op'>&lt;</span><span class='ident'>ExprPathBuilder</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;&gt;</span> {
         <span class='kw'>let</span> <span class='ident'>path</span> <span class='op'>=</span> <span class='ident'>PathBuilder</span>::<span class='ident'>new</span>()
+            .<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>span</span>)
             .<span class='ident'>global</span>()
             .<span class='ident'>id</span>(<span class='string'>&quot;std&quot;</span>).<span class='ident'>id</span>(<span class='string'>&quot;arc&quot;</span>).<span class='ident'>id</span>(<span class='string'>&quot;Arc&quot;</span>).<span class='ident'>id</span>(<span class='string'>&quot;new&quot;</span>)
             .<span class='ident'>build</span>();
+        <span class='kw'>let</span> <span class='ident'>span</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>span</span>;
 
         <span class='ident'>ExprBuilder</span>::<span class='ident'>with_callback</span>(<span class='ident'>ExprPathBuilder</span> {
             <span class='ident'>builder</span>: <span class='self'>self</span>,
             <span class='ident'>path</span>: <span class='ident'>path</span>,
-        })
+        }).<span class='ident'>span</span>(<span class='ident'>span</span>)
     }
 
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>default</span>(<span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>F</span>::<span class='prelude-ty'>Result</span> {
         <span class='kw'>let</span> <span class='ident'>path</span> <span class='op'>=</span> <span class='ident'>PathBuilder</span>::<span class='ident'>new</span>()
+            .<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>span</span>)
             .<span class='ident'>global</span>()
             .<span class='ident'>ids</span>(<span class='kw-2'>&amp;</span>[<span class='string'>&quot;std&quot;</span>, <span class='string'>&quot;default&quot;</span>, <span class='string'>&quot;Default&quot;</span>, <span class='string'>&quot;default&quot;</span>])
             .<span class='ident'>build</span>();
@@ -2815,10 +2910,12 @@
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>field</span><span class='op'>&lt;</span><span class='ident'>I</span><span class='op'>&gt;</span>(<span class='self'>self</span>, <span class='ident'>id</span>: <span class='ident'>I</span>) <span class='op'>-&gt;</span> <span class='ident'>ExprBuilder</span><span class='op'>&lt;</span><span class='ident'>ExprStructFieldBuilder</span><span class='op'>&lt;</span><span class='ident'>I</span>, <span class='ident'>F</span><span class='op'>&gt;&gt;</span>
         <span class='kw'>where</span> <span class='ident'>I</span>: <span class='ident'>ToIdent</span>,
     {
+        <span class='kw'>let</span> <span class='ident'>span</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>span</span>;
+
         <span class='ident'>ExprBuilder</span>::<span class='ident'>with_callback</span>(<span class='ident'>ExprStructFieldBuilder</span> {
             <span class='ident'>builder</span>: <span class='self'>self</span>,
             <span class='ident'>id</span>: <span class='ident'>id</span>,
-        })
+        }).<span class='ident'>span</span>(<span class='ident'>span</span>)
     }
 
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>build_with</span>(<span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>ExprBuilder</span><span class='op'>&lt;</span><span class='self'>Self</span><span class='op'>&gt;</span> {
@@ -2908,7 +3005,8 @@
     }
 
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>arg</span>(<span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>ExprBuilder</span><span class='op'>&lt;</span><span class='self'>Self</span><span class='op'>&gt;</span> {
-        <span class='ident'>ExprBuilder</span>::<span class='ident'>with_callback</span>(<span class='self'>self</span>)
+        <span class='kw'>let</span> <span class='ident'>span</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>builder</span>.<span class='ident'>span</span>;
+        <span class='ident'>ExprBuilder</span>::<span class='ident'>with_callback</span>(<span class='self'>self</span>).<span class='ident'>span</span>(<span class='ident'>span</span>)
     }
 
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>build</span>(<span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>F</span>::<span class='prelude-ty'>Result</span> {
@@ -2973,7 +3071,8 @@
     }
 
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>ty</span>(<span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>TyBuilder</span><span class='op'>&lt;</span><span class='self'>Self</span><span class='op'>&gt;</span> {
-        <span class='ident'>TyBuilder</span>::<span class='ident'>with_callback</span>(<span class='self'>self</span>)
+        <span class='kw'>let</span> <span class='ident'>span</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>builder</span>.<span class='ident'>span</span>;
+        <span class='ident'>TyBuilder</span>::<span class='ident'>with_callback</span>(<span class='self'>self</span>).<span class='ident'>span</span>(<span class='ident'>span</span>)
     }
 
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>with_args</span><span class='op'>&lt;</span><span class='ident'>I</span><span class='op'>&gt;</span>(<span class='kw-2'>mut</span> <span class='self'>self</span>, <span class='ident'>iter</span>: <span class='ident'>I</span>) <span class='op'>-&gt;</span> <span class='self'>Self</span>
@@ -2989,7 +3088,8 @@
     }
 
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>arg</span>(<span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>ExprBuilder</span><span class='op'>&lt;</span><span class='self'>Self</span><span class='op'>&gt;</span> {
-        <span class='ident'>ExprBuilder</span>::<span class='ident'>with_callback</span>(<span class='self'>self</span>)
+        <span class='kw'>let</span> <span class='ident'>span</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>builder</span>.<span class='ident'>span</span>;
+        <span class='ident'>ExprBuilder</span>::<span class='ident'>with_callback</span>(<span class='self'>self</span>).<span class='ident'>span</span>(<span class='ident'>span</span>)
     }
 
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>build</span>(<span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>F</span>::<span class='prelude-ty'>Result</span> {
@@ -3066,10 +3166,11 @@
     <span class='kw'>type</span> <span class='prelude-ty'>Result</span> <span class='op'>=</span> <span class='ident'>ExprBuilder</span><span class='op'>&lt;</span><span class='ident'>ExprAssignLhsBuilder</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;&gt;</span>;
 
     <span class='kw'>fn</span> <span class='ident'>invoke</span>(<span class='self'>self</span>, <span class='ident'>lhs</span>: <span class='ident'>P</span><span class='op'>&lt;</span><span class='ident'>ast</span>::<span class='ident'>Expr</span><span class='op'>&gt;</span>) <span class='op'>-&gt;</span> <span class='ident'>ExprBuilder</span><span class='op'>&lt;</span><span class='ident'>ExprAssignLhsBuilder</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;&gt;</span> {
+        <span class='kw'>let</span> <span class='ident'>span</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>builder</span>.<span class='ident'>span</span>;
         <span class='ident'>ExprBuilder</span>::<span class='ident'>with_callback</span>(<span class='ident'>ExprAssignLhsBuilder</span> {
             <span class='ident'>builder</span>: <span class='self'>self</span>.<span class='ident'>builder</span>,
             <span class='ident'>lhs</span>: <span class='ident'>lhs</span>,
-        })
+        }).<span class='ident'>span</span>(<span class='ident'>span</span>)
     }
 }
 
@@ -3103,11 +3204,12 @@
     <span class='kw'>type</span> <span class='prelude-ty'>Result</span> <span class='op'>=</span> <span class='ident'>ExprBuilder</span><span class='op'>&lt;</span><span class='ident'>ExprAssignOpLhsBuilder</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;&gt;</span>;
 
     <span class='kw'>fn</span> <span class='ident'>invoke</span>(<span class='self'>self</span>, <span class='ident'>lhs</span>: <span class='ident'>P</span><span class='op'>&lt;</span><span class='ident'>ast</span>::<span class='ident'>Expr</span><span class='op'>&gt;</span>) <span class='op'>-&gt;</span> <span class='ident'>ExprBuilder</span><span class='op'>&lt;</span><span class='ident'>ExprAssignOpLhsBuilder</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;&gt;</span> {
+        <span class='kw'>let</span> <span class='ident'>span</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>builder</span>.<span class='ident'>span</span>;
         <span class='ident'>ExprBuilder</span>::<span class='ident'>with_callback</span>(<span class='ident'>ExprAssignOpLhsBuilder</span> {
             <span class='ident'>builder</span>: <span class='self'>self</span>.<span class='ident'>builder</span>,
             <span class='ident'>binop</span>: <span class='self'>self</span>.<span class='ident'>binop</span>,
             <span class='ident'>lhs</span>: <span class='ident'>lhs</span>,
-        })
+        }).<span class='ident'>span</span>(<span class='ident'>span</span>)
     }
 }
 
@@ -3141,10 +3243,11 @@
     <span class='kw'>type</span> <span class='prelude-ty'>Result</span> <span class='op'>=</span> <span class='ident'>ExprBuilder</span><span class='op'>&lt;</span><span class='ident'>ExprIndexLhsBuilder</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;&gt;</span>;
 
     <span class='kw'>fn</span> <span class='ident'>invoke</span>(<span class='self'>self</span>, <span class='ident'>lhs</span>: <span class='ident'>P</span><span class='op'>&lt;</span><span class='ident'>ast</span>::<span class='ident'>Expr</span><span class='op'>&gt;</span>) <span class='op'>-&gt;</span> <span class='ident'>ExprBuilder</span><span class='op'>&lt;</span><span class='ident'>ExprIndexLhsBuilder</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;&gt;</span> {
+        <span class='kw'>let</span> <span class='ident'>span</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>builder</span>.<span class='ident'>span</span>;
         <span class='ident'>ExprBuilder</span>::<span class='ident'>with_callback</span>(<span class='ident'>ExprIndexLhsBuilder</span> {
             <span class='ident'>builder</span>: <span class='self'>self</span>.<span class='ident'>builder</span>,
             <span class='ident'>lhs</span>: <span class='ident'>lhs</span>,
-        })
+        }).<span class='ident'>span</span>(<span class='ident'>span</span>)
     }
 }
 
@@ -3177,10 +3280,11 @@
     <span class='kw'>type</span> <span class='prelude-ty'>Result</span> <span class='op'>=</span> <span class='ident'>ExprBuilder</span><span class='op'>&lt;</span><span class='ident'>ExprRepeatLhsBuilder</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;&gt;</span>;
 
     <span class='kw'>fn</span> <span class='ident'>invoke</span>(<span class='self'>self</span>, <span class='ident'>lhs</span>: <span class='ident'>P</span><span class='op'>&lt;</span><span class='ident'>ast</span>::<span class='ident'>Expr</span><span class='op'>&gt;</span>) <span class='op'>-&gt;</span> <span class='ident'>ExprBuilder</span><span class='op'>&lt;</span><span class='ident'>ExprRepeatLhsBuilder</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;&gt;</span> {
+        <span class='kw'>let</span> <span class='ident'>span</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>builder</span>.<span class='ident'>span</span>;
         <span class='ident'>ExprBuilder</span>::<span class='ident'>with_callback</span>(<span class='ident'>ExprRepeatLhsBuilder</span> {
             <span class='ident'>builder</span>: <span class='self'>self</span>.<span class='ident'>builder</span>,
             <span class='ident'>lhs</span>: <span class='ident'>lhs</span>,
-        })
+        }).<span class='ident'>span</span>(<span class='ident'>span</span>)
     }
 }
 
@@ -3305,9 +3409,10 @@
     <span class='kw'>where</span> <span class='ident'>F</span>: <span class='ident'>Invoke</span><span class='op'>&lt;</span><span class='ident'>P</span><span class='op'>&lt;</span><span class='ident'>ast</span>::<span class='ident'>Expr</span><span class='op'>&gt;&gt;</span>,
 {
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>else_if</span>(<span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>ExprBuilder</span><span class='op'>&lt;</span><span class='ident'>ExprElseIfBuilder</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;&gt;</span> {
+        <span class='kw'>let</span> <span class='ident'>span</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>builder</span>.<span class='ident'>span</span>;
         <span class='ident'>ExprBuilder</span>::<span class='ident'>with_callback</span>(<span class='ident'>ExprElseIfBuilder</span> {
             <span class='ident'>builder</span>: <span class='self'>self</span>,
-        })
+        }).<span class='ident'>span</span>(<span class='ident'>span</span>)
     }
 
     <span class='kw'>fn</span> <span class='ident'>build_else_expr</span>(<span class='self'>self</span>, <span class='kw-2'>mut</span> <span class='ident'>else_</span>: <span class='ident'>P</span><span class='op'>&lt;</span><span class='ident'>ast</span>::<span class='ident'>Expr</span><span class='op'>&gt;</span>) <span class='op'>-&gt;</span> <span class='ident'>F</span>::<span class='prelude-ty'>Result</span> {
@@ -3545,7 +3650,8 @@
     }
 
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>expr</span>(<span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>ExprBuilder</span><span class='op'>&lt;</span><span class='self'>Self</span><span class='op'>&gt;</span> {
-        <span class='ident'>ExprBuilder</span>::<span class='ident'>with_callback</span>(<span class='self'>self</span>)
+        <span class='kw'>let</span> <span class='ident'>span</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>builder</span>.<span class='ident'>span</span>;
+        <span class='ident'>ExprBuilder</span>::<span class='ident'>with_callback</span>(<span class='self'>self</span>).<span class='ident'>span</span>(<span class='ident'>span</span>)
     }
 
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>build</span>(<span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>F</span>::<span class='prelude-ty'>Result</span> {
@@ -3600,6 +3706,7 @@
 
     <span class='kw'>fn</span> <span class='ident'>invoke</span>(<span class='self'>self</span>, <span class='ident'>expr</span>: <span class='ident'>P</span><span class='op'>&lt;</span><span class='ident'>ast</span>::<span class='ident'>Expr</span><span class='op'>&gt;</span>) <span class='op'>-&gt;</span> <span class='ident'>F</span>::<span class='prelude-ty'>Result</span> {
         <span class='kw'>let</span> <span class='ident'>ok_path</span> <span class='op'>=</span> <span class='ident'>PathBuilder</span>::<span class='ident'>new</span>()
+            .<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>builder</span>.<span class='ident'>span</span>)
             .<span class='ident'>global</span>()
             .<span class='ident'>ids</span>(<span class='kw-2'>&amp;</span>[<span class='string'>&quot;std&quot;</span>, <span class='string'>&quot;result&quot;</span>, <span class='string'>&quot;Result&quot;</span>, <span class='string'>&quot;Ok&quot;</span>])
             .<span class='ident'>build</span>();
@@ -3615,6 +3722,7 @@
                 .<span class='ident'>id</span>(<span class='string'>&quot;value&quot;</span>);
 
         <span class='kw'>let</span> <span class='ident'>err_path</span> <span class='op'>=</span> <span class='ident'>PathBuilder</span>::<span class='ident'>new</span>()
+            .<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>builder</span>.<span class='ident'>span</span>)
             .<span class='ident'>global</span>()
             .<span class='ident'>ids</span>(<span class='kw-2'>&amp;</span>[<span class='string'>&quot;std&quot;</span>, <span class='string'>&quot;result&quot;</span>, <span class='string'>&quot;Result&quot;</span>, <span class='string'>&quot;Err&quot;</span>])
             .<span class='ident'>build</span>();

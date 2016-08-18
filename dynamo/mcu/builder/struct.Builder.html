@@ -47,13 +47,13 @@
                    <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
                        [<span class='inner'>&#x2212;</span>]
                    </a>
-               </span><a id='src-1036' class='srclink' href='../../../src/dynamo/src/mcu/builder.rs.html#78-83' title='goto source code'>[src]</a></span></h1>
+               </span><a id='src-1082' class='srclink' href='../../../src/dynamo/src/mcu/builder.rs.html#101-106' title='goto source code'>[src]</a></span></h1>
 <pre class='rust struct'>pub struct Builder&lt;'a&gt; {
     // some fields omitted
 }</pre><div class='docblock'><p>Builds the generated AST from the parsed mcu!() block.</p>
 
 <p>Consumes the parser to later set syntax errors.</p>
-</div><h2 id='methods'>Methods</h2><h3 class='impl'><span class='in-band'><code>impl&lt;'a&gt; <a class='struct' href='../../../dynamo/mcu/builder/struct.Builder.html' title='dynamo::mcu::builder::Builder'>Builder</a>&lt;'a&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a id='src-1042' class='srclink' href='../../../src/dynamo/src/mcu/builder.rs.html#85-828' title='goto source code'>[src]</a></span></h3>
+</div><h2 id='methods'>Methods</h2><h3 class='impl'><span class='in-band'><code>impl&lt;'a&gt; <a class='struct' href='../../../dynamo/mcu/builder/struct.Builder.html' title='dynamo::mcu::builder::Builder'>Builder</a>&lt;'a&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a id='src-1088' class='srclink' href='../../../src/dynamo/src/mcu/builder.rs.html#108-958' title='goto source code'>[src]</a></span></h3>
 <div class='impl-items'><h4 id='method.new' class='method'><code>fn <a href='#method.new' class='fnname'>new</a>(mcu: <a class='struct' href='../../../dynamo/mcu/common/struct.McuInfo.html' title='dynamo::mcu::common::McuInfo'>McuInfo</a>, parser: <a class='type' href='../../../dynamo/mcu/parser/type.Parser.html' title='dynamo::mcu::parser::Parser'>Parser</a>&lt;'a&gt;, verbose: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.bool.html'>bool</a>) -&gt; <a class='struct' href='../../../dynamo/mcu/builder/struct.Builder.html' title='dynamo::mcu::builder::Builder'>Builder</a></code></h4>
 <div class='docblock'><p>Consumes the parsed common::McuInfo descriptor and parser to construct a Builder.</p>
 </div><h4 id='method.build' class='method'><code>fn <a href='#method.build' class='fnname'>build</a>(&amp;self) -&gt; <a class='struct' href='https://doc.rust-lang.org/nightly/collections/vec/struct.Vec.html' title='collections::vec::Vec'>Vec</a>&lt;<a class='struct' href='https://doc.rust-lang.org/nightly/syntax/ptr/struct.P.html' title='syntax::ptr::P'>P</a>&lt;<a class='struct' href='https://doc.rust-lang.org/nightly/syntax/ast/struct.Item.html' title='syntax::ast::Item'>Item</a>&gt;&gt;</code></h4>
@@ -66,12 +66,16 @@
 <div class='docblock'><p>Generates the structure initializer used in both the ::new() function and to initialize the static version (if generated).</p>
 </div><h4 id='method.build_externs' class='method'><code>fn <a href='#method.build_externs' class='fnname'>build_externs</a>(&amp;self) -&gt; <a class='struct' href='https://doc.rust-lang.org/nightly/syntax/ptr/struct.P.html' title='syntax::ptr::P'>P</a>&lt;<a class='struct' href='https://doc.rust-lang.org/nightly/syntax/ast/struct.Item.html' title='syntax::ast::Item'>Item</a>&gt;</code></h4>
 <div class='docblock'><p>Generates the <code>extern &quot;C&quot; { ... }</code> block for any defined externs in the expansion.</p>
+</div><h4 id='method.build_mcu_trait_impl' class='method'><code>fn <a href='#method.build_mcu_trait_impl' class='fnname'>build_mcu_trait_impl</a>(&amp;self) -&gt; <a class='struct' href='https://doc.rust-lang.org/nightly/syntax/ptr/struct.P.html' title='syntax::ptr::P'>P</a>&lt;<a class='struct' href='https://doc.rust-lang.org/nightly/syntax/ast/struct.Item.html' title='syntax::ast::Item'>Item</a>&gt;</code></h4>
+<div class='docblock'><p>entry for generating the impl block for the mcu.</p>
 </div><h4 id='method.build_impl' class='method'><code>fn <a href='#method.build_impl' class='fnname'>build_impl</a>(&amp;self) -&gt; <a class='struct' href='https://doc.rust-lang.org/nightly/syntax/ptr/struct.P.html' title='syntax::ptr::P'>P</a>&lt;<a class='struct' href='https://doc.rust-lang.org/nightly/syntax/ast/struct.Item.html' title='syntax::ast::Item'>Item</a>&gt;</code></h4>
 <div class='docblock'><p>Entry for generating the impl block for the mcu.</p>
 </div><h4 id='method.build_copy_data' class='method'><code>fn <a href='#method.build_copy_data' class='fnname'>build_copy_data</a>(&amp;self, impl_block: <a class='struct' href='../../../aster/item/struct.ItemImplBuilder.html' title='aster::item::ItemImplBuilder'>ItemImplBuilder</a>&lt;<a class='struct' href='../../../aster/invoke/struct.Identity.html' title='aster::invoke::Identity'>Identity</a>&gt;) -&gt; <a class='struct' href='../../../aster/item/struct.ItemImplBuilder.html' title='aster::item::ItemImplBuilder'>ItemImplBuilder</a>&lt;<a class='struct' href='../../../aster/invoke/struct.Identity.html' title='aster::invoke::Identity'>Identity</a>&gt;</code></h4>
 <div class='docblock'><p>Builds the <code>::copy_data_section()</code> function for the MCU definition.</p>
 
 <p>This function will copy the range [src_begin, src_end] to the data destination location in memory.</p>
+</div><h4 id='method.build_null_bss' class='method'><code>fn <a href='#method.build_null_bss' class='fnname'>build_null_bss</a>(&amp;self, impl_block: <a class='struct' href='../../../aster/item/struct.ItemImplBuilder.html' title='aster::item::ItemImplBuilder'>ItemImplBuilder</a>&lt;<a class='struct' href='../../../aster/invoke/struct.Identity.html' title='aster::invoke::Identity'>Identity</a>&gt;) -&gt; <a class='struct' href='../../../aster/item/struct.ItemImplBuilder.html' title='aster::item::ItemImplBuilder'>ItemImplBuilder</a>&lt;<a class='struct' href='../../../aster/invoke/struct.Identity.html' title='aster::invoke::Identity'>Identity</a>&gt;</code></h4>
+<div class='docblock'><p>Builds the <code>::null_bss()</code> function for the MCU definition.</p>
 </div><h4 id='method.build_interrupts' class='method'><code>fn <a href='#method.build_interrupts' class='fnname'>build_interrupts</a>(&amp;self) -&gt; <a class='struct' href='https://doc.rust-lang.org/nightly/syntax/ptr/struct.P.html' title='syntax::ptr::P'>P</a>&lt;<a class='struct' href='https://doc.rust-lang.org/nightly/syntax/ast/struct.Item.html' title='syntax::ast::Item'>Item</a>&gt;</code></h4>
 <div class='docblock'><p>Builds the interrupts table and associates the #[link_section = &quot;.some_location&quot;] attribute with it.</p>
 
@@ -86,6 +90,8 @@ It will look and function just like an ioreg peripheral, but generated here inst
 
 <p>This is used for NVIC::new() as well as the MCU instantiation.</p>
 </div><h4 id='method.build_nvic_impl' class='method'><code>fn <a href='#method.build_nvic_impl' class='fnname'>build_nvic_impl</a>(&amp;self) -&gt; <a class='struct' href='https://doc.rust-lang.org/nightly/syntax/ptr/struct.P.html' title='syntax::ptr::P'>P</a>&lt;<a class='struct' href='https://doc.rust-lang.org/nightly/syntax/ast/struct.Item.html' title='syntax::ast::Item'>Item</a>&gt;</code></h4>
+<div class='docblock'><p>Generates the functions that will exist on the NVIC handler, but not the NVIC trait.</p>
+</div><h4 id='method.build_nvic_trait_impl' class='method'><code>fn <a href='#method.build_nvic_trait_impl' class='fnname'>build_nvic_trait_impl</a>(&amp;self) -&gt; <a class='struct' href='https://doc.rust-lang.org/nightly/syntax/ptr/struct.P.html' title='syntax::ptr::P'>P</a>&lt;<a class='struct' href='https://doc.rust-lang.org/nightly/syntax/ast/struct.Item.html' title='syntax::ast::Item'>Item</a>&gt;</code></h4>
 <div class='docblock'><p>Generates the functions that will exist on the NVIC handler.</p>
 </div><h4 id='method.build_stack_entry_ptr' class='method'><code>fn <a href='#method.build_stack_entry_ptr' class='fnname'>build_stack_entry_ptr</a>(&amp;self) -&gt; <a class='struct' href='https://doc.rust-lang.org/nightly/syntax/ptr/struct.P.html' title='syntax::ptr::P'>P</a>&lt;<a class='struct' href='https://doc.rust-lang.org/nightly/syntax/ast/struct.Item.html' title='syntax::ast::Item'>Item</a>&gt;</code></h4>
 <div class='docblock'><p>Generates the static value for the stack_base pointer.</p>
@@ -93,7 +99,7 @@ It will look and function just like an ioreg peripheral, but generated here inst
 <p>This needs to be places at specific locations, so a static value with a #[link_section] attr is used.</p>
 
 <p>A static u32 is generated in the module, and is linked to the relevant section.</p>
-</div><h4 id='method.build_init' class='method'><code>fn <a href='#method.build_init' class='fnname'>build_init</a>(&amp;self) -&gt; <a class='struct' href='https://doc.rust-lang.org/nightly/syntax/ast/struct.Item.html' title='syntax::ast::Item'>Item</a></code></h4>
+</div><h4 id='method.build_init' class='method'><code>fn <a href='#method.build_init' class='fnname'>build_init</a>(&amp;self) -&gt; <a class='struct' href='https://doc.rust-lang.org/nightly/syntax/ptr/struct.P.html' title='syntax::ptr::P'>P</a>&lt;<a class='struct' href='https://doc.rust-lang.org/nightly/syntax/ast/struct.Item.html' title='syntax::ast::Item'>Item</a>&gt;</code></h4>
 <div class='docblock'><p>Build the init() function that instantiates the mcu.</p>
 
 <p>The generated code is as follows:</p>
@@ -102,9 +108,7 @@ It will look and function just like an ioreg peripheral, but generated here inst
 <span class='attribute'>#[<span class='ident'>link_section</span> <span class='op'>=</span> <span class='string'>&quot;.your_link_section&quot;</span>]</span>
 <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>init</span>() {
     <span class='kw'>let</span> <span class='ident'>mcu</span> <span class='op'>=</span> <span class='ident'>FooMcu</span>::<span class='ident'>new</span>();
-    <span class='ident'>mcu</span>.<span class='ident'>wdog</span>.<span class='ident'>unlock</span>();
-    <span class='ident'>mcu</span>.<span class='ident'>wdog</span>.<span class='ident'>disable</span>();
-    <span class='ident'>mcu</span>.<span class='ident'>copy_data_section</span>();
+    <span class='ident'>mcu</span>.<span class='ident'>init</span>();
     <span class='kw'>unsafe</span> { <span class='ident'>main</span>(<span class='ident'>mcu</span>); }
 }</pre>
 </div></div></section>
