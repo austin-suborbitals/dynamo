@@ -7,13 +7,32 @@
 
 #![allow(dead_code)]
 
+macro_rules! imports {
+    () => {
+
+        extern crate core;
+        #[allow(unused_imports)]
+        use self::core::intrinsics::{
+            volatile_load, volatile_store,
+            volatile_set_memory, volatile_copy_nonoverlapping_memory
+        };
+
+        #[allow(plugin_as_library)]
+        extern crate dynamo;
+        #[allow(unused_imports)]
+        use self::dynamo::traits::{MCU, NVIC, Peripheral};
+
+        #[allow(unused_imports)]
+        use std::mem::transmute;
+    }
+}
+
 #[cfg(test)]
 mod sanity {
-    extern crate core;
-    use self::core::intrinsics::volatile_copy_nonoverlapping_memory;
+    imports!();
 
     mod wdog {
-        use sanity::core::intrinsics::{volatile_load, volatile_store};
+        imports!();
         ioreg!(
             name => Watchdog;
             0x0000 => unlock r16 rw {
@@ -29,8 +48,8 @@ mod sanity {
             };
         );
     }
-    mod uart { ioreg!( name => UART; ); }
-    mod i2c { ioreg!( name => I2C; ); }
+    mod uart { imports!(); ioreg!( name => UART; ); }
+    mod i2c {  imports!(); ioreg!( name => I2C; ); }
 
     // TODO: cannot set the attrs for the entire extern module?
     mod some_extern_thing {
@@ -52,6 +71,8 @@ mod sanity {
     const STACK_LIMIT: u32 = 0x12345678;
     const HEAP_BEGIN: u32 = 0xBADC0FFE;
     const HEAP_END: u32 = 0xBADFFFFF;
+    const BSS_BEGIN: u32 = 0xBADC0FFE;
+    const BSS_END: u32 = 0xBADFFFFF;
 
 	static mut main_value: u32 = 0x12345678;
 	static mut common_hndl_value: u32 = 0x12345678;
@@ -64,66 +85,129 @@ mod sanity {
 	}}}
 
     mcu!(
+        // name given to the generated struct
         name => SomeMcuName;
+
+        // a list of documentation sources.
+        // these are added as doc comments to the generated struct for later reference.
         doc_srcs => [
             "http://some.url.com/path/to/probably.pdf",
             "http://some.url.com/path/to/another.pdf"
         ];
 
+        // path to the linker script to use -- NOTE: this is most likely going away
         link_script => "some/path/to/a/linker.ld";
 
+        // when leaving the mcu's init function, this funtion is called within an unsafe block
+        // and passed an immutable reference to the mcu initialized in the init function.
+        bootloader_exit => main;
+
+        // define constants that will be added to the generated MCU impl block.
+        // when added to the block, the key is converted to all caps, but within the macro block
+        // can be referenced via lowercase.
+        //
+        // if you use the uppercase version, it will reference the generated constant, whereas using
+        // the lowercase version for values will directly substitute it for the literal. while these
+        // should be equivalent to the compiler, ymmv
         constants => {
             i2c_loc = 0x8000;
         };
 
+        // define any externs you want to reference in the generated mcu.
+        // a block of the `unsafe "C" { ... }` variety is created, and filled with these values.
+        // types for the extern can be an ident or a path.
         externs => {
             data_flash: usize;
             data_flash_end: usize;
             data_section: usize;
         };
 
-		entry_ptr_link => .entry_code_ptr; // link section to place the entry pointer in
-
         // NOTE: argument to @ _must_ be a link section
+        //       the link section _must_ be prefixed with a '.'
         // if you cannot know the link section name at definition-time, you can manually
         // create the array using references to the functions defined in related modules.
         //
         // if no interrupts are defined, no structure is created.
+        //
+        // NOTE: an error will be generated if you attempt to set ISR0 or ISR1.
+        //       these are reserved for the stack pointer and generated reset handler (init) respectively.
+        //
+        // interrupts can be literals, idents, paths, or None
         interrupts => [64] @ .interrupts {
-            1..5    => some_common_handler;
-            6       => ::peregrine::isr::default::some_default_handler; // NOTE: paths must start with :: but will not be included
+            2..5    => some_common_handler;
+            6       => peregrine::isr::default::some_default_handler;
 			7..32   => None;
         };
 
+        // generate the NVIC interface as if it was an ioreg, but we know the needed functions ahead of time.
+        // it will match the dynamo::traits::NVIC trait.
         nvic => {
-            addr => 0xE000_E000;
-            prio_bits => 4;
+            addr => 0xE000_E000;    // can be a literal or an ident
+            prio_bits => 4;         // must be a literal
         };
 
-        stack => {
-            base    => 0x1000 @ .stack_base_ptr;
-            limit   => STACK_LIMIT;  // externally defined const. could also be an internal constant or literal
+        // all values (other than link ptr) can be a literal or ident.
+        //
+        // these values will be added as constants in the form `{TYPE}_{KEY}` where type is `STACK`, `DATA`, etc
+        // and key is the key for the value. for example:
+        //      `STACK_BASE` or `HEAP_LIMIT`
+        //
+        // the data and bss sections do not get constants, however, as they are only used by the mcu's init function.
+        memory => {
+
+            // the `base` field requires a link section to place the base pointer
+            // this is typically the address of ISR 0.
+            //
+            // the stack **will not** be located at the link section, simply a pointer to it.
+            // it is entirely reasonable to have something like:
+            //    `base => .stack_begin @ .stack_ptr`
+            // this would place the stack base at `.stack_begin` and create a constant STACK_BEGIN
+			//
+			// NOTE: the stack link section is going away ASAP. the blocker is casting an address to an
+			//       Option<fn()> in a static-compatible way.
+            stack => {
+                base    => 0x1000 @ .stack_ptr;
+                limit   => STACK_LIMIT;
+            };
+
+            // location of the begin and end of the .data link section (in flash or equivalent).
+            // this data must be copied into memory before anything can really happen.
+            //
+            // `dest` is the address to copy it to.
+            data => {
+                src_begin   => data_flash;
+                src_end     => data_flash_end;
+                dest        => data_section;
+            };
+
+            // location for any dynamic memory allocation.
+            // this is not used by the macro, but is intended for the provided constants to assist in any memory
+            // management implementation.
+            heap => {
+                base    => HEAP_BEGIN;
+                limit   => HEAP_END;
+            };
+
+            // location of the beginning and end of the .bss section so the init function can null it.
+            bss => {
+                base    => BSS_BEGIN;
+                limit   => BSS_END;
+            };
         };
 
-        data => {
-            // any of the values could be an ident, literal, or path
-            src_begin   => data_flash;
-            src_end     => data_flash_end;
-            dest        => data_section;
-        };
-
-        heap => {
-            // any of the values could be an ident, literal, or path
-            base    => HEAP_BEGIN;
-            limit   => HEAP_END;
-        };
-
+        // a list of peripherals (ioregs, or any MyType(*const u8)) belonging to the mcu.
+        // these peripherals are initialized in the order they are defined.
+        //
+        // as such, it is generally the case that the watchdog must be the first peripheral.
         peripherals => {
             wdog    => wdog::Watchdog @ 0x5000;     // type parsed as a path and pointer set to value after @
             uart    => uart::UART @ UART_1;         // can also be a const/extern
             i2c     => i2c::I2C @ i2c_loc;          // can also be an internal constant
         };
 
+        // a region to specify any additional methods that may be needed.
+        // these are parsed wholesale, and should be defined exactly as you wish them to exist in the final
+        // impl block for the generated mcu.
         actions => [
             pub fn some_helper_function(&self, pin: u8) -> bool {
                 return pin > 0x04;
@@ -171,7 +255,7 @@ mod sanity {
     fn correct_interrupts() {
 		unsafe { // TODO: because of static mut
 
-		for i in 1..6 {
+		for i in 2..6 {
 			INTERRUPTS[i].unwrap()();
 			assert_eq!(common_hndl_value, 0x87654321);
 			common_hndl_value = 0x12345678;
@@ -196,13 +280,13 @@ mod sanity {
 
 #[cfg(test)]
 mod static_instance {
-    extern crate core;
-    use self::core::intrinsics::volatile_copy_nonoverlapping_memory;
+    imports!();
 
     mcu!(
         name => TestMcu;
-        no_init;
     );
+
+    fn main(_: &TestMcu) {}
 
     static MCU: TestMcu = TestMcu::new();
     unsafe impl Sync for TestMcu {}
@@ -211,87 +295,6 @@ mod static_instance {
     fn make_static() {}
 }
 
-//
-// init
-//
-
-#[cfg(test)]
-mod init {
-    //
-    // no init
-    //
-
-    #[cfg(test)]
-    mod no_init {
-        extern crate core;
-        use self::core::intrinsics::volatile_copy_nonoverlapping_memory;
-
-        mcu!(
-            name => TestMcu;
-            no_init;
-        );
-
-        static MCU: TestMcu = TestMcu::new();
-        unsafe impl Sync for TestMcu {}
-
-        #[test]
-        fn compiles() {}
-    }
-
-
-    //
-    // generated init
-    //
-
-    #[cfg(test)]
-    mod generated {
-        extern crate core;
-        use self::core::intrinsics::volatile_copy_nonoverlapping_memory;
-
-        mod some {
-            pub mod module {
-                // TODO: make a trait so these can be genericized
-                pub fn some_entry_code(_: &super::super::TestMcu) {
-                }
-            }
-        }
-
-        mod wdog {
-            use super::core::intrinsics::{volatile_load, volatile_store};
-            ioreg!(
-                name => Watchdog;
-                0x0000 => unlock r16 rw {
-                    constants => {
-                        value_one = 0x1234;
-                        value_two = 0x3456;
-                    };
-                    0..15 => { unlock => [value_one, value_two]; }
-                };
-
-                0x0010 => control r16 rw {
-                    7 => { disable => [0x1]; }
-                };
-            );
-        }
-
-        mcu!(
-            name => TestMcu;
-            peripherals => {
-                wdog    => wdog::Watchdog @ 0x5000;
-            };
-            init => {
-                watchdog => wdog;
-                exit => some::module::some_entry_code;
-            };
-        );
-
-        #[test]
-        fn compiles() {}
-    }
-}
-
-
-
 
 //
 // nvic
@@ -299,18 +302,17 @@ mod init {
 
 #[cfg(test)]
 mod nvic {
-    extern crate core;
-    use self::core::intrinsics::volatile_copy_nonoverlapping_memory;
+    imports!();
 
     mcu!(
         name => TestMcu;
-        no_init;
-
         nvic => {
             addr => 0xE000_E000;
             prio_bits => 4;
         };
     );
+
+    fn main(_: &TestMcu) {}
 
     #[test]
     fn correct_addresses() {

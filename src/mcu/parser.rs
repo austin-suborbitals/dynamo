@@ -45,11 +45,6 @@ impl<'a> Parser<'a> {
             let tok = extract_ident_name!(self);
             let span = self.parser.span;
             match tok.as_str() {
-                "no_init" => {
-                    self.parser.bump();
-                    self.expect_semi();
-                    result.no_init = true;
-                }
                 "constants" => {
                     self.parse_constants_block(
                         &"".to_string(), &mut result.constants, validate_constant, &()
@@ -57,14 +52,6 @@ impl<'a> Parser<'a> {
                 }
                 "externs" => {
                     self.parse_externs_block(&mut result.externs);
-                }
-                "entry_ptr_link" => {
-                    self.parser.bump();
-                    self.expect_fat_arrow();
-                    let exp_dot = self.parser.expect(&token::Token::Dot);
-                    if exp_dot.is_err() { exp_dot.err().unwrap().emit(); }
-                    result.entry_ptr_link = format!(".{}", self.parse_ident_string());
-                    self.expect_semi();
                 }
                 "link_script" => {
                     self.parse_link_script(&mut result);
@@ -79,20 +66,8 @@ impl<'a> Parser<'a> {
                 "nvic" => {
                     self.parse_nvic(&mut result.nvic);
                 }
-                "stack" => {
-                    result.stack.span = self.parser.span.clone();
-                    self.assert_keyword_preamble("stack");
-                    self.parse_stack(&mut result.stack, &result.constants);
-                }
-                "data" => {
-                    result.data.span = self.parser.span.clone();
-                    self.assert_keyword_preamble("data");
-                    self.parse_data(&mut result.data, &result.constants);
-                }
-                "heap" => {
-                    result.heap.span = self.parser.span.clone();
-                    self.assert_keyword_preamble("heap");
-                    self.parse_heap(&mut result.heap, &result.constants);
+                "memory" => {
+                    self.parse_memory(&mut result);
                 }
                 "peripherals" => {
                     self.assert_keyword_preamble("peripherals");
@@ -101,8 +76,8 @@ impl<'a> Parser<'a> {
                 "actions" => {
                     self.parse_actions(&mut result.actions);
                 }
-                "init" => {
-                    self.parse_init(&mut result.init);
+                "bootloader_exit" => {
+                    self.parse_bootloader_exit(&mut result.init);
                 }
                 _ => {
                     self.parser.span_fatal(span, format!("unexpected block keyword '{}'", tok).as_str()).emit();
@@ -193,22 +168,19 @@ impl<'a> Parser<'a> {
             }
 
             let sp = self.parser.span.clone();
-            let fn_ident = match self.curr_token() {
-                &token::Token::Ident(id) => {
-                    if id.name.to_string().contains("::") {
-                        self.parser.span_warn(sp, "looks like a path, but no leading '::'");
+            let fn_ident = if self.parser.look_ahead(1, |ref t| {
+                    match t {
+                        &&token::Token::ModSep => { true }
+                        _ => { false }
                     }
-                    parser::StaticValue::Ident(id.name.to_string().clone(), self.get_ident(), sp)
-                }
-                &token::Token::ModSep => {
-                    self.parser.bump();
-                    parser::StaticValue::Path(self.get_type_path(), sp)
-                }
-                _ => {
-                    self.set_fatal_err("expected an ident or path");
-                    parser::StaticValue::Uint(0, "0".to_string(), DUMMY_SP)
-                }
-            };
+                }) {
+                    let res = self.parser.parse_path(PathStyle::Expr);
+                    if res.is_err() { res.err().unwrap().emit(); return; }
+                    parser::StaticValue::Path(res.unwrap(), sp)
+                } else {
+                    let id = self.get_ident();
+                    parser::StaticValue::Ident(id.name.to_string(), id, sp)
+                };
 
             into.ints.push((range, fn_ident));
             self.expect_semi();
@@ -234,6 +206,48 @@ impl<'a> Parser<'a> {
         self.expect_close_curly();
         self.expect_semi();
     }
+
+    /// Parses the entire `memory => { ... };` block.
+    pub fn parse_memory(&mut self, into: &mut common::McuInfo) {
+        self.expect_ident_value("memory");
+        self.expect_fat_arrow();
+        self.expect_open_curly();
+
+        while is_ident!(self.curr_token()) {
+            let tok = extract_ident_name!(self);
+            let span = self.parser.span;
+            match tok.as_str() {
+                "stack" => {
+                    into.stack.span = self.parser.span.clone();
+                    self.assert_keyword_preamble("stack");
+                    self.parse_stack(&mut into.stack, &into.constants);
+                }
+                "data" => {
+                    into.data.span = self.parser.span.clone();
+                    self.assert_keyword_preamble("data");
+                    self.parse_data(&mut into.data, &into.constants);
+                }
+                "heap" => {
+                    into.heap.span = self.parser.span.clone();
+                    self.assert_keyword_preamble("heap");
+                    self.parse_heap(&mut into.heap, &into.constants);
+                }
+                "bss" => {
+                    into.bss.span = self.parser.span.clone();
+                    self.assert_keyword_preamble("bss");
+                    self.parse_bss(&mut into.bss, &into.constants);
+                }
+                _ => {
+                    self.parser.span_fatal(span, "unexpected keyword").emit();
+                    return;
+                }
+            }
+        }
+
+        self.expect_close_curly();
+        self.expect_semi();
+    }
+
 
     /// Parses the entire `stack => { base => val @ .link_location; limit => val; };` block.
     ///
@@ -316,6 +330,28 @@ impl<'a> Parser<'a> {
         self.expect_semi();
     }
 
+    /// Parses the entire `bss => { base => val; limit => val; };` block.
+    ///
+    /// Values can be either a numeric literal or identifier.
+    pub fn parse_bss(&mut self, into: &mut common::BssInfo, consts: &BTreeMap<String, parser::StaticValue>) {
+        // parse base
+        self.expect_ident_value("base");
+        self.expect_fat_arrow();
+        into.base = self.parse_lit_or_ident("bss_base", consts);
+        self.expect_semi();
+
+        // parse limit
+        self.expect_ident_value("limit");
+        self.expect_fat_arrow();
+        into.limit = self.parse_lit_or_ident("bss_limit", consts);
+        self.expect_semi();
+
+        // TODO: how to validate values if they are idents!?
+
+        self.expect_close_curly();
+        self.expect_semi();
+    }
+
     /// Parses the entire `peripherals => { name => ty_path @ ptr_loc; ... };` block.
     ///
     /// This is the block that associates all ioreg-defined peripherals with the generated MCU.
@@ -367,16 +403,9 @@ impl<'a> Parser<'a> {
     /// Consumes the entire `init => { watchdog => ident; exit => ident/path/uint; };` block.
     ///
     /// If the user does not define an `init(&self) {}` action, one is generated from the init block.
-    pub fn parse_init(&mut self, into: &mut common::InitInfo) {
+    pub fn parse_bootloader_exit(&mut self, into: &mut common::InitInfo) {
         into.span = self.parser.span;
-        self.assert_keyword_preamble("init");
-
-        self.expect_ident_value("watchdog");
-        self.expect_fat_arrow();
-        into.watchdog = self.get_ident();
-        self.expect_semi();
-
-        self.expect_ident_value("exit");
+        self.expect_ident_value("bootloader_exit");
         self.expect_fat_arrow();
         let sp = self.parser.span;
         into.exit = match &self.parser.token {

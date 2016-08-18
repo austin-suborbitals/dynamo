@@ -14,6 +14,8 @@ pub mod parser;
 pub mod ioreg;
 pub mod mcu;
 
+pub mod traits;
+
 //
 // plugin registration
 //

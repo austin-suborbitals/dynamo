@@ -140,6 +140,19 @@ impl StaticValue {
             &StaticValue::Error(ref e, _) => { e.clone() }
         }
     }
+
+    pub fn get_span(&self) -> Span {
+        match self {
+              &StaticValue::Int(_, _, sp)
+            | &StaticValue::Uint(_, _, sp)
+            | &StaticValue::Float(_, _, _, sp)
+            | &StaticValue::Str(_, _, sp)
+            | &StaticValue::Ident(_, _, sp)
+            | &StaticValue::Path(_, sp)
+            | &StaticValue::Error(_, sp) =>
+              { sp }
+        }
+    }
 }
 
 impl fmt::Debug for StaticValue {

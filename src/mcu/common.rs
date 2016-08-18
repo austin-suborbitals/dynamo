@@ -54,6 +54,14 @@ pub struct HeapInfo {
 }
 
 #[derive(Debug)]
+/// Internal structure representing the parsed `bss` block.
+pub struct BssInfo {
+    pub base:   StaticValue,
+    pub limit:  StaticValue,
+    pub span:   Span,
+}
+
+#[derive(Debug)]
 /// Internal structure representing the parsed `interrupts` block.
 pub struct InterruptsInfo {
     pub total_ints: u8,
@@ -92,7 +100,6 @@ pub struct ActionInfo {
 
 #[derive(Debug)]
 pub struct InitInfo {
-    pub watchdog: ast::Ident,
     pub exit: StaticValue,
     pub span: Span,
 }
@@ -116,11 +123,10 @@ pub struct McuInfo {
     pub stack: StackInfo,                                   // TODO: builder
     pub data: DataInfo,
     pub heap: HeapInfo,                                     // TODO: builder
+    pub bss: BssInfo,                                       // TODO: builder
     pub peripherals: Vec<PeripheralInfo>,
     pub actions: BTreeMap<String, ActionInfo>,
     pub init: InitInfo,
-    pub no_init: bool,
-    pub entry_ptr_link: String,
     pub link_script: String,                                // TODO: builder and make sure #[link_flags = ""] escape crate-level
     pub span: Span,
 }
@@ -142,6 +148,7 @@ impl McuInfo {
                 ptr_link: "".to_string(),
                 span: DUMMY_SP,
             },
+
             data: DataInfo{
                 src_begin:StaticValue::default_uint(),
                 src_end:StaticValue::default_uint(),
@@ -153,10 +160,14 @@ impl McuInfo {
                 limit:StaticValue::default_uint(),
                 span: DUMMY_SP,
             },
+            bss: BssInfo{
+                base:StaticValue::default_uint(),
+                limit:StaticValue::default_uint(),
+                span: DUMMY_SP,
+            },
             peripherals: vec!(),
             actions: BTreeMap::new(),
             init:  InitInfo{
-                watchdog: ast::Ident::with_empty_ctxt(bldr.name("wdog")),
                 exit: StaticValue::Ident(
                     "main".to_string(),
                     ast::Ident::with_empty_ctxt(bldr.name("main")),
@@ -164,8 +175,6 @@ impl McuInfo {
                 ),
                 span: DUMMY_SP,
             },
-            no_init: false,
-            entry_ptr_link: "".to_string(),
             link_script: "".to_string(),
             span: DUMMY_SP,
         }

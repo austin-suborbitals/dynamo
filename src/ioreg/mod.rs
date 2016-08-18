@@ -1,117 +1,12 @@
-/*
-    Example of an IO Register definition:
-
-    ioreg!(
-        NOTE: in the Parser's context, this is the beginning of the "ioreg block"
-
-        // name this register WDOG
-        name => WDOG;
-
-        // here we define the const values needed by this register (particularly in functions).
-        // these variables (static) will be added as: WDOG::status_{var_name}.
-        // the prefix is because these values belong to the `status` segment.
-        // NOTE: definitions of values do not use '=>' but rather a simple equality.
-        constants => {
-            // standard defines
-            enabled = 1;
-            disabled = 0;
-        };
-
-        // this address is a 16 bit (r16) register located at 0x40052000.
-        // it is named "status" and the name will be used in field/function names on WDOG.
-        // it is readable, so we will have a WDOG::read_status() function to read the entire register.
-        0x40052000 => status r16 rw {
-            // we can also create constants on the segment-level.
-            // NOTE: these constants will be prefixed with the segment name ("status_{FOO}" in this case).
-            //       using these values in the segment definition requires adding the prefix.
-            // NOTE: these constants must also fit inside the register they are for. in this case an 8/16bit value.
-            constants => {
-                // wdog clock source
-                LPO_clock = 0;
-                alternate_clock = 1;
-
-                // watchdog reset style
-                reset_only = 0;
-                irq_before_reset = 1;
-
-                // test mode
-                quick_test = 0;
-                byte_test = 1;
-                test_byte_zero  = 0;
-                test_byte_one   = 1;
-                test_byte_two   = 2;
-                test_byte_three = 3;
-            };
-
-            // this is a one-bit register location.
-            // we can still define functions and getters as normal, but the operation in code
-            // will be similar to `*(address) |= val` (not literally, but operating byte-wise as shown).
-            0 => {
-                // we also define functions to enable and disable the watchdog by writing
-                // the values defined above to the register.
-                //       this example would give us:  WDOG.enable() and WDOG.disable()
-                enable => [enabled];
-                disable => [disabled];
-            }
-
-            1 => {
-                use_lpo_clock => [status_LPO_clock];
-                use_alternate_clock => [status_alternate_clock];
-            }
-
-            2 => {
-                default_reset_mode => [status_reset_only];
-                interrupt_before_reset => [status_irq_before_reset];
-            }
-
-            // NOTE: perhaps 3 through 10 are reserved.... omit them :)
-
-            11 => {
-                enable_quick_test => [status_quick_test];
-                enable_byte_test => [status_byte_test];
-            }
-
-            12..13 => {
-                use_test_byte_zero => [status_test_byte_zero];
-                use_test_byte_one => [status_test_byte_one];
-                use_test_byte_two => [status_test_byte_two];
-                use_test_byte_three => [status_test_byte_three];
-            }
-
-            14 => {
-                disable_test_mode => [enabled];
-                ensable_test_mode => [disabled];
-            }
-        }
-
-
-        // this address is a 16bit (r16) register located at 0x4005200E.
-        // it is named "unlock" and will be used in field/function names on WDOG.
-        // it is write only, and will get no ::read_unlock() function.
-        0x4005200E => unlock r16 wo {
-            NOTE: in the Parser's context, this is the beginning of a "segment block"
-
-            0..15 => {
-                NOTE: in the Parser's context, this is the beginning of an "offset block"
-
-                // define the `unlock()` function that writes the given sequence of
-                // values serially to this given register+offset
-                // NOTE: function names must be unique across the register, not just addresses
-                unlock => [0xC520, 0xD928];
-            }
-        }
-    )
-*/
-
 extern crate syntax;
 extern crate rustc;
 extern crate rustc_plugin;
 extern crate aster;
 
-
 use syntax::tokenstream;
 use syntax::parse::token;
 use syntax::codemap::Span;
+use syntax::ext::quote::rt::DUMMY_SP;
 use syntax::util::small_vector::SmallVector;
 use syntax::ext::base::{ExtCtxt, MacResult};
 
@@ -310,6 +205,26 @@ fn parse_ioreg(parser: &mut parser::Parser) -> common::IoRegInfo {
     let name_str = parser.parse_ident_string();       // get the name for the ioreg
     parser.expect_semi();
 
+    let init = {
+        if parser.parser.this_token_to_string() == "init".to_string() {
+            let sp = parser.parser.span.clone();
+            parser.parser.bump();
+            parser.expect_fat_arrow();
+            let init_item = parser.parser.parse_impl_item();
+            parser.expect_semi();
+            common::InitInfo{
+                defined: true,
+                item: match init_item {
+                    Ok(i) => { Some(i) }
+                    Err(mut e) => { e.emit(); None }
+                },
+                span: sp
+            }
+        } else {
+            common::InitInfo{defined:false, item:None, span: DUMMY_SP}
+        }
+    };
+
     // check if we have a constants or doc_srcs definition block
     let mut const_vals: BTreeMap<String, StaticValue> = BTreeMap::new();
     let mut doc_srcs: Vec<String> = vec!();
@@ -333,6 +248,7 @@ fn parse_ioreg(parser: &mut parser::Parser) -> common::IoRegInfo {
         doc_srcs: doc_srcs,
         segments: BTreeMap::new(),
         const_vals: const_vals,
+        init: init,
         span: start_span,
     };
 

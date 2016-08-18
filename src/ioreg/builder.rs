@@ -207,6 +207,9 @@ impl<'a> Builder<'a> {
         let impl_item = impl_build.ty().span(self.reg.span).id(self.reg.name.clone());
         items.push(impl_item);
 
+        // build and push the peripheral trait
+        items.push(self.build_peripheral_trait_impl());
+
         if self.verbose {
             for i in &items { println!("{}\n", pprust::item_to_string(i)); }
         }
@@ -587,5 +590,41 @@ impl<'a> Builder<'a> {
         };
 
         Err(format!("could not find definition for '{}' or '{}'", name.to_string(), scoped_name))
+    }
+
+
+    /// entry for generating the impl block for the mcu.
+    pub fn build_peripheral_trait_impl(&self) -> ptr::P<ast::Item> {
+        let mut impl_block = self.base_builder.item().span(self.reg.span).impl_()
+            .trait_().span(self.reg.span).id("dynamo").id("traits").id("Peripheral").build();
+
+        // build needs_init and init
+        match &self.reg.init.item {
+            &Some(ref i) => {
+                impl_block = impl_block.item("needs_init").span(self.reg.init.span)
+                    .attr().doc(format!("/// states the `{}` needs to be initialized", self.reg.name).as_str())
+                    .method().fn_decl().span(self.reg.init.span)
+                        .self_().ref_()
+                        .return_().bool()
+                        .block()
+                            .expr().bool(true);
+
+                impl_block = impl_block.with_item(i.clone());
+            }
+            &None => {
+                impl_block = impl_block.item("needs_init").span(self.reg.init.span)
+                    .attr().doc(format!("/// states the `{}` will not be initialized", self.reg.name).as_str())
+                    .method().fn_decl().span(self.reg.init.span)
+                        .self_().ref_()
+                        .return_().bool()
+                        .block()
+                            .expr().bool(false);
+
+                impl_block = impl_block.item("init").method().fn_decl().self_().ref_().default_return()
+                    .block().build()
+            }
+        };
+
+        impl_block.ty().id(self.reg.name.clone())
     }
 }

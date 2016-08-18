@@ -269,6 +269,14 @@ impl IoRegSegmentInfo {
 
 
 #[derive(Debug)]
+pub struct InitInfo {
+    pub defined: bool,
+    pub item: Option<ast::ImplItem>,
+    pub span: Span,
+}
+
+
+#[derive(Debug)]
 /// Internal representation used to build the ioreg definition.
 ///
 /// Contains a logical grouping of mcu-proper-registers.
@@ -278,6 +286,7 @@ pub struct IoRegInfo {
     pub doc_srcs:   Vec<String>,
     pub segments:   BTreeMap<String, IoRegSegmentInfo>,
     pub const_vals: BTreeMap<String, parser::StaticValue>,
+    pub init:       InitInfo,
     pub span:       Span,
 }
 

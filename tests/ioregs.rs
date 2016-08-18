@@ -4,15 +4,26 @@
 
 #![plugin(dynamo)]
 
-#[allow(dead_code)]
+#![allow(dead_code)]
 
 #[cfg(test)]
 mod constants {
+    #[allow(plugin_as_library)]
+    extern crate dynamo;
+
+    extern crate core;
+    use self::core::intrinsics::{volatile_load, volatile_store};
+
     ioreg!(
-        // blah blah give it a name
+        // give a name to the generated struct representing the ioreg
         name => TestingStruct;
 
-        // define some "root-level" constants (unprefixed) on the base struct
+        // define some "root-level" constants (unprefixed) on the base struct.
+        // these constants are available to all scopes in this syntax tree.
+        //
+        // the constants will be added to the impl block after the key is converted to uppercase.
+        // you can, however, use the key as lowercase in which case the constant will not be referenced in
+        // generated code, but replaced with the literal.
         constants => {
             // something_signed = -128;     // TODO: need signed ints
             unsuffixed_hex = 0xFFAA;
@@ -25,11 +36,54 @@ mod constants {
             and_a_string = "some super critical string";
         };
 
-        0x0000 => status r16 wo {
-            // define some status-related constants. these are prefixed and exist on the segment struct
+        // this is a segment.
+        // most MCUs will consider *this* to be a register.
+        //
+        // we wish for a logical grouping, so we group the true registers into the relevant grouping.
+        // it is entirely reasonable to have an ioreg with only one segment or many.
+        //
+        // a segment has:
+        //     - a name
+        //     - a width (r8, r16, r32)
+        //     - a permissions (ro, rw, wo)
+        //
+        // if a segment can be read from (ro, rw) a function is generated to return the value of the segment.
+        // the naming convention is `read_{seg_name}()`.
+        0x0000 => status r16 rw {
+            // segments can also contain constants.
+            // these constants are only available within the scope of this segment.
+            //
+            // when exporting these constants, the segment name followed by a '_' is prepended before
+            // conversion to all caps. the below would be `STATUS_NESTED_CONST` for instance.
             constants => {
                 nested_const = 0x0100;
             };
+
+            // this is an offset.
+            // an offset is a bit or a range of bits within a register.
+            //
+            // this offset refers to the least significant bit in the segment.
+            0 => {
+                // this defines a function named `do_a_thing` to be generated in the ioreg's impl.
+                // setter functions will sequentially write the values in the brackets to the region.
+                //
+                // because non-fully-aligned offsets (both in width and offset) cannot be efficiently written,
+                // the register is read, the value we will write is then masked and shifted, and the
+                // smallest uint that will fit the offset+width is written back.
+                //
+                // this constraint means we do not support non-byte-aligned writes to write-only registers.
+                do_a_thing => [nested_const, nested_const, suffixed_dec];
+
+                // this is the same as above, but with a literal
+                do_a_literal_thing => [0x1234];
+            }
+
+            // this is also an offset, but with a width.
+            // rather than being a single bit, it is multiple contiguous bits.
+            // all the same rules apply.
+            1..5 => {
+                // NOTE: for more details about functions, see the functions suite below.
+            }
         };
     );
 
@@ -55,6 +109,9 @@ mod constants {
 mod read {
     extern crate core;
     use self::core::intrinsics::{volatile_store, volatile_load};
+
+    #[allow(plugin_as_library)]
+    extern crate dynamo;
 
     ioreg!(
         name => TestingStruct;
@@ -125,6 +182,9 @@ mod read {
 mod write {
     extern crate core;
     use self::core::intrinsics::{volatile_load, volatile_store};
+
+    #[allow(plugin_as_library)]
+    extern crate dynamo;
 
     ioreg!(
         name => TestingStruct;
@@ -468,9 +528,15 @@ mod write {
 #[cfg(test)]
 mod docs {
     #![allow(dead_code)]
+    #[allow(plugin_as_library)]
+    extern crate dynamo; 
 
     ioreg!(
         name => Multiple;
+
+        // this adds to documentation comments generated for the ioreg struct.
+        // each entry is as such:
+        //  /// Source: "you string here"
         doc_srcs => ["one", "two", "three"];
     );
 
@@ -482,6 +548,8 @@ mod docs {
 #[cfg(test)]
 mod interchange_doc_const_blocks {
     #![allow(dead_code)]
+    #[allow(plugin_as_library)]
+    extern crate dynamo; 
 
     ioreg!(
         name => DocsFirst;
@@ -498,3 +566,96 @@ mod interchange_doc_const_blocks {
     #[test]
     fn works() {}
 }
+
+#[cfg(test)]
+mod input_fn {
+    #[allow(plugin_as_library)]
+    extern crate dynamo;
+    #[allow(unused_imports)]
+    use self::dynamo::traits::Peripheral;
+
+    extern crate core;
+    use self::core::intrinsics::{volatile_load, volatile_store};
+
+    ioreg!(
+        name => TestingStruct;
+        0x000 => status r16 rw {
+            0..4 => {
+                // this version of a function definition is special.
+                // rather than brackets, it uses parentheses.
+                //
+                // this signifies the function takes run-time input.
+                // the generated fn signature takes one argument, and the type is the smalles uint that
+                // can hold the width of the offset.
+                this_takes_input => ();
+            }
+        };
+    );
+
+    // TODO: test that scales up to each type
+
+    #[test]
+    fn sanity() {
+        let reg_mem: [u8; 4096] = [0; 4096];
+        let t = TestingStruct(&reg_mem as *const u8);
+
+        t.this_takes_input(0x12u8);
+        assert_eq!(0x12, t.read_status());
+    }
+}
+
+
+#[cfg(test)]
+mod init {
+    #[allow(plugin_as_library)]
+    extern crate dynamo;
+    use self::dynamo::traits::Peripheral;
+
+    static mut test_val: u16 = 0x1234u16;
+    ioreg!(
+        name => TestingStruct;
+
+        // if this section is listed, this means the peripheral needs some sort of initialization.
+        // everything between the => and the closing semicolon is parsed as a function in an impl block.
+        // because of this, your function should look exactly as it should next to generated code -- do not
+        // be concerned with scoping here. to use constants do something like Self::MY_CONST.
+        //
+        // another side-effect of this is another function being generated: needs_init();
+        // this function returns a compile-time boolean, making it quick and efficient for the mcu/bootloader
+        // to initialize any and all peripherals that need it.
+        init => fn init(&self) {
+            unsafe { test_val = 0x4321; }
+        };
+    );
+
+    #[test]
+    fn needs_init() {
+        let t = TestingStruct(0 as *mut u8);
+        assert!(t.needs_init());
+    }
+
+    #[test]
+    fn run_init() {
+        let t = TestingStruct(0 as *mut u8);
+        t.init();
+        unsafe { assert_eq!(0x4321, test_val); }
+    }
+}
+
+#[cfg(test)]
+mod no_init {
+    #[allow(plugin_as_library)]
+    extern crate dynamo;
+    use self::dynamo::traits::Peripheral;
+
+    ioreg!(
+        name => TestingStruct;
+    );
+
+    #[test]
+    fn doesnt_need_init() {
+        let t = TestingStruct(0 as *mut u8);
+        assert_eq!(false, t.needs_init());
+    }
+}
+
