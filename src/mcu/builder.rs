@@ -911,7 +911,6 @@ impl<'a> Builder<'a> {
     /// The generated code is as follows:
     ///
     /// ```
-    /// #[link_section = ".your_link_section"]
     /// pub fn init() {
     ///     let mcu = FooMcu::new();
     ///     mcu.init();
