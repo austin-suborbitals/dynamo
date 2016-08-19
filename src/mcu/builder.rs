@@ -39,7 +39,7 @@ macro_rules! ptr_cast {
 
 macro_rules! cast {
     ($lhs:expr, $rhs:expr) => {
-        aster::AstBuilder::new().expr().build_expr_kind(
+        aster::AstBuilder::new().expr().span($lhs.span).build_expr_kind(
             ast::ExprKind::Cast( $lhs, $rhs )
         )
     };
@@ -94,6 +94,19 @@ macro_rules! integral_or_ident_to_usize_expr {
     }
 }
 
+macro_rules! bare_fn {
+    ($self_:ident) => {
+        $self_.base_builder.ty().build_ty_kind(ast::TyKind::BareFn(ptr::P(
+            ast::BareFnTy {
+                unsafety: ast::Unsafety::Normal,
+                abi: abi::Abi::Rust,
+                lifetimes: vec!(),
+                decl: $self_.base_builder.fn_decl().default_return(),
+            }
+        )))
+    }
+}
+
 
 /// Builds the generated AST from the parsed mcu!() block.
 ///
@@ -132,10 +145,9 @@ impl<'a> Builder<'a> {
         result.push(self.build_impl());
         result.push(self.build_mcu_trait_impl());
         result.push(self.build_init());
-        result.push(self.build_stack_entry_ptr());
 
         if ! self.mcu.interrupts.ints.is_empty() {
-            result.push(self.build_interrupts());
+            result.extend(self.build_interrupts());
         }
 
         if self.verbose {
@@ -274,7 +286,6 @@ impl<'a> Builder<'a> {
             .attr().doc("///     ... for p in periphs ...")
             .attr().doc("///     if p.needs_init() { p.init(); }")
             .attr().doc("///     ...                  ...")
-            .attr().doc("///     unsafe { main(mcu); }")
             .attr().doc("///")
             .attr().doc("/// ```")
             .attr().doc("///")
@@ -364,7 +375,7 @@ impl<'a> Builder<'a> {
                     .with_arg(ptr_cast!(begin_expr.clone(), self.base_builder.ty().u8(), true /* mut ptr */))
                     .arg().u8(0)
                     .with_arg(cast!(
-                        self.base_builder.expr().paren().build_sub(end_expr, begin_expr),
+                        self.base_builder.expr().paren().build_sub(end_expr.clone(), begin_expr.clone()),
                         self.base_builder.ty().usize()
                     ))
                 .build()
@@ -435,18 +446,31 @@ impl<'a> Builder<'a> {
     // TODO: insert a generic handler instead of None
     /// Builds the interrupts table and associates the #[link_section = ".some_location"] attribute with it.
     ///
-    /// The array generated is of type `[Option<fn()>; NUM_INTERRUPTS]` and defaults to `None` for all interrupts.
-    pub fn build_interrupts(&self) -> ptr::P<ast::Item> {
-        // TODO: need to set int0 to reset?
+    /// The type is actually a struct containing the stack pointer as a u32 and an array of ISRs.
+    /// The array generated is of type `[Option<fn()>; NUM_INTERRUPTS-1]` and defaults to `None` (0u32)
+    /// for all interrupts. Making this #[repr(C)] structure keeps type safety while achieving the packed
+    /// table structure we need.
+    pub fn build_interrupts(&self) -> Vec<ptr::P<ast::Item>> {
+        // make an "easy to reference" type InterruptArray that holds ISRs [2, N]
+        let int_type = self.base_builder.item().span(self.mcu.interrupts.span)
+            .attr().list("repr").word("C").build()
+            .struct_("Interrupts")
+                .field("stack").span(self.mcu.interrupts.span).ty().u32()
+                .field("isrs").span(self.mcu.interrupts.span).ty()
+                    .build_ty_kind(ast::TyKind::FixedLengthVec(
+                        self.base_builder.ty().option().build(bare_fn!(self)),
+                        self.base_builder.expr().lit().usize((self.mcu.interrupts.total_ints-1) as usize)
+                    ))
+                .build();
+
         let mut ints: Vec<ptr::P<ast::Expr>> = vec![
-            self.base_builder.expr().none();
-            self.mcu.interrupts.total_ints as usize
+            self.base_builder.expr().span(self.mcu.interrupts.span).none();
+            (self.mcu.interrupts.total_ints-1) as usize
         ];
 
-        // TODO: set ints[0] once we are able to cast address as fn() type
-
-        // set the reset handler to our generated init function
-        ints[1] = self.base_builder.expr().span(self.mcu.span).some().id("init");
+        // TODO: I don't really like the -1 stuff because of stack
+        // add the entry pointer to the interrupt list
+        ints[0] = self.base_builder.expr().some().id("init");
 
         for i in &self.mcu.interrupts.ints {
             if i.0.contains(0) {
@@ -462,57 +486,53 @@ impl<'a> Builder<'a> {
             }
 
             let addr_expr = match &i.1 {
-                &StaticValue::Uint(addr, _, sp) => {
-                    self.base_builder.expr().span(sp).some().lit().u32(addr)
-                }
                 &StaticValue::Ident(_, ref id, sp) => {
 					if id.name.to_string() == "None".to_string() {
-                		self.base_builder.expr().span(sp).none()
+                        self.base_builder.expr().span(self.mcu.stack.span).none()
 					} else {
                 		self.base_builder.expr().span(sp).some().id(id)
 					}
                 }
                 &StaticValue::Path(ref path, sp) => {
-                	self.base_builder.expr().span(sp).some().build_path(path.clone()) // TODO: clone
+                    self.base_builder.expr().span(sp).some().build_path(path.clone())
                 }
 
                 // not allowed
+                &StaticValue::Uint(_, _, sp) |
                 &StaticValue::Int(_, _,sp) |
                 &StaticValue::Float(_,_,_,sp) |
                 &StaticValue::Str(_, _,sp) => {
                     self.parser.parser.span_err(sp, "invalid interrupt function location type");
-                    self.base_builder.expr().lit().u32(0) // TODO: ew
+                    self.base_builder.expr().none() // TODO: ew
                 }
                 &StaticValue::Error(ref err, sp) =>  {
                     self.parser.parser.span_err(sp, format!("unthrown parser error: {}", err).as_str());
-                    self.base_builder.expr().lit().u32(0) // TODO: ew
+                    self.base_builder.expr().none() // TODO: ew
                 }
             };
 
             for i in i.0.begin .. i.0.end+1 {
-                ints[i] = addr_expr.clone();    // TODO: this should be faster than building, but check
+                ints[i-1] = addr_expr.clone();    // TODO: this should be faster than building, but check
             }
         }
 
-        self.base_builder.item()
-            .attr().name_value("link_section").str(self.mcu.interrupts.link_location.as_str())
-            .build_item_kind(
-                "INTERRUPTS",
-                ast::ItemKind::Static(
-                    self.base_builder.ty().build_ty_kind(ast::TyKind::FixedLengthVec(
-                        self.base_builder.ty().option().build_ty_kind(ast::TyKind::BareFn(ptr::P(
-						ast::BareFnTy {
-						    unsafety: ast::Unsafety::Normal, // TODO: or all unsafe?
-						    abi: abi::Abi::Rust,
-						    lifetimes: vec!(),
-						    decl: self.base_builder.fn_decl().default_return(),
-                        }))),
-                        self.base_builder.expr().lit().usize(self.mcu.interrupts.total_ints as usize)
-                    )),
-                    ast::Mutability::Immutable,
-                    self.base_builder.expr().slice().with_exprs(ints).build()
+        vec![
+            int_type,
+            self.base_builder.item()
+                .attr().name_value("link_section").str(self.mcu.interrupts.link_location.as_str())
+                .build_item_kind(
+                    "INTERRUPTS",
+                    ast::ItemKind::Static(
+                        self.base_builder.ty().id("Interrupts"),
+                        ast::Mutability::Immutable,
+                        self.base_builder.expr().span(self.mcu.stack.span).struct_().id("Interrupts").build()
+                            .field("stack").build(
+                                integral_or_ident_to_expr!(self.mcu.stack.base, "invalid stack base ty", self))
+                            .field("isrs").slice().with_exprs(ints).build()
+                        .build()
+                    )
                 )
-            )
+        ]
     }
 
     /// Generates the NVIC type we will add to the generated MCU.
@@ -887,23 +907,6 @@ impl<'a> Builder<'a> {
         impl_block.ty().id(ty_name.as_str())
     }
 
-    /// Generates the static value for the stack_base pointer.
-    ///
-    /// This needs to be places at specific locations, so a static value with a #[link_section] attr is used.
-    ///
-    /// A static u32 is generated in the module, and is linked to the relevant section.
-    pub fn build_stack_entry_ptr(&self) -> ptr::P<ast::Item> {
-        self.base_builder.item()
-            .attr().name_value("link_section").str(self.mcu.stack.ptr_link.as_str())
-            .build_item_kind(
-                "STACK_BASE_PTR",
-                ast::ItemKind::Static(
-                    self.base_builder.ty().u32(),
-                    ast::Mutability::Immutable,
-                            integral_or_ident_to_expr!(self.mcu.stack.base, "invalid stack base ptr type", self)
-                )
-            )
-	}
 
     // TODO: trigger reset on exit of main
     /// Build the init() function that instantiates the mcu.

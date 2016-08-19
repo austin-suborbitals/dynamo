@@ -32,7 +32,6 @@ impl RangeInfo {
 pub struct StackInfo {
     pub base:   StaticValue,
     pub limit:  StaticValue,
-    pub ptr_link: String,
     pub span:   Span,
 }
 
@@ -128,6 +127,7 @@ pub struct McuInfo {
     pub actions: BTreeMap<String, ActionInfo>,
     pub init: InitInfo,
     pub link_script: String,                                // TODO: builder and make sure #[link_flags = ""] escape crate-level
+    pub entry_ptr_link: String,
     pub span: Span,
 }
 
@@ -145,7 +145,6 @@ impl McuInfo {
             stack: StackInfo{
                 base: StaticValue::default_uint(),
                 limit: StaticValue::default_uint(),
-                ptr_link: "".to_string(),
                 span: DUMMY_SP,
             },
 
@@ -176,6 +175,7 @@ impl McuInfo {
                 span: DUMMY_SP,
             },
             link_script: "".to_string(),
+            entry_ptr_link: "".to_string(),
             span: DUMMY_SP,
         }
     }

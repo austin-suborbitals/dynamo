@@ -74,10 +74,8 @@ mod sanity {
     const BSS_BEGIN: u32 = 0xBADC0FFE;
     const BSS_END: u32 = 0xBADFFFFF;
 
-	static mut main_value: u32 = 0x12345678;
-	static mut common_hndl_value: u32 = 0x12345678;
     fn main(_: &SomeMcuName) { }
-    fn some_common_handler() { unsafe{common_hndl_value = 0x87654321;} }
+    fn some_common_handler() { }
 
     mod peregrine { pub mod isr { pub mod default {
 		pub static mut some_val: u32 = 0x12345678;
@@ -131,6 +129,7 @@ mod sanity {
         //
         // NOTE: an error will be generated if you attempt to set ISR0 or ISR1.
         //       these are reserved for the stack pointer and generated reset handler (init) respectively.
+        //       these two pointers __must__ be counted in the total number of interrupts, however.
         //
         // interrupts can be literals, idents, paths, or None
         interrupts => [64] @ .interrupts {
@@ -154,7 +153,6 @@ mod sanity {
         //
         // the data and bss sections do not get constants, however, as they are only used by the mcu's init function.
         memory => {
-
             // the `base` field requires a link section to place the base pointer
             // this is typically the address of ISR 0.
             //
@@ -166,7 +164,7 @@ mod sanity {
 			// NOTE: the stack link section is going away ASAP. the blocker is casting an address to an
 			//       Option<fn()> in a static-compatible way.
             stack => {
-                base    => 0x1000 @ .stack_ptr;
+                base    => 0x1000;
                 limit   => STACK_LIMIT;
             };
 
@@ -253,18 +251,23 @@ mod sanity {
 
     #[test]
     fn correct_interrupts() {
-		unsafe { // TODO: because of static mut
-
-		for i in 2..6 {
-			INTERRUPTS[i].unwrap()();
-			assert_eq!(common_hndl_value, 0x87654321);
-			common_hndl_value = 0x12345678;
-		}
-
-		INTERRUPTS[6].unwrap()();
-		assert_eq!(peregrine::isr::default::some_val, 0x87654321);
-
-		} // unsafe
+        assert_eq!(INTERRUPTS.stack, SomeMcuName::STACK_BASE);
+        for (i,v) in INTERRUPTS.isrs.into_iter().enumerate() {
+            match i {
+                0       => {
+                    assert!(v.unwrap() == init, "init fn failure");
+                }
+                1...4   => {
+                    assert!(v.unwrap() == some_common_handler, "ident failure");
+                }
+                5       => {
+                    assert!(v.unwrap() == peregrine::isr::default::some_default_handler, "path failure");
+                }
+                _       => {
+                    assert!(v.is_none());
+                }
+            }
+        }
     }
 
     #[test]

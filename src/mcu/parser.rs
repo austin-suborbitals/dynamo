@@ -259,13 +259,6 @@ impl<'a> Parser<'a> {
         self.expect_ident_value("base");
         self.expect_fat_arrow();
         into.base = self.parse_lit_or_ident("stack_base", consts);
-
-        // parse link section
-        let exp_at = self.parser.expect(&token::Token::At);
-        if exp_at.is_err() { exp_at.err().unwrap().emit(); }
-        let exp_dot = self.parser.expect(&token::Token::Dot);
-        if exp_dot.is_err() { exp_dot.err().unwrap().emit(); }
-        into.ptr_link = format!(".{}", self.parse_ident_string());
         self.expect_semi();
 
         // parse limit
