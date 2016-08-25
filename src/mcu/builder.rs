@@ -278,7 +278,7 @@ impl<'a> Builder<'a> {
             .attr().doc("/// **NOTE:** peripherals are initialized in the order they are defined")
             .attr().doc("///")
             .attr().doc("/// Each peripheral's `::needs_init()` is a compile time constant, and should not be costly.")
-            .method().fn_decl().span(self.mcu.span)
+            .pub_().method().fn_decl().span(self.mcu.span)
             .self_().ref_()
             .default_return()
             .block()
@@ -305,6 +305,10 @@ impl<'a> Builder<'a> {
 
         // create the ::new() method
         impl_block = impl_block.item("new").span(self.mcu.span)
+            .attr().doc("/// Creates a new MCU instance with all peripherals set to the correct addresses.")
+            .attr().doc("///")
+            .attr().doc("/// This is intended to be used internally, but there is nothing inherently unsafe")
+            .attr().doc("/// about creating multiple instances, but thread/access safety still applies.")
             .pub_().method().span(self.mcu.span).const_().span(self.mcu.span).fn_decl()
                 .return_().path().id(self.mcu.name.clone()).build()
                 .block()
@@ -331,7 +335,9 @@ impl<'a> Builder<'a> {
         let dest_expr = integral_or_ident_to_expr!(
             self.mcu.data.dest, "data dest must be a numeric literal or ident", self);
 
-        impl_block.item("copy_data_section").pub_().method().span(self.mcu.data.span).fn_decl()
+        impl_block.item("copy_data_section")
+            .attr().doc("/// Copies the `.data` section (specified via the `data` block) to main memory")
+            .pub_().method().span(self.mcu.data.span).fn_decl()
             .self_().ref_().default_return()
             .block().unsafe_()
                 .stmt().expr().span(self.mcu.data.span).call().id("volatile_copy_nonoverlapping_memory")
@@ -354,7 +360,9 @@ impl<'a> Builder<'a> {
         let end_expr = integral_or_ident_to_expr!(
             self.mcu.bss.limit, "bss limit must be a numeric literal or ident", self);
 
-        impl_block.item("null_bss").pub_().method().span(self.mcu.data.span).fn_decl()
+        impl_block.item("null_bss")
+            .attr().doc("/// Zeroes all bytes in the `.bss` section as specified in the `bss` block.")
+            .pub_().method().span(self.mcu.data.span).fn_decl()
             .self_().ref_().default_return()
             .block().unsafe_()
                 .stmt().expr().span(self.mcu.data.span).call().id("volatile_set_memory")
