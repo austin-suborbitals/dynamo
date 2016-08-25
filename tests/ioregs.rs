@@ -8,9 +8,6 @@
 
 #[cfg(test)]
 mod constants {
-    #[allow(plugin_as_library)]
-    extern crate dynamo;
-
     extern crate core;
     use self::core::intrinsics::{volatile_load, volatile_store};
 
@@ -110,9 +107,6 @@ mod read {
     extern crate core;
     use self::core::intrinsics::{volatile_store, volatile_load};
 
-    #[allow(plugin_as_library)]
-    extern crate dynamo;
-
     ioreg!(
         name => TestingStruct;
 
@@ -182,9 +176,6 @@ mod read {
 mod write {
     extern crate core;
     use self::core::intrinsics::{volatile_load, volatile_store};
-
-    #[allow(plugin_as_library)]
-    extern crate dynamo;
 
     ioreg!(
         name => TestingStruct;
@@ -527,10 +518,6 @@ mod write {
 
 #[cfg(test)]
 mod docs {
-    #![allow(dead_code)]
-    #[allow(plugin_as_library)]
-    extern crate dynamo; 
-
     ioreg!(
         name => Multiple;
 
@@ -547,10 +534,6 @@ mod docs {
 
 #[cfg(test)]
 mod interchange_doc_const_blocks {
-    #![allow(dead_code)]
-    #[allow(plugin_as_library)]
-    extern crate dynamo; 
-
     ioreg!(
         name => DocsFirst;
         doc_srcs => ["test", "other", "third"];
@@ -569,11 +552,6 @@ mod interchange_doc_const_blocks {
 
 #[cfg(test)]
 mod input_fn {
-    #[allow(plugin_as_library)]
-    extern crate dynamo;
-    #[allow(unused_imports)]
-    use self::dynamo::traits::Peripheral;
-
     extern crate core;
     use self::core::intrinsics::{volatile_load, volatile_store};
 
@@ -607,10 +585,6 @@ mod input_fn {
 
 #[cfg(test)]
 mod init {
-    #[allow(plugin_as_library)]
-    extern crate dynamo;
-    use self::dynamo::traits::Peripheral;
-
     static mut test_val: u16 = 0x1234u16;
     ioreg!(
         name => TestingStruct;
@@ -644,10 +618,6 @@ mod init {
 
 #[cfg(test)]
 mod no_init {
-    #[allow(plugin_as_library)]
-    extern crate dynamo;
-    use self::dynamo::traits::Peripheral;
-
     ioreg!(
         name => TestingStruct;
     );

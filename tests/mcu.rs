@@ -17,11 +17,6 @@ macro_rules! imports {
             volatile_set_memory, volatile_copy_nonoverlapping_memory
         };
 
-        #[allow(plugin_as_library)]
-        extern crate dynamo;
-        #[allow(unused_imports)]
-        use self::dynamo::traits::{MCU, NVIC, Peripheral};
-
         #[allow(unused_imports)]
         use std::mem::transmute;
     }
@@ -289,7 +284,7 @@ mod static_instance {
         name => TestMcu;
     );
 
-    fn main(_: &TestMcu) {}
+    fn main(_: TestMcu) {}
 
     static MCU: TestMcu = TestMcu::new();
     unsafe impl Sync for TestMcu {}
@@ -315,7 +310,7 @@ mod nvic {
         };
     );
 
-    fn main(_: &TestMcu) {}
+    fn main(_: TestMcu) {}
 
     #[test]
     fn correct_addresses() {
@@ -409,6 +404,44 @@ mod nvic {
         }
         for i in 0..8usize {
             assert_eq!(0xFFFFFFFF, pends[i]);
+        }
+    }
+
+    #[cfg(test)]
+    mod with_trait {
+        imports!();
+
+        mod traits {
+            // standard interface to the Nested Vector Interrupt Controller.
+            pub trait NVIC {
+                fn enable_irq(&self, irq: u8);
+                fn disable_irq(&self, irq: u8);
+                fn is_enabled(&self, irq: u8) -> bool;
+                fn set_pending(&self, irq: u8);
+                fn clear_pending(&self, irq: u8);
+                fn is_pending(&self, irq: u8) -> bool;
+                fn is_active(&self, irq: u8) -> bool;
+                fn set_priority(&self, irq: u8, prio: u8);
+                fn get_priority(&self, irq: u8) -> u8;
+            }
+        }
+        fn main(_: TestMcu) {}
+
+        mcu!(
+            name => TestMcu;
+            nvic => traits::NVIC {
+                addr => 0xE000_E000;
+                prio_bits => 4;
+            };
+        );
+
+        fn nvic_handler<T: traits::NVIC>(_: T) -> bool {
+            true
+        }
+
+        #[test]
+        fn generic_handler() {
+            assert!(nvic_handler(TestMcu::new().nvic));
         }
     }
 }

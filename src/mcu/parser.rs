@@ -13,6 +13,22 @@ use std::collections::BTreeMap;
 use ::parser;
 use ::mcu::common;
 
+macro_rules! token_is_path {
+    ($self_:ident) => {
+        match $self_.curr_token() {
+            &token::Token::ModSep => { true }
+            _ => {
+                $self_.parser.look_ahead(1, |ref t| {
+                    match t {
+                        &&token::Token::ModSep => { true }
+                        _ => { false }
+                    }
+                })
+            }
+        }
+    }
+}
+
 // TODO: check less than usize? not sure if or what we want/need to validate
 fn validate_constant(_: &(), _: &::parser::StaticValue, _: &mut BTreeMap<String, parser::StaticValue>)
     -> Result<(), String>
@@ -168,12 +184,7 @@ impl<'a> Parser<'a> {
             }
 
             let sp = self.parser.span.clone();
-            let fn_ident = if self.parser.look_ahead(1, |ref t| {
-                    match t {
-                        &&token::Token::ModSep => { true }
-                        _ => { false }
-                    }
-                }) {
+            let fn_ident = if token_is_path!(self) {
                     let res = self.parser.parse_path(PathStyle::Expr);
                     if res.is_err() { res.err().unwrap().emit(); return; }
                     parser::StaticValue::Path(res.unwrap(), sp)
@@ -191,7 +202,14 @@ impl<'a> Parser<'a> {
     /// Parses the NVIC information block, informing us of the address and number of priority bits.
     pub fn parse_nvic(&mut self, into: &mut common::NvicInfo) {
         into.span = self.parser.span.clone();
-        self.assert_keyword_preamble("nvic");
+        self.expect_ident_value("nvic");
+        self.expect_fat_arrow();
+        if token_is_path!(self) {
+            let pat = self.parser.parse_path(PathStyle::Type);
+            if pat.is_err() { pat.err().unwrap().emit(); }
+            else { into.trait_path = Some(pat.unwrap()); }
+        }
+        self.expect_open_curly();
 
         self.expect_ident_value("addr");
         self.expect_fat_arrow();
@@ -403,12 +421,7 @@ impl<'a> Parser<'a> {
         let sp = self.parser.span;
         into.exit = match &self.parser.token {
             &token::Token::Ident(_) => {
-                if self.parser.look_ahead(1, |ref t| {
-                    match t {
-                        &&token::Token::ModSep => { true }
-                        _ => { false }
-                    }
-                }) {
+                if token_is_path!(self) {
                     let res = self.parser.parse_path(PathStyle::Expr);
                     if res.is_err() { res.err().unwrap().emit(); return; }
                     parser::StaticValue::Path(res.unwrap(), sp)
@@ -416,6 +429,11 @@ impl<'a> Parser<'a> {
                     let id = self.get_ident();
                     parser::StaticValue::Ident(id.name.to_string(), id, sp)
                 }
+            }
+            &token::Token::ModSep => {
+                let res = self.parser.parse_path(PathStyle::Expr);
+                if res.is_err() { res.err().unwrap().emit(); return; }
+                parser::StaticValue::Path(res.unwrap(), sp)
             }
             &token::Token::Literal(_,_) => {
                 self.parse_constant_literal(&"exit_fn".to_string())

@@ -203,12 +203,12 @@ impl<'a> Builder<'a> {
             }
         }
 
+        // build and push the peripheral trait functions
+        impl_build = self.build_peripheral_init_fns(impl_build);
+
         // push the impl definition
         let impl_item = impl_build.ty().span(self.reg.span).id(self.reg.name.clone());
         items.push(impl_item);
-
-        // build and push the peripheral trait
-        items.push(self.build_peripheral_trait_impl());
 
         if self.verbose {
             for i in &items { println!("{}\n", pprust::item_to_string(i)); }
@@ -225,17 +225,24 @@ impl<'a> Builder<'a> {
             let name = v.0.to_uppercase();
             match v.1 {
                 &parser::StaticValue::Int(i, _, sp) => {
-                    builder = builder.item(name).span(sp).const_().expr().i32(i).ty().i32();
+                    builder = builder.item(name).span(sp)
+                        .attr().list("allow").word("dead_code").build()
+                        .const_().expr().i32(i).ty().i32();
                 }
                 &parser::StaticValue::Uint(u, _, sp) => {
-                    builder = builder.item(name).span(sp).const_().expr().u32(u).ty().u32();
+                    builder = builder.item(name).span(sp)
+                        .attr().list("allow").word("dead_code").build()
+                        .const_().expr().u32(u).ty().u32();
                 }
                 &parser::StaticValue::Float(_, ref s, _, sp) => {
-                    builder = builder.item(name).span(sp).const_().expr().f32(s).ty().f32();
+                    builder = builder.item(name).span(sp)
+                        .attr().list("allow").word("dead_code").build()
+                        .const_().expr().f32(s).ty().f32();
                 }
                 &parser::StaticValue::Str(ref s, _, sp) => {
-                    builder = builder.item(name).span(sp).const_().expr()
-                        .str(s.clone().as_str())
+                    builder = builder.item(name).span(sp)
+                        .attr().list("allow").word("dead_code").build()
+                        .const_().expr().str(s.clone().as_str())
                         .ty().ref_().lifetime("'static").ty().path().id("str").build();
                 }
                 &parser::StaticValue::Ident(ref s, _, sp) => {
@@ -594,14 +601,13 @@ impl<'a> Builder<'a> {
 
 
     /// entry for generating the impl block for the mcu.
-    pub fn build_peripheral_trait_impl(&self) -> ptr::P<ast::Item> {
-        let mut impl_block = self.base_builder.item().span(self.reg.span).impl_()
-            .trait_().span(self.reg.span).id("dynamo").id("traits").id("Peripheral").build();
+    pub fn build_peripheral_init_fns(&self, impl_block: ImplBuilder) -> ImplBuilder {
+        let mut blk = impl_block;
 
         // build needs_init and init
         match &self.reg.init.item {
             &Some(ref i) => {
-                impl_block = impl_block.item("needs_init").span(self.reg.init.span)
+                blk = blk.item("needs_init").span(self.reg.init.span)
                     .attr().doc(format!("/// states the `{}` needs to be initialized", self.reg.name).as_str())
                     .method().fn_decl().span(self.reg.init.span)
                         .self_().ref_()
@@ -609,22 +615,22 @@ impl<'a> Builder<'a> {
                         .block()
                             .expr().bool(true);
 
-                impl_block = impl_block.with_item(i.clone());
+                blk = blk.with_item(i.clone());
             }
             &None => {
-                impl_block = impl_block.item("needs_init").span(self.reg.init.span)
+                blk = blk.item("needs_init").span(self.reg.init.span)
                     .attr().doc(format!("/// states the `{}` will not be initialized", self.reg.name).as_str())
-                    .method().fn_decl().span(self.reg.init.span)
+                    .pub_().method().fn_decl().span(self.reg.init.span)
                         .self_().ref_()
                         .return_().bool()
                         .block()
                             .expr().bool(false);
 
-                impl_block = impl_block.item("init").method().fn_decl().self_().ref_().default_return()
+                blk = blk.item("init").pub_().method().fn_decl().self_().ref_().default_return()
                     .block().build()
             }
         };
 
-        impl_block.ty().id(self.reg.name.clone())
+        blk
     }
 }

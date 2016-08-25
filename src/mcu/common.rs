@@ -107,6 +107,7 @@ pub struct InitInfo {
 pub struct NvicInfo {
     pub addr: u32,
     pub prio_bits: u8,
+    pub trait_path: Option<ast::Path>,
     pub span: Span
 }
 
@@ -141,7 +142,7 @@ impl McuInfo {
             constants: BTreeMap::new(),
             externs: BTreeMap::new(),
             interrupts: InterruptsInfo::default(),
-            nvic: NvicInfo{addr:0, prio_bits:3, span:DUMMY_SP},
+            nvic: NvicInfo{addr:0, prio_bits:3, trait_path:None, span:DUMMY_SP},
             stack: StackInfo{
                 base: StaticValue::default_uint(),
                 limit: StaticValue::default_uint(),

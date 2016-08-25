@@ -54,13 +54,13 @@ macro_rules! integral_or_ident_to_expr {
     ($val:expr, $err:expr, $self_:ident) => {
         match $val {
             StaticValue::Uint(addr, _, sp) => {
-                $self_.base_builder.span(sp).expr().lit().u32(addr as u32)
+                $self_.base_builder.expr().span(sp).lit().span(sp).u32(addr as u32)
             }
             StaticValue::Int(addr, _, sp) => {
-                $self_.base_builder.span(sp).expr().lit().u32(addr as u32)
+                $self_.base_builder.expr().span(sp).lit().span(sp).u32(addr as u32)
             }
             StaticValue::Ident(ref id, _, sp) => {
-                $self_.base_builder.span(sp).expr().id(id)
+                $self_.base_builder.expr().span(sp).id(id)
             }
             StaticValue::Float(_,_,_,sp) | StaticValue::Str(_,_,sp) | StaticValue::Path(_,sp) | StaticValue::Error(_,sp) => {
                 $self_.parser.parser.span_fatal(sp, $err).emit();
@@ -140,10 +140,13 @@ impl<'a> Builder<'a> {
 
         result.push(self.build_nvic_ty());
         result.push(self.build_nvic_impl());
-        result.push(self.build_nvic_trait_impl());
+        match &self.mcu.nvic.trait_path {
+            &Some(_) => { result.push(self.build_nvic_trait_impl()); }
+            &None => {  }
+        };
+
         result.push(self.build_struct());
         result.push(self.build_impl());
-        result.push(self.build_mcu_trait_impl());
         result.push(self.build_init());
 
         if ! self.mcu.interrupts.ints.is_empty() {
@@ -157,9 +160,7 @@ impl<'a> Builder<'a> {
     }
 
     // TODO: lots of clones
-    /// Builds the MCU structure definition including derived traits, doc comments, and doc sources.
-    ///
-    /// Only the definition, traits, and doc comments are generated directly. Everything else uses helpers.
+    /// Builds the MCU structure definition including doc comments, impl functions, etc.
     pub fn build_struct(&self) -> ptr::P<ast::Item> {
         // make the struct builder and add the doc attributes
         let mut preamble = self.base_builder.item()
@@ -167,11 +168,7 @@ impl<'a> Builder<'a> {
             .attr().list("derive").word("Debug").build()
             .attr().list("derive").word("Clone").build()
             .attr().list("derive").word("PartialEq").build()
-            .attr().doc(format!("/// Generated definition of the {} MCU", self.mcu.name).as_str())
-            .attr().doc(        "///")
-            .attr().doc(        "/// The `Sync` trait is automatically generated, so all locking")
-            .attr().doc(        "/// of registers/mcu is left to the implementor")
-            .attr().doc(        "///");
+            .attr().doc(format!("/// Generated definition of the {} MCU", self.mcu.name).as_str());
 
         for d in &self.mcu.docs {
             preamble = preamble.attr().doc(format!("/// source: {}", d).as_str());
@@ -259,23 +256,12 @@ impl<'a> Builder<'a> {
     }
 
     /// entry for generating the impl block for the mcu.
-    pub fn build_mcu_trait_impl(&self) -> ptr::P<ast::Item> {
-        let mut impl_block = self.base_builder.item().span(self.mcu.span).impl_()
-            .trait_().id("dynamo").id("traits").id("MCU").build();
+    pub fn build_mcu_init_fn(&self, impl_block: ImplBuilder) -> ImplBuilder {
+        let mut blk = impl_block;
 
-        // generate the `get_nvic(&self) -> NVIC` function to satisfy ::traits::MCU.
-        impl_block = impl_block.item("get_nvic").span(self.mcu.span)
-            .attr().doc("/// Returns the generated NVIC which will implement `::traits::NVIC`.")
-            .method().fn_decl().span(self.mcu.span)
-            .self_().ref_()
-            .return_().ref_().ty().path().id("dynamo").id("traits").id("NVIC").build()
-            //.return_().id(format!("{}NVIC", self.mcu.name).as_str())
-            .block()
-                .expr().span(self.mcu.span).ref_().field("nvic").self_();
-
-        // generate the `init(&self)` function to satisfy ::traits::MCU.
-        let mut init_fn = impl_block.item("init").span(self.mcu.span)
-            .attr().doc("/// Initializes the mcu given memory addresses and peripherals.")
+        // generate the `init(&self)`
+        let mut init_fn = blk.item("init").span(self.mcu.span)
+            .attr().doc("/// Initializes the mcu given then memory addresses and peripherals provided to the macro.")
             .attr().doc("///")
             .attr().doc("/// The generated code is as follows:")
             .attr().doc("///")
@@ -300,8 +286,6 @@ impl<'a> Builder<'a> {
                     .method_call("copy_data_section").self_().build()
                 .stmt().span(self.mcu.span).expr().span(self.mcu.span)
                     .method_call("null_bss").self_().build();
-
-
         for p in &self.mcu.peripherals {
             init_fn = init_fn.stmt().span(p.span).expr().span(p.span)
                 .if_().method_call("needs_init").span(p.span).field(p.name.clone()).self_().build()
@@ -309,9 +293,9 @@ impl<'a> Builder<'a> {
                     .stmt().span(p.span).semi().method_call("init").field(p.name.clone()).self_().build()
                 .build().build();
         }
-        impl_block = init_fn.build();
+        blk = init_fn.build();
 
-        impl_block.ty().id(self.mcu.name.clone())
+        blk
     }
 
     /// Entry for generating the impl block for the mcu.
@@ -320,13 +304,15 @@ impl<'a> Builder<'a> {
         impl_block = self.build_const_vals(impl_block);
 
         // create the ::new() method
-        impl_block = impl_block.item("new").pub_().method().const_().span(self.mcu.span).fn_decl()
-            .return_().path().id(self.mcu.name.clone()).build()
-            .block()
-                .build_expr(self.build_new_struct());
+        impl_block = impl_block.item("new").span(self.mcu.span)
+            .pub_().method().span(self.mcu.span).const_().span(self.mcu.span).fn_decl()
+                .return_().path().id(self.mcu.name.clone()).build()
+                .block()
+                    .build_expr(self.build_new_struct());
 
         impl_block = self.build_copy_data(impl_block);
         impl_block = self.build_null_bss(impl_block);
+        impl_block = self.build_mcu_init_fn(impl_block);
 
         // copy the parsed impl items to our new impl
         impl_block = impl_block.with_items(self.mcu.actions.values().map(|a| a.item.clone()));
@@ -393,16 +379,16 @@ impl<'a> Builder<'a> {
             let name = v.0.to_uppercase();
             match v.1 {
                 &StaticValue::Int(i, _, sp) => {
-                    builder = builder.item(name).span(sp).const_().expr().i32(i).ty().i32();
+                    builder = builder.item(name).span(sp).const_().span(sp).expr().i32(i).ty().i32();
                 }
                 &StaticValue::Uint(u, _, sp) => {
-                    builder = builder.item(name).span(sp).const_().expr().u32(u).ty().u32();
+                    builder = builder.item(name).span(sp).const_().span(sp).expr().u32(u).ty().u32();
                 }
                 &StaticValue::Float(_, ref s, _, sp) => {
-                    builder = builder.item(name).span(sp).const_().expr().f32(s).ty().f32();
+                    builder = builder.item(name).span(sp).const_().span(sp).expr().f32(s).ty().f32();
                 }
                 &StaticValue::Str(ref s, _, sp) => {
-                    builder = builder.item(name).span(sp).const_().expr()
+                    builder = builder.item(name).span(sp).const_().span(sp).expr()
                         .str(s.clone().as_str())
                         .ty().ref_().lifetime("'static").ty().path().id("str").build();
                 }
@@ -425,9 +411,11 @@ impl<'a> Builder<'a> {
         let stack_limit_expr = integral_or_ident_to_expr!(
             self.mcu.stack.limit, "stack limit must be a numeric literal or ident", self);
         builder = builder.item("STACK_BASE").span(self.mcu.stack.span)
-                         .const_().with_expr(stack_base_expr).ty().u32();
+                         .const_().span(self.mcu.stack.span).with_expr(stack_base_expr).span(self.mcu.stack.span)
+                         .ty().span(self.mcu.stack.span).u32();
         builder = builder.item("STACK_LIMIT").span(self.mcu.stack.span)
-                         .const_().with_expr(stack_limit_expr).ty().u32();
+                         .const_().span(self.mcu.stack.span).with_expr(stack_limit_expr).span(self.mcu.stack.span)
+                         .ty().span(self.mcu.stack.span).u32();
 
 
         // build heap constants
@@ -549,7 +537,7 @@ impl<'a> Builder<'a> {
             self.base_builder.ty().u8(),
             self.base_builder.expr().usize(240),    // TODO: verify not 256 like others
         ));
-        self.base_builder.item()
+        let mut preamble = self.base_builder.item()
             .attr().list("repr").word("C").build()
             .attr().list("derive").word("Clone").build()
             .attr().list("derive").word("Debug").build()
@@ -557,15 +545,20 @@ impl<'a> Builder<'a> {
             .attr().doc(format!("/// NVIC interface generated for the {} mcu.", self.mcu.name).as_str())
             .attr().doc("///")
             .attr().doc("/// This structure holds a set of pointers to [u32; 8] slices working as bitmaps.")
-            .attr().doc("/// Functions acting on this structure act on the bitmaps themselves.")
-            .pub_().struct_(ty_name.as_str())
-                .field("iser").pub_().build_ty( ptr_type!(bitslice.clone(), true) )
-                .field("icer").pub_().build_ty( ptr_type!(bitslice.clone(), true) )
-                .field("ispr").pub_().build_ty( ptr_type!(bitslice.clone(), true) )
-                .field("icpr").pub_().build_ty( ptr_type!(bitslice.clone(), true) )
-                .field("iabr").pub_().build_ty( ptr_type!(bitslice.clone(), true) )
-                .field("ipr").pub_().build_ty(  ptr_type!(byteslice, true) )
-            .build()
+            .attr().doc("/// Functions acting on this structure act on the bitmaps themselves.");
+
+        if let Some(ref p) = self.mcu.nvic.trait_path {
+            preamble = preamble.attr().doc("///").attr().doc(format!("/// This NVIC satisfies the trait: {}", p).as_str());
+        }
+
+        preamble.pub_().struct_(ty_name.as_str())
+            .field("iser").pub_().build_ty( ptr_type!(bitslice.clone(), true) )
+            .field("icer").pub_().build_ty( ptr_type!(bitslice.clone(), true) )
+            .field("ispr").pub_().build_ty( ptr_type!(bitslice.clone(), true) )
+            .field("icpr").pub_().build_ty( ptr_type!(bitslice.clone(), true) )
+            .field("iabr").pub_().build_ty( ptr_type!(bitslice.clone(), true) )
+            .field("ipr").pub_().build_ty(  ptr_type!(byteslice, true) )
+        .build()
     }
 
 
@@ -618,29 +611,42 @@ impl<'a> Builder<'a> {
         let mut impl_block = self.base_builder.item().span(self.mcu.nvic.span).impl_();
 
         // make the "::new()" function
-        impl_block = impl_block.item("new")
+        impl_block = impl_block.item("new").span(self.mcu.nvic.span)
+            .attr().list("allow").word("dead_code").build()
             .attr().doc("/// Returns a new, and valid, NVIC instantiation.")
-            .method().const_().fn_decl()
+            .method().span(self.mcu.nvic.span).const_().fn_decl()
             .return_().id(ty_name.as_str())
             .block()
             .build_expr(self.build_nvic_instance());
 
+        // if we have a trait to satisfy, do not add them to the impl directly
+        match &self.mcu.nvic.trait_path {
+            &Some(_) => {}
+            &None => { impl_block = self.build_nvic_trait_fns(impl_block); }
+        }
+
         impl_block.ty().id(ty_name.as_str())
+    }
+
+    pub fn build_nvic_trait_impl(&self) -> ptr::P<ast::Item> {
+        let ty_name = format!("{}NVIC", self.mcu.name); // TODO: consolidate this fn/macro to one place
+        let mut blk = self.base_builder.item().span(self.mcu.nvic.span).impl_()
+            .trait_().build(self.mcu.nvic.trait_path.clone().unwrap());
+        blk = self.build_nvic_trait_fns(blk);
+        blk.ty().id(ty_name.as_str())
     }
 
     // TODO: a good number of assumptions here, but shared across cortex-M apparently
     /// Generates the functions that will exist on the NVIC handler.
-    pub fn build_nvic_trait_impl(&self) -> ptr::P<ast::Item> {
-        let ty_name = format!("{}NVIC", self.mcu.name);
-        let mut impl_block = self.base_builder.item().span(self.mcu.nvic.span).impl_().trait_()
-            .id("dynamo").id("traits").id("NVIC").build();
+    pub fn build_nvic_trait_fns(&self, impl_block: ImplBuilder) -> ImplBuilder {
+        let mut blk = impl_block;
 
         //
         // enable and disable
         //
 
         // make the "::enable_irq(&self, irq: u8)" function
-        impl_block = impl_block.item("enable_irq").span(self.mcu.nvic.span)
+        blk = blk.item("enable_irq").span(self.mcu.nvic.span)
             .attr().doc("/// Enables the given IRQ in the NVIC.")
             .method().fn_decl()
             .self_().ref_()
@@ -669,7 +675,7 @@ impl<'a> Builder<'a> {
 
 
         // make the "::disable_irq(&self, irq: u8)" function
-        impl_block = impl_block.item("disable_irq").span(self.mcu.nvic.span)
+        blk = blk.item("disable_irq").span(self.mcu.nvic.span)
             .attr().doc("/// Disables the given IRQ in the NVIC.")
             .method().fn_decl()
             .self_().ref_()
@@ -697,7 +703,7 @@ impl<'a> Builder<'a> {
             .build();
 
         // make the "::is_enabled(&self, irq: u8) -> bool" function
-        impl_block = impl_block.item("is_enabled").span(self.mcu.nvic.span)
+        blk = blk.item("is_enabled").span(self.mcu.nvic.span)
             .attr().doc("/// Returns whether the given IRQ is enabled or not.")
             .method().fn_decl()
             .self_().ref_()
@@ -730,7 +736,7 @@ impl<'a> Builder<'a> {
         //
 
         // make the "::set_pending(&self, irq: u8)" function
-        impl_block = impl_block.item("set_pending").span(self.mcu.nvic.span)
+        blk = blk.item("set_pending").span(self.mcu.nvic.span)
             .attr().doc("/// Sets the given IRQ status to pending in the NVIC.")
             .method().fn_decl()
             .self_().ref_()
@@ -759,7 +765,7 @@ impl<'a> Builder<'a> {
 
 
         // make the "::clear_pending(&self, irq: u8)" function
-        impl_block = impl_block.item("clear_pending").span(self.mcu.nvic.span)
+        blk = blk.item("clear_pending").span(self.mcu.nvic.span)
             .attr().doc("/// Removes the given IRQ from the pending list.")
             .method().fn_decl()
             .self_().ref_()
@@ -787,7 +793,7 @@ impl<'a> Builder<'a> {
                 .build();
 
         // make the "::is_pending(&self, irq: u8) -> bool" function
-        impl_block = impl_block.item("is_pending").span(self.mcu.nvic.span)
+        blk = blk.item("is_pending").span(self.mcu.nvic.span)
             .attr().doc("/// Returns whether the given IRQ is pending or not.")
             .method().fn_decl()
             .self_().ref_()
@@ -820,7 +826,7 @@ impl<'a> Builder<'a> {
         //
 
         // make the "::is_active(&self, irq: u8) -> bool" function
-        impl_block = impl_block.item("is_active").span(self.mcu.nvic.span)
+        blk = blk.item("is_active").span(self.mcu.nvic.span)
             .attr().doc("/// Returns whether the given IRQ is actively running or not.")
             .method().fn_decl()
             .self_().ref_()
@@ -853,7 +859,7 @@ impl<'a> Builder<'a> {
         //
 
         // make the "::set_priority(&self, irq: u8, prio: u8)" function
-        impl_block = impl_block.item("set_priority").span(self.mcu.nvic.span)
+        blk = blk.item("set_priority").span(self.mcu.nvic.span)
             .attr().doc("/// Sets the given IRQ's priority to the given value in the NVIC.")
             .attr().doc("///")
             .attr().doc("/// **NOTE:** the priority is limited by the priority bits, but all shifts are done for you")
@@ -880,7 +886,7 @@ impl<'a> Builder<'a> {
 
 
         // make the "::get_priority(&self, irq: u8) -> u8" function
-        impl_block = impl_block.item("get_priority").span(self.mcu.nvic.span)
+        blk = blk.item("get_priority").span(self.mcu.nvic.span)
             .attr().doc("/// Gets the given IRQ's priority from the NVIC.")
             .attr().doc("///")
             .attr().doc("/// The returned priority is shifted and will be in the range [0, priot_bits<<2].")
@@ -901,10 +907,7 @@ impl<'a> Builder<'a> {
                         .lit().u8(8 - self.mcu.nvic.prio_bits);
 
 
-        //
-        // finalize
-        //
-        impl_block.ty().id(ty_name.as_str())
+        blk
     }
 
 
@@ -937,7 +940,7 @@ impl<'a> Builder<'a> {
             _ => {
                 exit_bootloader_base.id("INVALID_FN_TYPE_PARSED")
             }
-        }.arg().ref_().id("mcu")
+        }.arg().span(self.mcu.init.span.clone()).id("mcu")
               .build()
           .build();
 
@@ -950,10 +953,10 @@ impl<'a> Builder<'a> {
                 .stmt().span(self.mcu.init.span.clone())
                     .let_id("mcu")
                         .call()
-                            .path().id(self.mcu.name.clone()).id("new").build()
+                            .path().span(self.mcu.init.span.clone()).id(self.mcu.name.clone()).id("new").build()
                         .build()
-                .stmt().span(self.mcu.init.span.clone()).expr()
-                    .method_call("init").id("mcu").build()
+                .stmt().span(self.mcu.init.span.clone()).expr().span(self.mcu.init.span.clone())
+                    .method_call("init").span(self.mcu.init.span.clone()).id("mcu").build()
                 .with_stmt(exit_bootloader).span(self.mcu.init.span.clone())
             .build()
     }
