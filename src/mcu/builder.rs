@@ -170,8 +170,11 @@ impl<'a> Builder<'a> {
             .attr().list("derive").word("PartialEq").build()
             .attr().doc(format!("/// Generated definition of the {} MCU", self.mcu.name).as_str());
 
-        for d in &self.mcu.docs {
-            preamble = preamble.attr().doc(format!("/// source: {}", d).as_str());
+        if self.mcu.docs.len() > 1 {
+            preamble = preamble.attr().doc("///");
+            for d in &self.mcu.docs {
+                preamble = preamble.attr().doc(format!("/// source: {}", d).as_str());
+            }
         }
         if ! self.mcu.link_script.is_empty() {
             preamble = preamble.attr().doc(format!("/// link script: {}", self.mcu.link_script).as_str());
