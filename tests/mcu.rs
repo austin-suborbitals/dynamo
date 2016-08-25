@@ -69,7 +69,7 @@ mod sanity {
     const BSS_BEGIN: u32 = 0xBADC0FFE;
     const BSS_END: u32 = 0xBADFFFFF;
 
-    fn main(_: &SomeMcuName) { }
+    fn main(_: SomeMcuName) { }
     fn some_common_handler() { }
 
     mod peregrine { pub mod isr { pub mod default {
