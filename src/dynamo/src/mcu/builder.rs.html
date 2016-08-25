@@ -1005,6 +1005,14 @@
 <span id="961">961</span>
 <span id="962">962</span>
 <span id="963">963</span>
+<span id="964">964</span>
+<span id="965">965</span>
+<span id="966">966</span>
+<span id="967">967</span>
+<span id="968">968</span>
+<span id="969">969</span>
+<span id="970">970</span>
+<span id="971">971</span>
 </pre><pre class='rust '>
 <span class='kw'>extern</span> <span class='kw'>crate</span> <span class='ident'>aster</span>;
 
@@ -1286,7 +1294,7 @@
             .<span class='ident'>attr</span>().<span class='ident'>doc</span>(<span class='string'>&quot;/// **NOTE:** peripherals are initialized in the order they are defined&quot;</span>)
             .<span class='ident'>attr</span>().<span class='ident'>doc</span>(<span class='string'>&quot;///&quot;</span>)
             .<span class='ident'>attr</span>().<span class='ident'>doc</span>(<span class='string'>&quot;/// Each peripheral&#39;s `::needs_init()` is a compile time constant, and should not be costly.&quot;</span>)
-            .<span class='ident'>method</span>().<span class='ident'>fn_decl</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>span</span>)
+            .<span class='ident'>pub_</span>().<span class='ident'>method</span>().<span class='ident'>fn_decl</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>span</span>)
             .<span class='ident'>self_</span>().<span class='ident'>ref_</span>()
             .<span class='ident'>default_return</span>()
             .<span class='ident'>block</span>()
@@ -1313,6 +1321,10 @@
 
         <span class='comment'>// create the ::new() method</span>
         <span class='ident'>impl_block</span> <span class='op'>=</span> <span class='ident'>impl_block</span>.<span class='ident'>item</span>(<span class='string'>&quot;new&quot;</span>).<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>span</span>)
+            .<span class='ident'>attr</span>().<span class='ident'>doc</span>(<span class='string'>&quot;/// Creates a new MCU instance with all peripherals set to the correct addresses.&quot;</span>)
+            .<span class='ident'>attr</span>().<span class='ident'>doc</span>(<span class='string'>&quot;///&quot;</span>)
+            .<span class='ident'>attr</span>().<span class='ident'>doc</span>(<span class='string'>&quot;/// This is intended to be used internally, but there is nothing inherently unsafe&quot;</span>)
+            .<span class='ident'>attr</span>().<span class='ident'>doc</span>(<span class='string'>&quot;/// about creating multiple instances, but thread/access safety still applies.&quot;</span>)
             .<span class='ident'>pub_</span>().<span class='ident'>method</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>span</span>).<span class='ident'>const_</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>span</span>).<span class='ident'>fn_decl</span>()
                 .<span class='ident'>return_</span>().<span class='ident'>path</span>().<span class='ident'>id</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>name</span>.<span class='ident'>clone</span>()).<span class='ident'>build</span>()
                 .<span class='ident'>block</span>()
@@ -1339,7 +1351,9 @@
         <span class='kw'>let</span> <span class='ident'>dest_expr</span> <span class='op'>=</span> <span class='macro'>integral_or_ident_to_expr</span><span class='macro'>!</span>(
             <span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>data</span>.<span class='ident'>dest</span>, <span class='string'>&quot;data dest must be a numeric literal or ident&quot;</span>, <span class='self'>self</span>);
 
-        <span class='ident'>impl_block</span>.<span class='ident'>item</span>(<span class='string'>&quot;copy_data_section&quot;</span>).<span class='ident'>pub_</span>().<span class='ident'>method</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>data</span>.<span class='ident'>span</span>).<span class='ident'>fn_decl</span>()
+        <span class='ident'>impl_block</span>.<span class='ident'>item</span>(<span class='string'>&quot;copy_data_section&quot;</span>)
+            .<span class='ident'>attr</span>().<span class='ident'>doc</span>(<span class='string'>&quot;/// Copies the `.data` section (specified via the `data` block) to main memory&quot;</span>)
+            .<span class='ident'>pub_</span>().<span class='ident'>method</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>data</span>.<span class='ident'>span</span>).<span class='ident'>fn_decl</span>()
             .<span class='ident'>self_</span>().<span class='ident'>ref_</span>().<span class='ident'>default_return</span>()
             .<span class='ident'>block</span>().<span class='ident'>unsafe_</span>()
                 .<span class='ident'>stmt</span>().<span class='ident'>expr</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>data</span>.<span class='ident'>span</span>).<span class='ident'>call</span>().<span class='ident'>id</span>(<span class='string'>&quot;volatile_copy_nonoverlapping_memory&quot;</span>)
@@ -1362,7 +1376,9 @@
         <span class='kw'>let</span> <span class='ident'>end_expr</span> <span class='op'>=</span> <span class='macro'>integral_or_ident_to_expr</span><span class='macro'>!</span>(
             <span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>bss</span>.<span class='ident'>limit</span>, <span class='string'>&quot;bss limit must be a numeric literal or ident&quot;</span>, <span class='self'>self</span>);
 
-        <span class='ident'>impl_block</span>.<span class='ident'>item</span>(<span class='string'>&quot;null_bss&quot;</span>).<span class='ident'>pub_</span>().<span class='ident'>method</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>data</span>.<span class='ident'>span</span>).<span class='ident'>fn_decl</span>()
+        <span class='ident'>impl_block</span>.<span class='ident'>item</span>(<span class='string'>&quot;null_bss&quot;</span>)
+            .<span class='ident'>attr</span>().<span class='ident'>doc</span>(<span class='string'>&quot;/// Zeroes all bytes in the `.bss` section as specified in the `bss` block.&quot;</span>)
+            .<span class='ident'>pub_</span>().<span class='ident'>method</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>data</span>.<span class='ident'>span</span>).<span class='ident'>fn_decl</span>()
             .<span class='ident'>self_</span>().<span class='ident'>ref_</span>().<span class='ident'>default_return</span>()
             .<span class='ident'>block</span>().<span class='ident'>unsafe_</span>()
                 .<span class='ident'>stmt</span>().<span class='ident'>expr</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>data</span>.<span class='ident'>span</span>).<span class='ident'>call</span>().<span class='ident'>id</span>(<span class='string'>&quot;volatile_set_memory&quot;</span>)
