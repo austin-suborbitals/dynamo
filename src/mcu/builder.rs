@@ -170,7 +170,7 @@ impl<'a> Builder<'a> {
             .attr().list("derive").word("PartialEq").build()
             .attr().doc(format!("/// Generated definition of the {} MCU", self.mcu.name).as_str());
 
-        if self.mcu.docs.len() > 1 {
+        if ! self.mcu.docs.is_empty() {
             preamble = preamble.attr().doc("///");
             for d in &self.mcu.docs {
                 preamble = preamble.attr().doc(format!("/// source: {}", d).as_str());
