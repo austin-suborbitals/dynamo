@@ -1002,6 +1002,9 @@
 <span id="958">958</span>
 <span id="959">959</span>
 <span id="960">960</span>
+<span id="961">961</span>
+<span id="962">962</span>
+<span id="963">963</span>
 </pre><pre class='rust '>
 <span class='kw'>extern</span> <span class='kw'>crate</span> <span class='ident'>aster</span>;
 
@@ -1059,13 +1062,13 @@
     (<span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>val</span>:<span class='ident'>expr</span>, <span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>err</span>:<span class='ident'>expr</span>, <span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>self_</span>:<span class='ident'>ident</span>) <span class='op'>=&gt;</span> {
         <span class='kw'>match</span> <span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>val</span> {
             <span class='ident'>StaticValue</span>::<span class='ident'>Uint</span>(<span class='ident'>addr</span>, _, <span class='ident'>sp</span>) <span class='op'>=&gt;</span> {
-                <span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>self_</span>.<span class='ident'>base_builder</span>.<span class='ident'>span</span>(<span class='ident'>sp</span>).<span class='ident'>expr</span>().<span class='ident'>lit</span>().<span class='ident'>u32</span>(<span class='ident'>addr</span> <span class='kw'>as</span> <span class='ident'>u32</span>)
+                <span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>self_</span>.<span class='ident'>base_builder</span>.<span class='ident'>expr</span>().<span class='ident'>span</span>(<span class='ident'>sp</span>).<span class='ident'>lit</span>().<span class='ident'>span</span>(<span class='ident'>sp</span>).<span class='ident'>u32</span>(<span class='ident'>addr</span> <span class='kw'>as</span> <span class='ident'>u32</span>)
             }
             <span class='ident'>StaticValue</span>::<span class='ident'>Int</span>(<span class='ident'>addr</span>, _, <span class='ident'>sp</span>) <span class='op'>=&gt;</span> {
-                <span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>self_</span>.<span class='ident'>base_builder</span>.<span class='ident'>span</span>(<span class='ident'>sp</span>).<span class='ident'>expr</span>().<span class='ident'>lit</span>().<span class='ident'>u32</span>(<span class='ident'>addr</span> <span class='kw'>as</span> <span class='ident'>u32</span>)
+                <span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>self_</span>.<span class='ident'>base_builder</span>.<span class='ident'>expr</span>().<span class='ident'>span</span>(<span class='ident'>sp</span>).<span class='ident'>lit</span>().<span class='ident'>span</span>(<span class='ident'>sp</span>).<span class='ident'>u32</span>(<span class='ident'>addr</span> <span class='kw'>as</span> <span class='ident'>u32</span>)
             }
             <span class='ident'>StaticValue</span>::<span class='ident'>Ident</span>(<span class='kw-2'>ref</span> <span class='ident'>id</span>, _, <span class='ident'>sp</span>) <span class='op'>=&gt;</span> {
-                <span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>self_</span>.<span class='ident'>base_builder</span>.<span class='ident'>span</span>(<span class='ident'>sp</span>).<span class='ident'>expr</span>().<span class='ident'>id</span>(<span class='ident'>id</span>)
+                <span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>self_</span>.<span class='ident'>base_builder</span>.<span class='ident'>expr</span>().<span class='ident'>span</span>(<span class='ident'>sp</span>).<span class='ident'>id</span>(<span class='ident'>id</span>)
             }
             <span class='ident'>StaticValue</span>::<span class='ident'>Float</span>(_,_,_,<span class='ident'>sp</span>) <span class='op'>|</span> <span class='ident'>StaticValue</span>::<span class='ident'>Str</span>(_,_,<span class='ident'>sp</span>) <span class='op'>|</span> <span class='ident'>StaticValue</span>::<span class='ident'>Path</span>(_,<span class='ident'>sp</span>) <span class='op'>|</span> <span class='ident'>StaticValue</span>::<span class='ident'>Error</span>(_,<span class='ident'>sp</span>) <span class='op'>=&gt;</span> {
                 <span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>self_</span>.<span class='ident'>parser</span>.<span class='ident'>parser</span>.<span class='ident'>span_fatal</span>(<span class='ident'>sp</span>, <span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>err</span>).<span class='ident'>emit</span>();
@@ -1145,10 +1148,13 @@
 
         <span class='ident'>result</span>.<span class='ident'>push</span>(<span class='self'>self</span>.<span class='ident'>build_nvic_ty</span>());
         <span class='ident'>result</span>.<span class='ident'>push</span>(<span class='self'>self</span>.<span class='ident'>build_nvic_impl</span>());
-        <span class='ident'>result</span>.<span class='ident'>push</span>(<span class='self'>self</span>.<span class='ident'>build_nvic_trait_impl</span>());
+        <span class='kw'>match</span> <span class='kw-2'>&amp;</span><span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>trait_path</span> {
+            <span class='kw-2'>&amp;</span><span class='prelude-val'>Some</span>(_) <span class='op'>=&gt;</span> { <span class='ident'>result</span>.<span class='ident'>push</span>(<span class='self'>self</span>.<span class='ident'>build_nvic_trait_impl</span>()); }
+            <span class='kw-2'>&amp;</span><span class='prelude-val'>None</span> <span class='op'>=&gt;</span> {  }
+        };
+
         <span class='ident'>result</span>.<span class='ident'>push</span>(<span class='self'>self</span>.<span class='ident'>build_struct</span>());
         <span class='ident'>result</span>.<span class='ident'>push</span>(<span class='self'>self</span>.<span class='ident'>build_impl</span>());
-        <span class='ident'>result</span>.<span class='ident'>push</span>(<span class='self'>self</span>.<span class='ident'>build_mcu_trait_impl</span>());
         <span class='ident'>result</span>.<span class='ident'>push</span>(<span class='self'>self</span>.<span class='ident'>build_init</span>());
 
         <span class='kw'>if</span> <span class='op'>!</span> <span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>interrupts</span>.<span class='ident'>ints</span>.<span class='ident'>is_empty</span>() {
@@ -1162,9 +1168,7 @@
     }
 
     <span class='comment'>// TODO: lots of clones</span>
-    <span class='doccomment'>/// Builds the MCU structure definition including derived traits, doc comments, and doc sources.</span>
-    <span class='doccomment'>///</span>
-    <span class='doccomment'>/// Only the definition, traits, and doc comments are generated directly. Everything else uses helpers.</span>
+    <span class='doccomment'>/// Builds the MCU structure definition including doc comments, impl functions, etc.</span>
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>build_struct</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>ptr</span>::<span class='ident'>P</span><span class='op'>&lt;</span><span class='ident'>ast</span>::<span class='ident'>Item</span><span class='op'>&gt;</span> {
         <span class='comment'>// make the struct builder and add the doc attributes</span>
         <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>preamble</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>item</span>()
@@ -1172,11 +1176,7 @@
             .<span class='ident'>attr</span>().<span class='ident'>list</span>(<span class='string'>&quot;derive&quot;</span>).<span class='ident'>word</span>(<span class='string'>&quot;Debug&quot;</span>).<span class='ident'>build</span>()
             .<span class='ident'>attr</span>().<span class='ident'>list</span>(<span class='string'>&quot;derive&quot;</span>).<span class='ident'>word</span>(<span class='string'>&quot;Clone&quot;</span>).<span class='ident'>build</span>()
             .<span class='ident'>attr</span>().<span class='ident'>list</span>(<span class='string'>&quot;derive&quot;</span>).<span class='ident'>word</span>(<span class='string'>&quot;PartialEq&quot;</span>).<span class='ident'>build</span>()
-            .<span class='ident'>attr</span>().<span class='ident'>doc</span>(<span class='macro'>format</span><span class='macro'>!</span>(<span class='string'>&quot;/// Generated definition of the {} MCU&quot;</span>, <span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>name</span>).<span class='ident'>as_str</span>())
-            .<span class='ident'>attr</span>().<span class='ident'>doc</span>(        <span class='string'>&quot;///&quot;</span>)
-            .<span class='ident'>attr</span>().<span class='ident'>doc</span>(        <span class='string'>&quot;/// The `Sync` trait is automatically generated, so all locking&quot;</span>)
-            .<span class='ident'>attr</span>().<span class='ident'>doc</span>(        <span class='string'>&quot;/// of registers/mcu is left to the implementor&quot;</span>)
-            .<span class='ident'>attr</span>().<span class='ident'>doc</span>(        <span class='string'>&quot;///&quot;</span>);
+            .<span class='ident'>attr</span>().<span class='ident'>doc</span>(<span class='macro'>format</span><span class='macro'>!</span>(<span class='string'>&quot;/// Generated definition of the {} MCU&quot;</span>, <span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>name</span>).<span class='ident'>as_str</span>());
 
         <span class='kw'>for</span> <span class='ident'>d</span> <span class='kw'>in</span> <span class='kw-2'>&amp;</span><span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>docs</span> {
             <span class='ident'>preamble</span> <span class='op'>=</span> <span class='ident'>preamble</span>.<span class='ident'>attr</span>().<span class='ident'>doc</span>(<span class='macro'>format</span><span class='macro'>!</span>(<span class='string'>&quot;/// source: {}&quot;</span>, <span class='ident'>d</span>).<span class='ident'>as_str</span>());
@@ -1264,23 +1264,12 @@
     }
 
     <span class='doccomment'>/// entry for generating the impl block for the mcu.</span>
-    <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>build_mcu_trait_impl</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>ptr</span>::<span class='ident'>P</span><span class='op'>&lt;</span><span class='ident'>ast</span>::<span class='ident'>Item</span><span class='op'>&gt;</span> {
-        <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>impl_block</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>item</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>span</span>).<span class='ident'>impl_</span>()
-            .<span class='ident'>trait_</span>().<span class='ident'>id</span>(<span class='string'>&quot;dynamo&quot;</span>).<span class='ident'>id</span>(<span class='string'>&quot;traits&quot;</span>).<span class='ident'>id</span>(<span class='string'>&quot;MCU&quot;</span>).<span class='ident'>build</span>();
+    <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>build_mcu_init_fn</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>, <span class='ident'>impl_block</span>: <span class='ident'>ImplBuilder</span>) <span class='op'>-&gt;</span> <span class='ident'>ImplBuilder</span> {
+        <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>blk</span> <span class='op'>=</span> <span class='ident'>impl_block</span>;
 
-        <span class='comment'>// generate the `get_nvic(&amp;self) -&gt; NVIC` function to satisfy ::traits::MCU.</span>
-        <span class='ident'>impl_block</span> <span class='op'>=</span> <span class='ident'>impl_block</span>.<span class='ident'>item</span>(<span class='string'>&quot;get_nvic&quot;</span>).<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>span</span>)
-            .<span class='ident'>attr</span>().<span class='ident'>doc</span>(<span class='string'>&quot;/// Returns the generated NVIC which will implement `::traits::NVIC`.&quot;</span>)
-            .<span class='ident'>method</span>().<span class='ident'>fn_decl</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>span</span>)
-            .<span class='ident'>self_</span>().<span class='ident'>ref_</span>()
-            .<span class='ident'>return_</span>().<span class='ident'>ref_</span>().<span class='ident'>ty</span>().<span class='ident'>path</span>().<span class='ident'>id</span>(<span class='string'>&quot;dynamo&quot;</span>).<span class='ident'>id</span>(<span class='string'>&quot;traits&quot;</span>).<span class='ident'>id</span>(<span class='string'>&quot;NVIC&quot;</span>).<span class='ident'>build</span>()
-            <span class='comment'>//.return_().id(format!(&quot;{}NVIC&quot;, self.mcu.name).as_str())</span>
-            .<span class='ident'>block</span>()
-                .<span class='ident'>expr</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>span</span>).<span class='ident'>ref_</span>().<span class='ident'>field</span>(<span class='string'>&quot;nvic&quot;</span>).<span class='ident'>self_</span>();
-
-        <span class='comment'>// generate the `init(&amp;self)` function to satisfy ::traits::MCU.</span>
-        <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>init_fn</span> <span class='op'>=</span> <span class='ident'>impl_block</span>.<span class='ident'>item</span>(<span class='string'>&quot;init&quot;</span>).<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>span</span>)
-            .<span class='ident'>attr</span>().<span class='ident'>doc</span>(<span class='string'>&quot;/// Initializes the mcu given memory addresses and peripherals.&quot;</span>)
+        <span class='comment'>// generate the `init(&amp;self)`</span>
+        <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>init_fn</span> <span class='op'>=</span> <span class='ident'>blk</span>.<span class='ident'>item</span>(<span class='string'>&quot;init&quot;</span>).<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>span</span>)
+            .<span class='ident'>attr</span>().<span class='ident'>doc</span>(<span class='string'>&quot;/// Initializes the mcu given then memory addresses and peripherals provided to the macro.&quot;</span>)
             .<span class='ident'>attr</span>().<span class='ident'>doc</span>(<span class='string'>&quot;///&quot;</span>)
             .<span class='ident'>attr</span>().<span class='ident'>doc</span>(<span class='string'>&quot;/// The generated code is as follows:&quot;</span>)
             .<span class='ident'>attr</span>().<span class='ident'>doc</span>(<span class='string'>&quot;///&quot;</span>)
@@ -1305,8 +1294,6 @@
                     .<span class='ident'>method_call</span>(<span class='string'>&quot;copy_data_section&quot;</span>).<span class='ident'>self_</span>().<span class='ident'>build</span>()
                 .<span class='ident'>stmt</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>span</span>).<span class='ident'>expr</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>span</span>)
                     .<span class='ident'>method_call</span>(<span class='string'>&quot;null_bss&quot;</span>).<span class='ident'>self_</span>().<span class='ident'>build</span>();
-
-
         <span class='kw'>for</span> <span class='ident'>p</span> <span class='kw'>in</span> <span class='kw-2'>&amp;</span><span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>peripherals</span> {
             <span class='ident'>init_fn</span> <span class='op'>=</span> <span class='ident'>init_fn</span>.<span class='ident'>stmt</span>().<span class='ident'>span</span>(<span class='ident'>p</span>.<span class='ident'>span</span>).<span class='ident'>expr</span>().<span class='ident'>span</span>(<span class='ident'>p</span>.<span class='ident'>span</span>)
                 .<span class='ident'>if_</span>().<span class='ident'>method_call</span>(<span class='string'>&quot;needs_init&quot;</span>).<span class='ident'>span</span>(<span class='ident'>p</span>.<span class='ident'>span</span>).<span class='ident'>field</span>(<span class='ident'>p</span>.<span class='ident'>name</span>.<span class='ident'>clone</span>()).<span class='ident'>self_</span>().<span class='ident'>build</span>()
@@ -1314,9 +1301,9 @@
                     .<span class='ident'>stmt</span>().<span class='ident'>span</span>(<span class='ident'>p</span>.<span class='ident'>span</span>).<span class='ident'>semi</span>().<span class='ident'>method_call</span>(<span class='string'>&quot;init&quot;</span>).<span class='ident'>field</span>(<span class='ident'>p</span>.<span class='ident'>name</span>.<span class='ident'>clone</span>()).<span class='ident'>self_</span>().<span class='ident'>build</span>()
                 .<span class='ident'>build</span>().<span class='ident'>build</span>();
         }
-        <span class='ident'>impl_block</span> <span class='op'>=</span> <span class='ident'>init_fn</span>.<span class='ident'>build</span>();
+        <span class='ident'>blk</span> <span class='op'>=</span> <span class='ident'>init_fn</span>.<span class='ident'>build</span>();
 
-        <span class='ident'>impl_block</span>.<span class='ident'>ty</span>().<span class='ident'>id</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>name</span>.<span class='ident'>clone</span>())
+        <span class='ident'>blk</span>
     }
 
     <span class='doccomment'>/// Entry for generating the impl block for the mcu.</span>
@@ -1325,13 +1312,15 @@
         <span class='ident'>impl_block</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>build_const_vals</span>(<span class='ident'>impl_block</span>);
 
         <span class='comment'>// create the ::new() method</span>
-        <span class='ident'>impl_block</span> <span class='op'>=</span> <span class='ident'>impl_block</span>.<span class='ident'>item</span>(<span class='string'>&quot;new&quot;</span>).<span class='ident'>pub_</span>().<span class='ident'>method</span>().<span class='ident'>const_</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>span</span>).<span class='ident'>fn_decl</span>()
-            .<span class='ident'>return_</span>().<span class='ident'>path</span>().<span class='ident'>id</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>name</span>.<span class='ident'>clone</span>()).<span class='ident'>build</span>()
-            .<span class='ident'>block</span>()
-                .<span class='ident'>build_expr</span>(<span class='self'>self</span>.<span class='ident'>build_new_struct</span>());
+        <span class='ident'>impl_block</span> <span class='op'>=</span> <span class='ident'>impl_block</span>.<span class='ident'>item</span>(<span class='string'>&quot;new&quot;</span>).<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>span</span>)
+            .<span class='ident'>pub_</span>().<span class='ident'>method</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>span</span>).<span class='ident'>const_</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>span</span>).<span class='ident'>fn_decl</span>()
+                .<span class='ident'>return_</span>().<span class='ident'>path</span>().<span class='ident'>id</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>name</span>.<span class='ident'>clone</span>()).<span class='ident'>build</span>()
+                .<span class='ident'>block</span>()
+                    .<span class='ident'>build_expr</span>(<span class='self'>self</span>.<span class='ident'>build_new_struct</span>());
 
         <span class='ident'>impl_block</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>build_copy_data</span>(<span class='ident'>impl_block</span>);
         <span class='ident'>impl_block</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>build_null_bss</span>(<span class='ident'>impl_block</span>);
+        <span class='ident'>impl_block</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>build_mcu_init_fn</span>(<span class='ident'>impl_block</span>);
 
         <span class='comment'>// copy the parsed impl items to our new impl</span>
         <span class='ident'>impl_block</span> <span class='op'>=</span> <span class='ident'>impl_block</span>.<span class='ident'>with_items</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>actions</span>.<span class='ident'>values</span>().<span class='ident'>map</span>(<span class='op'>|</span><span class='ident'>a</span><span class='op'>|</span> <span class='ident'>a</span>.<span class='ident'>item</span>.<span class='ident'>clone</span>()));
@@ -1398,16 +1387,16 @@
             <span class='kw'>let</span> <span class='ident'>name</span> <span class='op'>=</span> <span class='ident'>v</span>.<span class='number'>0</span>.<span class='ident'>to_uppercase</span>();
             <span class='kw'>match</span> <span class='ident'>v</span>.<span class='number'>1</span> {
                 <span class='kw-2'>&amp;</span><span class='ident'>StaticValue</span>::<span class='ident'>Int</span>(<span class='ident'>i</span>, _, <span class='ident'>sp</span>) <span class='op'>=&gt;</span> {
-                    <span class='ident'>builder</span> <span class='op'>=</span> <span class='ident'>builder</span>.<span class='ident'>item</span>(<span class='ident'>name</span>).<span class='ident'>span</span>(<span class='ident'>sp</span>).<span class='ident'>const_</span>().<span class='ident'>expr</span>().<span class='ident'>i32</span>(<span class='ident'>i</span>).<span class='ident'>ty</span>().<span class='ident'>i32</span>();
+                    <span class='ident'>builder</span> <span class='op'>=</span> <span class='ident'>builder</span>.<span class='ident'>item</span>(<span class='ident'>name</span>).<span class='ident'>span</span>(<span class='ident'>sp</span>).<span class='ident'>const_</span>().<span class='ident'>span</span>(<span class='ident'>sp</span>).<span class='ident'>expr</span>().<span class='ident'>i32</span>(<span class='ident'>i</span>).<span class='ident'>ty</span>().<span class='ident'>i32</span>();
                 }
                 <span class='kw-2'>&amp;</span><span class='ident'>StaticValue</span>::<span class='ident'>Uint</span>(<span class='ident'>u</span>, _, <span class='ident'>sp</span>) <span class='op'>=&gt;</span> {
-                    <span class='ident'>builder</span> <span class='op'>=</span> <span class='ident'>builder</span>.<span class='ident'>item</span>(<span class='ident'>name</span>).<span class='ident'>span</span>(<span class='ident'>sp</span>).<span class='ident'>const_</span>().<span class='ident'>expr</span>().<span class='ident'>u32</span>(<span class='ident'>u</span>).<span class='ident'>ty</span>().<span class='ident'>u32</span>();
+                    <span class='ident'>builder</span> <span class='op'>=</span> <span class='ident'>builder</span>.<span class='ident'>item</span>(<span class='ident'>name</span>).<span class='ident'>span</span>(<span class='ident'>sp</span>).<span class='ident'>const_</span>().<span class='ident'>span</span>(<span class='ident'>sp</span>).<span class='ident'>expr</span>().<span class='ident'>u32</span>(<span class='ident'>u</span>).<span class='ident'>ty</span>().<span class='ident'>u32</span>();
                 }
                 <span class='kw-2'>&amp;</span><span class='ident'>StaticValue</span>::<span class='ident'>Float</span>(_, <span class='kw-2'>ref</span> <span class='ident'>s</span>, _, <span class='ident'>sp</span>) <span class='op'>=&gt;</span> {
-                    <span class='ident'>builder</span> <span class='op'>=</span> <span class='ident'>builder</span>.<span class='ident'>item</span>(<span class='ident'>name</span>).<span class='ident'>span</span>(<span class='ident'>sp</span>).<span class='ident'>const_</span>().<span class='ident'>expr</span>().<span class='ident'>f32</span>(<span class='ident'>s</span>).<span class='ident'>ty</span>().<span class='ident'>f32</span>();
+                    <span class='ident'>builder</span> <span class='op'>=</span> <span class='ident'>builder</span>.<span class='ident'>item</span>(<span class='ident'>name</span>).<span class='ident'>span</span>(<span class='ident'>sp</span>).<span class='ident'>const_</span>().<span class='ident'>span</span>(<span class='ident'>sp</span>).<span class='ident'>expr</span>().<span class='ident'>f32</span>(<span class='ident'>s</span>).<span class='ident'>ty</span>().<span class='ident'>f32</span>();
                 }
                 <span class='kw-2'>&amp;</span><span class='ident'>StaticValue</span>::<span class='ident'>Str</span>(<span class='kw-2'>ref</span> <span class='ident'>s</span>, _, <span class='ident'>sp</span>) <span class='op'>=&gt;</span> {
-                    <span class='ident'>builder</span> <span class='op'>=</span> <span class='ident'>builder</span>.<span class='ident'>item</span>(<span class='ident'>name</span>).<span class='ident'>span</span>(<span class='ident'>sp</span>).<span class='ident'>const_</span>().<span class='ident'>expr</span>()
+                    <span class='ident'>builder</span> <span class='op'>=</span> <span class='ident'>builder</span>.<span class='ident'>item</span>(<span class='ident'>name</span>).<span class='ident'>span</span>(<span class='ident'>sp</span>).<span class='ident'>const_</span>().<span class='ident'>span</span>(<span class='ident'>sp</span>).<span class='ident'>expr</span>()
                         .<span class='ident'>str</span>(<span class='ident'>s</span>.<span class='ident'>clone</span>().<span class='ident'>as_str</span>())
                         .<span class='ident'>ty</span>().<span class='ident'>ref_</span>().<span class='ident'>lifetime</span>(<span class='string'>&quot;&#39;static&quot;</span>).<span class='ident'>ty</span>().<span class='ident'>path</span>().<span class='ident'>id</span>(<span class='string'>&quot;str&quot;</span>).<span class='ident'>build</span>();
                 }
@@ -1430,9 +1419,11 @@
         <span class='kw'>let</span> <span class='ident'>stack_limit_expr</span> <span class='op'>=</span> <span class='macro'>integral_or_ident_to_expr</span><span class='macro'>!</span>(
             <span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>stack</span>.<span class='ident'>limit</span>, <span class='string'>&quot;stack limit must be a numeric literal or ident&quot;</span>, <span class='self'>self</span>);
         <span class='ident'>builder</span> <span class='op'>=</span> <span class='ident'>builder</span>.<span class='ident'>item</span>(<span class='string'>&quot;STACK_BASE&quot;</span>).<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>stack</span>.<span class='ident'>span</span>)
-                         .<span class='ident'>const_</span>().<span class='ident'>with_expr</span>(<span class='ident'>stack_base_expr</span>).<span class='ident'>ty</span>().<span class='ident'>u32</span>();
+                         .<span class='ident'>const_</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>stack</span>.<span class='ident'>span</span>).<span class='ident'>with_expr</span>(<span class='ident'>stack_base_expr</span>).<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>stack</span>.<span class='ident'>span</span>)
+                         .<span class='ident'>ty</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>stack</span>.<span class='ident'>span</span>).<span class='ident'>u32</span>();
         <span class='ident'>builder</span> <span class='op'>=</span> <span class='ident'>builder</span>.<span class='ident'>item</span>(<span class='string'>&quot;STACK_LIMIT&quot;</span>).<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>stack</span>.<span class='ident'>span</span>)
-                         .<span class='ident'>const_</span>().<span class='ident'>with_expr</span>(<span class='ident'>stack_limit_expr</span>).<span class='ident'>ty</span>().<span class='ident'>u32</span>();
+                         .<span class='ident'>const_</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>stack</span>.<span class='ident'>span</span>).<span class='ident'>with_expr</span>(<span class='ident'>stack_limit_expr</span>).<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>stack</span>.<span class='ident'>span</span>)
+                         .<span class='ident'>ty</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>stack</span>.<span class='ident'>span</span>).<span class='ident'>u32</span>();
 
 
         <span class='comment'>// build heap constants</span>
@@ -1554,7 +1545,7 @@
             <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>ty</span>().<span class='ident'>u8</span>(),
             <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>expr</span>().<span class='ident'>usize</span>(<span class='number'>240</span>),    <span class='comment'>// TODO: verify not 256 like others</span>
         ));
-        <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>item</span>()
+        <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>preamble</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>item</span>()
             .<span class='ident'>attr</span>().<span class='ident'>list</span>(<span class='string'>&quot;repr&quot;</span>).<span class='ident'>word</span>(<span class='string'>&quot;C&quot;</span>).<span class='ident'>build</span>()
             .<span class='ident'>attr</span>().<span class='ident'>list</span>(<span class='string'>&quot;derive&quot;</span>).<span class='ident'>word</span>(<span class='string'>&quot;Clone&quot;</span>).<span class='ident'>build</span>()
             .<span class='ident'>attr</span>().<span class='ident'>list</span>(<span class='string'>&quot;derive&quot;</span>).<span class='ident'>word</span>(<span class='string'>&quot;Debug&quot;</span>).<span class='ident'>build</span>()
@@ -1562,15 +1553,20 @@
             .<span class='ident'>attr</span>().<span class='ident'>doc</span>(<span class='macro'>format</span><span class='macro'>!</span>(<span class='string'>&quot;/// NVIC interface generated for the {} mcu.&quot;</span>, <span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>name</span>).<span class='ident'>as_str</span>())
             .<span class='ident'>attr</span>().<span class='ident'>doc</span>(<span class='string'>&quot;///&quot;</span>)
             .<span class='ident'>attr</span>().<span class='ident'>doc</span>(<span class='string'>&quot;/// This structure holds a set of pointers to [u32; 8] slices working as bitmaps.&quot;</span>)
-            .<span class='ident'>attr</span>().<span class='ident'>doc</span>(<span class='string'>&quot;/// Functions acting on this structure act on the bitmaps themselves.&quot;</span>)
-            .<span class='ident'>pub_</span>().<span class='ident'>struct_</span>(<span class='ident'>ty_name</span>.<span class='ident'>as_str</span>())
-                .<span class='ident'>field</span>(<span class='string'>&quot;iser&quot;</span>).<span class='ident'>pub_</span>().<span class='ident'>build_ty</span>( <span class='macro'>ptr_type</span><span class='macro'>!</span>(<span class='ident'>bitslice</span>.<span class='ident'>clone</span>(), <span class='bool-val'>true</span>) )
-                .<span class='ident'>field</span>(<span class='string'>&quot;icer&quot;</span>).<span class='ident'>pub_</span>().<span class='ident'>build_ty</span>( <span class='macro'>ptr_type</span><span class='macro'>!</span>(<span class='ident'>bitslice</span>.<span class='ident'>clone</span>(), <span class='bool-val'>true</span>) )
-                .<span class='ident'>field</span>(<span class='string'>&quot;ispr&quot;</span>).<span class='ident'>pub_</span>().<span class='ident'>build_ty</span>( <span class='macro'>ptr_type</span><span class='macro'>!</span>(<span class='ident'>bitslice</span>.<span class='ident'>clone</span>(), <span class='bool-val'>true</span>) )
-                .<span class='ident'>field</span>(<span class='string'>&quot;icpr&quot;</span>).<span class='ident'>pub_</span>().<span class='ident'>build_ty</span>( <span class='macro'>ptr_type</span><span class='macro'>!</span>(<span class='ident'>bitslice</span>.<span class='ident'>clone</span>(), <span class='bool-val'>true</span>) )
-                .<span class='ident'>field</span>(<span class='string'>&quot;iabr&quot;</span>).<span class='ident'>pub_</span>().<span class='ident'>build_ty</span>( <span class='macro'>ptr_type</span><span class='macro'>!</span>(<span class='ident'>bitslice</span>.<span class='ident'>clone</span>(), <span class='bool-val'>true</span>) )
-                .<span class='ident'>field</span>(<span class='string'>&quot;ipr&quot;</span>).<span class='ident'>pub_</span>().<span class='ident'>build_ty</span>(  <span class='macro'>ptr_type</span><span class='macro'>!</span>(<span class='ident'>byteslice</span>, <span class='bool-val'>true</span>) )
-            .<span class='ident'>build</span>()
+            .<span class='ident'>attr</span>().<span class='ident'>doc</span>(<span class='string'>&quot;/// Functions acting on this structure act on the bitmaps themselves.&quot;</span>);
+
+        <span class='kw'>if</span> <span class='kw'>let</span> <span class='prelude-val'>Some</span>(<span class='kw-2'>ref</span> <span class='ident'>p</span>) <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>trait_path</span> {
+            <span class='ident'>preamble</span> <span class='op'>=</span> <span class='ident'>preamble</span>.<span class='ident'>attr</span>().<span class='ident'>doc</span>(<span class='string'>&quot;///&quot;</span>).<span class='ident'>attr</span>().<span class='ident'>doc</span>(<span class='macro'>format</span><span class='macro'>!</span>(<span class='string'>&quot;/// This NVIC satisfies the trait: {}&quot;</span>, <span class='ident'>p</span>).<span class='ident'>as_str</span>());
+        }
+
+        <span class='ident'>preamble</span>.<span class='ident'>pub_</span>().<span class='ident'>struct_</span>(<span class='ident'>ty_name</span>.<span class='ident'>as_str</span>())
+            .<span class='ident'>field</span>(<span class='string'>&quot;iser&quot;</span>).<span class='ident'>pub_</span>().<span class='ident'>build_ty</span>( <span class='macro'>ptr_type</span><span class='macro'>!</span>(<span class='ident'>bitslice</span>.<span class='ident'>clone</span>(), <span class='bool-val'>true</span>) )
+            .<span class='ident'>field</span>(<span class='string'>&quot;icer&quot;</span>).<span class='ident'>pub_</span>().<span class='ident'>build_ty</span>( <span class='macro'>ptr_type</span><span class='macro'>!</span>(<span class='ident'>bitslice</span>.<span class='ident'>clone</span>(), <span class='bool-val'>true</span>) )
+            .<span class='ident'>field</span>(<span class='string'>&quot;ispr&quot;</span>).<span class='ident'>pub_</span>().<span class='ident'>build_ty</span>( <span class='macro'>ptr_type</span><span class='macro'>!</span>(<span class='ident'>bitslice</span>.<span class='ident'>clone</span>(), <span class='bool-val'>true</span>) )
+            .<span class='ident'>field</span>(<span class='string'>&quot;icpr&quot;</span>).<span class='ident'>pub_</span>().<span class='ident'>build_ty</span>( <span class='macro'>ptr_type</span><span class='macro'>!</span>(<span class='ident'>bitslice</span>.<span class='ident'>clone</span>(), <span class='bool-val'>true</span>) )
+            .<span class='ident'>field</span>(<span class='string'>&quot;iabr&quot;</span>).<span class='ident'>pub_</span>().<span class='ident'>build_ty</span>( <span class='macro'>ptr_type</span><span class='macro'>!</span>(<span class='ident'>bitslice</span>.<span class='ident'>clone</span>(), <span class='bool-val'>true</span>) )
+            .<span class='ident'>field</span>(<span class='string'>&quot;ipr&quot;</span>).<span class='ident'>pub_</span>().<span class='ident'>build_ty</span>(  <span class='macro'>ptr_type</span><span class='macro'>!</span>(<span class='ident'>byteslice</span>, <span class='bool-val'>true</span>) )
+        .<span class='ident'>build</span>()
     }
 
 
@@ -1623,29 +1619,42 @@
         <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>impl_block</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>item</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>impl_</span>();
 
         <span class='comment'>// make the &quot;::new()&quot; function</span>
-        <span class='ident'>impl_block</span> <span class='op'>=</span> <span class='ident'>impl_block</span>.<span class='ident'>item</span>(<span class='string'>&quot;new&quot;</span>)
+        <span class='ident'>impl_block</span> <span class='op'>=</span> <span class='ident'>impl_block</span>.<span class='ident'>item</span>(<span class='string'>&quot;new&quot;</span>).<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>)
+            .<span class='ident'>attr</span>().<span class='ident'>list</span>(<span class='string'>&quot;allow&quot;</span>).<span class='ident'>word</span>(<span class='string'>&quot;dead_code&quot;</span>).<span class='ident'>build</span>()
             .<span class='ident'>attr</span>().<span class='ident'>doc</span>(<span class='string'>&quot;/// Returns a new, and valid, NVIC instantiation.&quot;</span>)
-            .<span class='ident'>method</span>().<span class='ident'>const_</span>().<span class='ident'>fn_decl</span>()
+            .<span class='ident'>method</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>const_</span>().<span class='ident'>fn_decl</span>()
             .<span class='ident'>return_</span>().<span class='ident'>id</span>(<span class='ident'>ty_name</span>.<span class='ident'>as_str</span>())
             .<span class='ident'>block</span>()
             .<span class='ident'>build_expr</span>(<span class='self'>self</span>.<span class='ident'>build_nvic_instance</span>());
 
+        <span class='comment'>// if we have a trait to satisfy, do not add them to the impl directly</span>
+        <span class='kw'>match</span> <span class='kw-2'>&amp;</span><span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>trait_path</span> {
+            <span class='kw-2'>&amp;</span><span class='prelude-val'>Some</span>(_) <span class='op'>=&gt;</span> {}
+            <span class='kw-2'>&amp;</span><span class='prelude-val'>None</span> <span class='op'>=&gt;</span> { <span class='ident'>impl_block</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>build_nvic_trait_fns</span>(<span class='ident'>impl_block</span>); }
+        }
+
         <span class='ident'>impl_block</span>.<span class='ident'>ty</span>().<span class='ident'>id</span>(<span class='ident'>ty_name</span>.<span class='ident'>as_str</span>())
+    }
+
+    <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>build_nvic_trait_impl</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>ptr</span>::<span class='ident'>P</span><span class='op'>&lt;</span><span class='ident'>ast</span>::<span class='ident'>Item</span><span class='op'>&gt;</span> {
+        <span class='kw'>let</span> <span class='ident'>ty_name</span> <span class='op'>=</span> <span class='macro'>format</span><span class='macro'>!</span>(<span class='string'>&quot;{}NVIC&quot;</span>, <span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>name</span>); <span class='comment'>// TODO: consolidate this fn/macro to one place</span>
+        <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>blk</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>item</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>impl_</span>()
+            .<span class='ident'>trait_</span>().<span class='ident'>build</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>trait_path</span>.<span class='ident'>clone</span>().<span class='ident'>unwrap</span>());
+        <span class='ident'>blk</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>build_nvic_trait_fns</span>(<span class='ident'>blk</span>);
+        <span class='ident'>blk</span>.<span class='ident'>ty</span>().<span class='ident'>id</span>(<span class='ident'>ty_name</span>.<span class='ident'>as_str</span>())
     }
 
     <span class='comment'>// TODO: a good number of assumptions here, but shared across cortex-M apparently</span>
     <span class='doccomment'>/// Generates the functions that will exist on the NVIC handler.</span>
-    <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>build_nvic_trait_impl</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>ptr</span>::<span class='ident'>P</span><span class='op'>&lt;</span><span class='ident'>ast</span>::<span class='ident'>Item</span><span class='op'>&gt;</span> {
-        <span class='kw'>let</span> <span class='ident'>ty_name</span> <span class='op'>=</span> <span class='macro'>format</span><span class='macro'>!</span>(<span class='string'>&quot;{}NVIC&quot;</span>, <span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>name</span>);
-        <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>impl_block</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>item</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>impl_</span>().<span class='ident'>trait_</span>()
-            .<span class='ident'>id</span>(<span class='string'>&quot;dynamo&quot;</span>).<span class='ident'>id</span>(<span class='string'>&quot;traits&quot;</span>).<span class='ident'>id</span>(<span class='string'>&quot;NVIC&quot;</span>).<span class='ident'>build</span>();
+    <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>build_nvic_trait_fns</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>, <span class='ident'>impl_block</span>: <span class='ident'>ImplBuilder</span>) <span class='op'>-&gt;</span> <span class='ident'>ImplBuilder</span> {
+        <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>blk</span> <span class='op'>=</span> <span class='ident'>impl_block</span>;
 
         <span class='comment'>//</span>
         <span class='comment'>// enable and disable</span>
         <span class='comment'>//</span>
 
         <span class='comment'>// make the &quot;::enable_irq(&amp;self, irq: u8)&quot; function</span>
-        <span class='ident'>impl_block</span> <span class='op'>=</span> <span class='ident'>impl_block</span>.<span class='ident'>item</span>(<span class='string'>&quot;enable_irq&quot;</span>).<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>)
+        <span class='ident'>blk</span> <span class='op'>=</span> <span class='ident'>blk</span>.<span class='ident'>item</span>(<span class='string'>&quot;enable_irq&quot;</span>).<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>)
             .<span class='ident'>attr</span>().<span class='ident'>doc</span>(<span class='string'>&quot;/// Enables the given IRQ in the NVIC.&quot;</span>)
             .<span class='ident'>method</span>().<span class='ident'>fn_decl</span>()
             .<span class='ident'>self_</span>().<span class='ident'>ref_</span>()
@@ -1674,7 +1683,7 @@
 
 
         <span class='comment'>// make the &quot;::disable_irq(&amp;self, irq: u8)&quot; function</span>
-        <span class='ident'>impl_block</span> <span class='op'>=</span> <span class='ident'>impl_block</span>.<span class='ident'>item</span>(<span class='string'>&quot;disable_irq&quot;</span>).<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>)
+        <span class='ident'>blk</span> <span class='op'>=</span> <span class='ident'>blk</span>.<span class='ident'>item</span>(<span class='string'>&quot;disable_irq&quot;</span>).<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>)
             .<span class='ident'>attr</span>().<span class='ident'>doc</span>(<span class='string'>&quot;/// Disables the given IRQ in the NVIC.&quot;</span>)
             .<span class='ident'>method</span>().<span class='ident'>fn_decl</span>()
             .<span class='ident'>self_</span>().<span class='ident'>ref_</span>()
@@ -1702,7 +1711,7 @@
             .<span class='ident'>build</span>();
 
         <span class='comment'>// make the &quot;::is_enabled(&amp;self, irq: u8) -&gt; bool&quot; function</span>
-        <span class='ident'>impl_block</span> <span class='op'>=</span> <span class='ident'>impl_block</span>.<span class='ident'>item</span>(<span class='string'>&quot;is_enabled&quot;</span>).<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>)
+        <span class='ident'>blk</span> <span class='op'>=</span> <span class='ident'>blk</span>.<span class='ident'>item</span>(<span class='string'>&quot;is_enabled&quot;</span>).<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>)
             .<span class='ident'>attr</span>().<span class='ident'>doc</span>(<span class='string'>&quot;/// Returns whether the given IRQ is enabled or not.&quot;</span>)
             .<span class='ident'>method</span>().<span class='ident'>fn_decl</span>()
             .<span class='ident'>self_</span>().<span class='ident'>ref_</span>()
@@ -1735,7 +1744,7 @@
         <span class='comment'>//</span>
 
         <span class='comment'>// make the &quot;::set_pending(&amp;self, irq: u8)&quot; function</span>
-        <span class='ident'>impl_block</span> <span class='op'>=</span> <span class='ident'>impl_block</span>.<span class='ident'>item</span>(<span class='string'>&quot;set_pending&quot;</span>).<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>)
+        <span class='ident'>blk</span> <span class='op'>=</span> <span class='ident'>blk</span>.<span class='ident'>item</span>(<span class='string'>&quot;set_pending&quot;</span>).<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>)
             .<span class='ident'>attr</span>().<span class='ident'>doc</span>(<span class='string'>&quot;/// Sets the given IRQ status to pending in the NVIC.&quot;</span>)
             .<span class='ident'>method</span>().<span class='ident'>fn_decl</span>()
             .<span class='ident'>self_</span>().<span class='ident'>ref_</span>()
@@ -1764,7 +1773,7 @@
 
 
         <span class='comment'>// make the &quot;::clear_pending(&amp;self, irq: u8)&quot; function</span>
-        <span class='ident'>impl_block</span> <span class='op'>=</span> <span class='ident'>impl_block</span>.<span class='ident'>item</span>(<span class='string'>&quot;clear_pending&quot;</span>).<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>)
+        <span class='ident'>blk</span> <span class='op'>=</span> <span class='ident'>blk</span>.<span class='ident'>item</span>(<span class='string'>&quot;clear_pending&quot;</span>).<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>)
             .<span class='ident'>attr</span>().<span class='ident'>doc</span>(<span class='string'>&quot;/// Removes the given IRQ from the pending list.&quot;</span>)
             .<span class='ident'>method</span>().<span class='ident'>fn_decl</span>()
             .<span class='ident'>self_</span>().<span class='ident'>ref_</span>()
@@ -1792,7 +1801,7 @@
                 .<span class='ident'>build</span>();
 
         <span class='comment'>// make the &quot;::is_pending(&amp;self, irq: u8) -&gt; bool&quot; function</span>
-        <span class='ident'>impl_block</span> <span class='op'>=</span> <span class='ident'>impl_block</span>.<span class='ident'>item</span>(<span class='string'>&quot;is_pending&quot;</span>).<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>)
+        <span class='ident'>blk</span> <span class='op'>=</span> <span class='ident'>blk</span>.<span class='ident'>item</span>(<span class='string'>&quot;is_pending&quot;</span>).<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>)
             .<span class='ident'>attr</span>().<span class='ident'>doc</span>(<span class='string'>&quot;/// Returns whether the given IRQ is pending or not.&quot;</span>)
             .<span class='ident'>method</span>().<span class='ident'>fn_decl</span>()
             .<span class='ident'>self_</span>().<span class='ident'>ref_</span>()
@@ -1825,7 +1834,7 @@
         <span class='comment'>//</span>
 
         <span class='comment'>// make the &quot;::is_active(&amp;self, irq: u8) -&gt; bool&quot; function</span>
-        <span class='ident'>impl_block</span> <span class='op'>=</span> <span class='ident'>impl_block</span>.<span class='ident'>item</span>(<span class='string'>&quot;is_active&quot;</span>).<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>)
+        <span class='ident'>blk</span> <span class='op'>=</span> <span class='ident'>blk</span>.<span class='ident'>item</span>(<span class='string'>&quot;is_active&quot;</span>).<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>)
             .<span class='ident'>attr</span>().<span class='ident'>doc</span>(<span class='string'>&quot;/// Returns whether the given IRQ is actively running or not.&quot;</span>)
             .<span class='ident'>method</span>().<span class='ident'>fn_decl</span>()
             .<span class='ident'>self_</span>().<span class='ident'>ref_</span>()
@@ -1858,7 +1867,7 @@
         <span class='comment'>//</span>
 
         <span class='comment'>// make the &quot;::set_priority(&amp;self, irq: u8, prio: u8)&quot; function</span>
-        <span class='ident'>impl_block</span> <span class='op'>=</span> <span class='ident'>impl_block</span>.<span class='ident'>item</span>(<span class='string'>&quot;set_priority&quot;</span>).<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>)
+        <span class='ident'>blk</span> <span class='op'>=</span> <span class='ident'>blk</span>.<span class='ident'>item</span>(<span class='string'>&quot;set_priority&quot;</span>).<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>)
             .<span class='ident'>attr</span>().<span class='ident'>doc</span>(<span class='string'>&quot;/// Sets the given IRQ&#39;s priority to the given value in the NVIC.&quot;</span>)
             .<span class='ident'>attr</span>().<span class='ident'>doc</span>(<span class='string'>&quot;///&quot;</span>)
             .<span class='ident'>attr</span>().<span class='ident'>doc</span>(<span class='string'>&quot;/// **NOTE:** the priority is limited by the priority bits, but all shifts are done for you&quot;</span>)
@@ -1885,7 +1894,7 @@
 
 
         <span class='comment'>// make the &quot;::get_priority(&amp;self, irq: u8) -&gt; u8&quot; function</span>
-        <span class='ident'>impl_block</span> <span class='op'>=</span> <span class='ident'>impl_block</span>.<span class='ident'>item</span>(<span class='string'>&quot;get_priority&quot;</span>).<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>)
+        <span class='ident'>blk</span> <span class='op'>=</span> <span class='ident'>blk</span>.<span class='ident'>item</span>(<span class='string'>&quot;get_priority&quot;</span>).<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>)
             .<span class='ident'>attr</span>().<span class='ident'>doc</span>(<span class='string'>&quot;/// Gets the given IRQ&#39;s priority from the NVIC.&quot;</span>)
             .<span class='ident'>attr</span>().<span class='ident'>doc</span>(<span class='string'>&quot;///&quot;</span>)
             .<span class='ident'>attr</span>().<span class='ident'>doc</span>(<span class='string'>&quot;/// The returned priority is shifted and will be in the range [0, priot_bits&lt;&lt;2].&quot;</span>)
@@ -1906,10 +1915,7 @@
                         .<span class='ident'>lit</span>().<span class='ident'>u8</span>(<span class='number'>8</span> <span class='op'>-</span> <span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>prio_bits</span>);
 
 
-        <span class='comment'>//</span>
-        <span class='comment'>// finalize</span>
-        <span class='comment'>//</span>
-        <span class='ident'>impl_block</span>.<span class='ident'>ty</span>().<span class='ident'>id</span>(<span class='ident'>ty_name</span>.<span class='ident'>as_str</span>())
+        <span class='ident'>blk</span>
     }
 
 
@@ -1942,7 +1948,7 @@
             _ <span class='op'>=&gt;</span> {
                 <span class='ident'>exit_bootloader_base</span>.<span class='ident'>id</span>(<span class='string'>&quot;INVALID_FN_TYPE_PARSED&quot;</span>)
             }
-        }.<span class='ident'>arg</span>().<span class='ident'>ref_</span>().<span class='ident'>id</span>(<span class='string'>&quot;mcu&quot;</span>)
+        }.<span class='ident'>arg</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>init</span>.<span class='ident'>span</span>.<span class='ident'>clone</span>()).<span class='ident'>id</span>(<span class='string'>&quot;mcu&quot;</span>)
               .<span class='ident'>build</span>()
           .<span class='ident'>build</span>();
 
@@ -1955,10 +1961,10 @@
                 .<span class='ident'>stmt</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>init</span>.<span class='ident'>span</span>.<span class='ident'>clone</span>())
                     .<span class='ident'>let_id</span>(<span class='string'>&quot;mcu&quot;</span>)
                         .<span class='ident'>call</span>()
-                            .<span class='ident'>path</span>().<span class='ident'>id</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>name</span>.<span class='ident'>clone</span>()).<span class='ident'>id</span>(<span class='string'>&quot;new&quot;</span>).<span class='ident'>build</span>()
+                            .<span class='ident'>path</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>init</span>.<span class='ident'>span</span>.<span class='ident'>clone</span>()).<span class='ident'>id</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>name</span>.<span class='ident'>clone</span>()).<span class='ident'>id</span>(<span class='string'>&quot;new&quot;</span>).<span class='ident'>build</span>()
                         .<span class='ident'>build</span>()
-                .<span class='ident'>stmt</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>init</span>.<span class='ident'>span</span>.<span class='ident'>clone</span>()).<span class='ident'>expr</span>()
-                    .<span class='ident'>method_call</span>(<span class='string'>&quot;init&quot;</span>).<span class='ident'>id</span>(<span class='string'>&quot;mcu&quot;</span>).<span class='ident'>build</span>()
+                .<span class='ident'>stmt</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>init</span>.<span class='ident'>span</span>.<span class='ident'>clone</span>()).<span class='ident'>expr</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>init</span>.<span class='ident'>span</span>.<span class='ident'>clone</span>())
+                    .<span class='ident'>method_call</span>(<span class='string'>&quot;init&quot;</span>).<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>init</span>.<span class='ident'>span</span>.<span class='ident'>clone</span>()).<span class='ident'>id</span>(<span class='string'>&quot;mcu&quot;</span>).<span class='ident'>build</span>()
                 .<span class='ident'>with_stmt</span>(<span class='ident'>exit_bootloader</span>).<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>init</span>.<span class='ident'>span</span>.<span class='ident'>clone</span>())
             .<span class='ident'>build</span>()
     }
