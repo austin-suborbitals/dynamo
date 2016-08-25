@@ -626,7 +626,8 @@ impl<'a> Builder<'a> {
                         .block()
                             .expr().bool(false);
 
-                blk = blk.item("init").pub_().method().fn_decl().self_().ref_().default_return()
+                blk = blk.item("init").attr().doc("/// Should not be called as it does nothing. Here to support the init interface")
+                    .pub_().method().fn_decl().self_().ref_().default_return()
                     .block().build()
             }
         };

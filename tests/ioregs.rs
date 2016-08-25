@@ -15,6 +15,8 @@ mod constants {
         // give a name to the generated struct representing the ioreg
         name => TestingStruct;
 
+        // NOTE: omitted here is the init option -- see later tests for details
+
         // define some "root-level" constants (unprefixed) on the base struct.
         // these constants are available to all scopes in this syntax tree.
         //
@@ -597,7 +599,9 @@ mod init {
         // another side-effect of this is another function being generated: needs_init();
         // this function returns a compile-time boolean, making it quick and efficient for the mcu/bootloader
         // to initialize any and all peripherals that need it.
-        init => fn init(&self) {
+        init =>
+        /// While not as elegant to look at, you can totally custom-docstring this guy
+        fn init(&self) {
             unsafe { test_val = 0x4321; }
         };
     );
