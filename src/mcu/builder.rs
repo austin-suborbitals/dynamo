@@ -268,7 +268,7 @@ impl<'a> Builder<'a> {
             .attr().doc("///")
             .attr().doc("/// The generated code is as follows:")
             .attr().doc("///")
-            .attr().doc("/// ```")
+            .attr().doc("/// ```rust,ignore") // ignore, because this is not a compile-able doctest
             .attr().doc("/// pub fn init(&self) {")
             .attr().doc("///     self.copy_data_section();")
             .attr().doc("///     self.null_bss();")
