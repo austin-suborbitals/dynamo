@@ -1291,7 +1291,7 @@
             <span class='kw-2'>&amp;</span><span class='prelude-val'>Some</span>(<span class='kw-2'>ref</span> <span class='ident'>i</span>) <span class='op'>=&gt;</span> {
                 <span class='ident'>blk</span> <span class='op'>=</span> <span class='ident'>blk</span>.<span class='ident'>item</span>(<span class='string'>&quot;needs_init&quot;</span>).<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>reg</span>.<span class='ident'>init</span>.<span class='ident'>span</span>)
                     .<span class='ident'>attr</span>().<span class='ident'>doc</span>(<span class='macro'>format</span><span class='macro'>!</span>(<span class='string'>&quot;/// states the `{}` needs to be initialized&quot;</span>, <span class='self'>self</span>.<span class='ident'>reg</span>.<span class='ident'>name</span>).<span class='ident'>as_str</span>())
-                    .<span class='ident'>method</span>().<span class='ident'>fn_decl</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>reg</span>.<span class='ident'>init</span>.<span class='ident'>span</span>)
+                    .<span class='ident'>pub_</span>().<span class='ident'>method</span>().<span class='ident'>fn_decl</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>reg</span>.<span class='ident'>init</span>.<span class='ident'>span</span>)
                         .<span class='ident'>self_</span>().<span class='ident'>ref_</span>()
                         .<span class='ident'>return_</span>().<span class='ident'>bool</span>()
                         .<span class='ident'>block</span>()
