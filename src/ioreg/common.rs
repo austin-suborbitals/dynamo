@@ -199,9 +199,9 @@ pub fn offset_width_to_ty(off: &IoRegOffsetIndexInfo) -> ptr::P<ast::Ty> {
         panic!("cannot support offset widths of 0"); // TODO: check before calling?
     }
 
-    if off.width < 16 {
+    if off.width <= 8 {
         return u8::to_type();
-    } else if off.width >= 16 && off.width < 32 {
+    } else if off.width <= 16 {
         return u16::to_type();
     } else {
         return u32::to_type();
