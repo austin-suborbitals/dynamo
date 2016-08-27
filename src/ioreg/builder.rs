@@ -609,7 +609,7 @@ impl<'a> Builder<'a> {
             &Some(ref i) => {
                 blk = blk.item("needs_init").span(self.reg.init.span)
                     .attr().doc(format!("/// states the `{}` needs to be initialized", self.reg.name).as_str())
-                    .method().fn_decl().span(self.reg.init.span)
+                    .pub_().method().fn_decl().span(self.reg.init.span)
                         .self_().ref_()
                         .return_().bool()
                         .block()
