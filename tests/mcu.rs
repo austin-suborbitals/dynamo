@@ -140,24 +140,11 @@ mod sanity {
             prio_bits => 4;         // must be a literal
         };
 
-        // all values (other than link ptr) can be a literal or ident.
-        //
-        // these values will be added as constants in the form `{TYPE}_{KEY}` where type is `STACK`, `DATA`, etc
-        // and key is the key for the value. for example:
-        //      `STACK_BASE` or `HEAP_LIMIT`
-        //
-        // the data and bss sections do not get constants, however, as they are only used by the mcu's init function.
+        // all values can be a literal or ident.
         memory => {
-            // the `base` field requires a link section to place the base pointer
-            // this is typically the address of ISR 0.
-            //
-            // the stack **will not** be located at the link section, simply a pointer to it.
-            // it is entirely reasonable to have something like:
-            //    `base => .stack_begin @ .stack_ptr`
-            // this would place the stack base at `.stack_begin` and create a constant STACK_BEGIN
-			//
-			// NOTE: the stack link section is going away ASAP. the blocker is casting an address to an
-			//       Option<fn()> in a static-compatible way.
+            // gives limits to the stack.
+            // typically these will be externs that are defined in the linker script.
+            // if they are not defined in the linker script, then they can be literals, but be careful!
             stack => {
                 base    => 0x1000;
                 limit   => STACK_LIMIT;
@@ -174,8 +161,7 @@ mod sanity {
             };
 
             // location for any dynamic memory allocation.
-            // this is not used by the macro, but is intended for the provided constants to assist in any memory
-            // management implementation.
+            // this can be omitted if not used.
             heap => {
                 base    => HEAP_BEGIN;
                 limit   => HEAP_END;
@@ -233,20 +219,8 @@ mod sanity {
     }
 
     #[test]
-    fn stack_constants_generated() {
-        assert_eq!(SomeMcuName::STACK_BASE, 0x1000);
-        assert_eq!(SomeMcuName::STACK_LIMIT, STACK_LIMIT);
-    }
-
-    #[test]
-    fn heap_constants_generated() {
-        assert_eq!(SomeMcuName::HEAP_BASE, HEAP_BEGIN);
-        assert_eq!(SomeMcuName::HEAP_LIMIT, HEAP_END);
-    }
-
-    #[test]
     fn correct_interrupts() {
-        assert_eq!(INTERRUPTS.stack, SomeMcuName::STACK_BASE);
+       assert_eq!(INTERRUPTS.stack, 0x1000);
         for (i,v) in INTERRUPTS.isrs.into_iter().enumerate() {
             match i {
                 0       => {
@@ -271,6 +245,86 @@ mod sanity {
         assert_eq!(true, mcu.some_helper_function(5));
     }
 }
+
+//
+// stack pointer
+//
+
+#[cfg(test)]
+mod stack_ptr {
+    mod as_literal {
+        imports!();
+        fn main(_: TestMcu) {}
+
+        mcu!(
+            name => TestMcu;
+            memory => {
+                stack => {
+                    base => 0x1000;
+                    limit => 0x2000;
+                };
+            };
+        );
+
+        #[test]
+        fn correct_stack_ptr() {
+            assert_eq!(INTERRUPTS.stack, 0x1000);
+        }
+    }
+
+    mod as_extern {
+        imports!();
+        fn main(_: TestMcu) {}
+
+        pub mod stack_holder {
+            #[no_mangle]
+            #[allow(private_no_mangle_statics)] // TODO: figure out wtf
+            pub static STACK_PTR: u32 = 0x1234;
+        }
+
+        mcu!(
+            name => TestMcu;
+            externs => {
+                STACK_PTR: u32;
+            };
+            memory => {
+                stack => {
+                    base => STACK_PTR;
+                    limit => 0x2000;
+                };
+            };
+        );
+
+        #[test]
+        fn correct_stack_ptr() {
+            assert_eq!(INTERRUPTS.stack, &stack_holder::STACK_PTR);
+        }
+    }
+
+    mod as_ident {
+        imports!();
+        fn main(_: TestMcu) {}
+
+        const STACK_PTR: u32 = 0x4321;
+
+        mcu!(
+            name => TestMcu;
+            memory => {
+                stack => {
+                    base => STACK_PTR;
+                    limit => 0x8000;
+                };
+            };
+        );
+
+        #[test]
+        fn correct_stack_ptr() {
+            assert_eq!(INTERRUPTS.stack, STACK_PTR);
+        }
+    }
+}
+
+
 
 //
 // static

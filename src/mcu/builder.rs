@@ -37,6 +37,9 @@ macro_rules! ptr_cast {
     ($lhs:expr, $rhs:expr, $mutbl:expr) => { cast!($lhs, ptr_type!($rhs, $mutbl)) };
 }
 
+/// Casts the expression given as lhs to the type given as rhs.
+///
+/// LHS is expected to be an ast::Expr and RHS is expected to be an ast::Ty.
 macro_rules! cast {
     ($lhs:expr, $rhs:expr) => {
         aster::AstBuilder::new().expr().span($lhs.span).build_expr_kind(
@@ -94,6 +97,7 @@ macro_rules! integral_or_ident_to_usize_expr {
     }
 }
 
+/// Gives an ast::Ty representing `fn()`.
 macro_rules! bare_fn {
     ($self_:ident) => {
         $self_.base_builder.ty().build_ty_kind(ast::TyKind::BareFn(ptr::P(
@@ -104,6 +108,16 @@ macro_rules! bare_fn {
                 decl: $self_.base_builder.fn_decl().default_return(),
             }
         )))
+    }
+}
+
+/// Returns an ast::Expr that wraps the expression given as `conv` in a `core::option::Option::Some`.
+macro_rules! core_option {
+    ($self_:ident, $conv:expr) => {
+        $self_.base_builder.expr().call()
+            .path().id("core").id("option").id("Option").segment("Some").build().build()
+            .with_arg($conv)
+            .build()
     }
 }
 
@@ -149,9 +163,7 @@ impl<'a> Builder<'a> {
         result.push(self.build_impl());
         result.push(self.build_init());
 
-        if ! self.mcu.interrupts.ints.is_empty() {
-            result.extend(self.build_interrupts());
-        }
+        result.extend(self.build_interrupts());
 
         if self.verbose {
             for i in &result { println!("{}\n", pprust::item_to_string(i)); }
@@ -416,29 +428,6 @@ impl<'a> Builder<'a> {
             }
         }
 
-        // build stack constants
-        let stack_base_expr = integral_or_ident_to_expr!(
-            self.mcu.stack.base, "stack base must be a numeric literal or ident", self);
-        let stack_limit_expr = integral_or_ident_to_expr!(
-            self.mcu.stack.limit, "stack limit must be a numeric literal or ident", self);
-        builder = builder.item("STACK_BASE").span(self.mcu.stack.span)
-                         .const_().span(self.mcu.stack.span).with_expr(stack_base_expr).span(self.mcu.stack.span)
-                         .ty().span(self.mcu.stack.span).u32();
-        builder = builder.item("STACK_LIMIT").span(self.mcu.stack.span)
-                         .const_().span(self.mcu.stack.span).with_expr(stack_limit_expr).span(self.mcu.stack.span)
-                         .ty().span(self.mcu.stack.span).u32();
-
-
-        // build heap constants
-        let heap_base_expr = integral_or_ident_to_expr!(
-            self.mcu.heap.base, "heap base must be a numeric literal or ident", self);
-        let heap_limit_expr = integral_or_ident_to_expr!(
-            self.mcu.heap.limit, "heap limit must be a numeric literal or ident", self);
-        builder = builder.item("HEAP_BASE").span(self.mcu.heap.span)
-                         .const_().with_expr(heap_base_expr).ty().u32();
-        builder = builder.item("HEAP_LIMIT").span(self.mcu.heap.span)
-                         .const_().with_expr(heap_limit_expr).ty().u32();
-
         builder
     }
 
@@ -446,30 +435,40 @@ impl<'a> Builder<'a> {
     /// Builds the interrupts table and associates the #[link_section = ".some_location"] attribute with it.
     ///
     /// The type is actually a struct containing the stack pointer as a u32 and an array of ISRs.
-    /// The array generated is of type `[Option<fn()>; NUM_INTERRUPTS-1]` and defaults to `None` (0u32)
+    /// The array generated is of type `[core::option::Option<fn()>; NUM_INTERRUPTS-1]` and defaults to `None` (0u32)
     /// for all interrupts. Making this #[repr(C)] structure keeps type safety while achieving the packed
     /// table structure we need.
     pub fn build_interrupts(&self) -> Vec<ptr::P<ast::Item>> {
+        let stack_ty = match self.is_extern(&self.mcu.stack.base) {
+            true => { self.base_builder.span(self.mcu.interrupts.span).ty().ref_().lifetime("'static").ty().u32() }
+            false => { self.base_builder.span(self.mcu.interrupts.span).ty().u32() }
+        };
+
+        let num_ints = if self.mcu.interrupts.ints.is_empty() || self.mcu.interrupts.total_ints == 0 {
+            1
+        } else {
+            self.mcu.interrupts.total_ints
+        } as usize;
+
         // make an "easy to reference" type InterruptArray that holds ISRs [2, N]
         let int_type = self.base_builder.item().span(self.mcu.interrupts.span)
             .attr().list("repr").word("C").build()
-            .struct_("Interrupts")
-                .field("stack").span(self.mcu.interrupts.span).ty().u32()
+            .pub_().struct_("Interrupts")
+                .field("stack").span(self.mcu.interrupts.span).build_ty(stack_ty)
                 .field("isrs").span(self.mcu.interrupts.span).ty()
                     .build_ty_kind(ast::TyKind::FixedLengthVec(
-                        self.base_builder.ty().option().build(bare_fn!(self)),
-                        self.base_builder.expr().lit().usize((self.mcu.interrupts.total_ints-1) as usize)
+                        self.base_builder.ty()
+                            .path().id("core").id("option").segment("Option").with_ty(bare_fn!(self)).build().build(),
+                        self.base_builder.expr().lit().usize(num_ints)
                     ))
                 .build();
 
-        let mut ints: Vec<ptr::P<ast::Expr>> = vec![
-            self.base_builder.expr().span(self.mcu.interrupts.span).none();
-            (self.mcu.interrupts.total_ints-1) as usize
-        ];
+        let none_expr = self.base_builder.expr().path().id("core").id("option").id("Option").segment("None").build().build();
+        let mut ints: Vec<ptr::P<ast::Expr>> = vec![none_expr.clone(); num_ints];
 
         // TODO: I don't really like the -1 stuff because of stack
         // add the entry pointer to the interrupt list
-        ints[0] = self.base_builder.expr().some().id("init");
+        ints[0] = core_option!(self, self.base_builder.expr().id("init"));
 
         for i in &self.mcu.interrupts.ints {
             if i.0.contains(0) {
@@ -486,14 +485,14 @@ impl<'a> Builder<'a> {
 
             let addr_expr = match &i.1 {
                 &StaticValue::Ident(_, ref id, sp) => {
-					if id.name.to_string() == "None".to_string() {
-                        self.base_builder.expr().span(self.mcu.stack.span).none()
-					} else {
-                		self.base_builder.expr().span(sp).some().id(id)
-					}
+                    if id.name.to_string() == "None".to_string() {
+                        none_expr.clone()
+                    } else {
+                        core_option!(self, self.base_builder.expr().span(sp).id(id))
+                    }
                 }
                 &StaticValue::Path(ref path, sp) => {
-                    self.base_builder.expr().span(sp).some().build_path(path.clone())
+                    core_option!(self, self.base_builder.expr().span(sp).build_path(path.clone()))
                 }
 
                 // not allowed
@@ -502,11 +501,11 @@ impl<'a> Builder<'a> {
                 &StaticValue::Float(_,_,_,sp) |
                 &StaticValue::Str(_, _,sp) => {
                     self.parser.parser.span_err(sp, "invalid interrupt function location type");
-                    self.base_builder.expr().none() // TODO: ew
+                    none_expr.clone()
                 }
                 &StaticValue::Error(ref err, sp) =>  {
                     self.parser.parser.span_err(sp, format!("unthrown parser error: {}", err).as_str());
-                    self.base_builder.expr().none() // TODO: ew
+                    none_expr.clone()
                 }
             };
 
@@ -519,14 +518,24 @@ impl<'a> Builder<'a> {
             int_type,
             self.base_builder.item()
                 .attr().name_value("link_section").str(self.mcu.interrupts.link_location.as_str())
-                .build_item_kind(
+                .pub_().build_item_kind(
                     "INTERRUPTS",
                     ast::ItemKind::Static(
                         self.base_builder.ty().id("Interrupts"),
                         ast::Mutability::Immutable,
                         self.base_builder.expr().span(self.mcu.stack.span).struct_().id("Interrupts").build()
-                            .field("stack").build(
-                                integral_or_ident_to_expr!(self.mcu.stack.base, "invalid stack base ty", self))
+                            .field("stack").build(match &self.mcu.stack.base {
+                                &StaticValue::Ident(ref raw, _, sp) => { // TODO: use the already parsed Ident
+                                    if self.mcu.externs.contains_key(raw) {
+                                        self.base_builder.expr().span(sp).ref_().id(raw.as_str())
+                                    } else {
+                                        self.base_builder.expr().id(raw)
+                                    }
+                                }
+                                _ => {
+                                    integral_or_ident_to_expr!(self.mcu.stack.base, "invalid stack base ty", self)
+                                }
+                            })
                             .field("isrs").slice().with_exprs(ints).build()
                         .build()
                     )
@@ -970,5 +979,18 @@ impl<'a> Builder<'a> {
                     .method_call("init").span(self.mcu.init.span.clone()).id("mcu").build()
                 .with_stmt(exit_bootloader).span(self.mcu.init.span.clone())
             .build()
+    }
+
+
+    //
+    // helpers
+    //
+
+    /// Returns whether the given StaticValue is sourced from an internally-defined extern.
+    fn is_extern(&self, val: &StaticValue) -> bool {
+        match val {
+            &StaticValue::Ident(ref raw, _, _) => { self.mcu.externs.contains_key(raw) }
+            _ => { false }
+        }
     }
 }
