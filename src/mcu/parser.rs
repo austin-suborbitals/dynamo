@@ -50,17 +50,22 @@ impl<'a> Parser<'a> {
         let mut result = common::McuInfo::default();
         result.span = self.parser.span;
 
-        // parse the mcu name
-        self.expect_ident_value("name");
-        self.expect_fat_arrow();
-        result.name = self.parse_ident_string();
-        self.expect_semi();
-
         // parse the various portions of he mcu def
         while is_ident!(self.curr_token()) {
             let tok = extract_ident_name!(self);
             let span = self.parser.span;
             match tok.as_str() {
+                "no_init" => {
+                    result.no_init = true;
+                    self.parser.bump();
+                    self.expect_semi();
+                }
+                "name" => {
+                    self.expect_ident_value("name");
+                    self.expect_fat_arrow();
+                    result.name = self.parse_ident_string();
+                    self.expect_semi();
+                }
                 "constants" => {
                     self.parse_constants_block(
                         &"".to_string(), &mut result.constants, validate_constant, &()

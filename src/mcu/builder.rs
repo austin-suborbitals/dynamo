@@ -161,7 +161,7 @@ impl<'a> Builder<'a> {
 
         result.push(self.build_struct());
         result.push(self.build_impl());
-        result.push(self.build_init());
+        if ! self.mcu.no_init { result.push(self.build_init()); }
 
         result.extend(self.build_interrupts());
 
@@ -444,7 +444,7 @@ impl<'a> Builder<'a> {
             false => { self.base_builder.span(self.mcu.interrupts.span).ty().u32() }
         };
 
-        let num_ints = if self.mcu.interrupts.ints.is_empty() || self.mcu.interrupts.total_ints == 0 {
+        let num_ints = if self.mcu.interrupts.total_ints == 0 {
             1
         } else {
             self.mcu.interrupts.total_ints
@@ -468,7 +468,9 @@ impl<'a> Builder<'a> {
 
         // TODO: I don't really like the -1 stuff because of stack
         // add the entry pointer to the interrupt list
-        ints[0] = core_option!(self, self.base_builder.expr().id("init"));
+        if ! self.mcu.no_init {
+            ints[0] = core_option!(self, self.base_builder.expr().id("init"));
+        }
 
         for i in &self.mcu.interrupts.ints {
             if i.0.contains(0) {
@@ -967,6 +969,7 @@ impl<'a> Builder<'a> {
         self.base_builder.item().span(self.mcu.init.span.clone())
             .attr().doc("/// Generated reset handler that creates a new mcu, calls mcu.init(), and calls")
             .attr().doc("/// the function given to `bootloader_exit` with a reference to the mcu instance.")
+            .attr().word("no_mangle")
             .pub_().fn_("init").span(self.mcu.init.span.clone())
             .default_return()
             .block()

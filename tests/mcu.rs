@@ -257,6 +257,7 @@ mod stack_ptr {
         fn main(_: TestMcu) {}
 
         mcu!(
+            no_init;
             name => TestMcu;
             memory => {
                 stack => {
@@ -283,6 +284,7 @@ mod stack_ptr {
         }
 
         mcu!(
+            no_init;
             name => TestMcu;
             externs => {
                 STACK_PTR: u32;
@@ -308,6 +310,7 @@ mod stack_ptr {
         const STACK_PTR: u32 = 0x4321;
 
         mcu!(
+            no_init;
             name => TestMcu;
             memory => {
                 stack => {
@@ -335,6 +338,7 @@ mod static_instance {
     imports!();
 
     mcu!(
+        no_init;
         name => TestMcu;
     );
 
@@ -357,6 +361,7 @@ mod nvic {
     imports!();
 
     mcu!(
+        no_init;
         name => TestMcu;
         nvic => {
             addr => 0xE000_E000;
@@ -482,6 +487,7 @@ mod nvic {
         fn main(_: TestMcu) {}
 
         mcu!(
+            no_init;
             name => TestMcu;
             nvic => traits::NVIC {
                 addr => 0xE000_E000;

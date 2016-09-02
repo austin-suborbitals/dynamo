@@ -115,6 +115,7 @@ pub struct NvicInfo {
 /// Internal structure for the builder which describes the parsed MCU block.
 pub struct McuInfo {
     pub name: String,
+    pub no_init: bool,
     pub docs: Vec<String>,
     pub constants: BTreeMap<String, StaticValue>,
     pub externs: BTreeMap<String, (ast::TyKind, Span)>,
@@ -138,6 +139,7 @@ impl McuInfo {
         let bldr = aster::AstBuilder::new();
         McuInfo{
             name: "".to_string(),
+            no_init: false,
             docs: vec!(),
             constants: BTreeMap::new(),
             externs: BTreeMap::new(),
