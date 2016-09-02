@@ -47,13 +47,13 @@
                    <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
                        [<span class='inner'>&#x2212;</span>]
                    </a>
-               </span><a id='src-1085' class='srclink' href='../../../src/dynamo/src/mcu/builder.rs.html#114-119' title='goto source code'>[src]</a></span></h1>
+               </span><a id='src-1085' class='srclink' href='../../../src/dynamo/src/mcu/builder.rs.html#128-133' title='goto source code'>[src]</a></span></h1>
 <pre class='rust struct'>pub struct Builder&lt;'a&gt; {
     // some fields omitted
 }</pre><div class='docblock'><p>Builds the generated AST from the parsed mcu!() block.</p>
 
 <p>Consumes the parser to later set syntax errors.</p>
-</div><h2 id='methods'>Methods</h2><h3 class='impl'><span class='in-band'><code>impl&lt;'a&gt; <a class='struct' href='../../../dynamo/mcu/builder/struct.Builder.html' title='dynamo::mcu::builder::Builder'>Builder</a>&lt;'a&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a id='src-1091' class='srclink' href='../../../src/dynamo/src/mcu/builder.rs.html#121-974' title='goto source code'>[src]</a></span></h3>
+</div><h2 id='methods'>Methods</h2><h3 class='impl'><span class='in-band'><code>impl&lt;'a&gt; <a class='struct' href='../../../dynamo/mcu/builder/struct.Builder.html' title='dynamo::mcu::builder::Builder'>Builder</a>&lt;'a&gt;</code></span><span class='out-of-band'><div class='ghost'></div><a id='src-1091' class='srclink' href='../../../src/dynamo/src/mcu/builder.rs.html#135-996' title='goto source code'>[src]</a></span></h3>
 <div class='impl-items'><h4 id='method.new' class='method'><span id='new.v' class='invisible'><code>fn <a href='#method.new' class='fnname'>new</a>(mcu: <a class='struct' href='../../../dynamo/mcu/common/struct.McuInfo.html' title='dynamo::mcu::common::McuInfo'>McuInfo</a>, parser: <a class='type' href='../../../dynamo/mcu/parser/type.Parser.html' title='dynamo::mcu::parser::Parser'>Parser</a>&lt;'a&gt;, verbose: <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.bool.html'>bool</a>) -&gt; <a class='struct' href='../../../dynamo/mcu/builder/struct.Builder.html' title='dynamo::mcu::builder::Builder'>Builder</a></code></span></h4>
 <div class='docblock'><p>Consumes the parsed common::McuInfo descriptor and parser to construct a Builder.</p>
 </div><h4 id='method.build' class='method'><span id='build.v' class='invisible'><code>fn <a href='#method.build' class='fnname'>build</a>(&amp;self) -&gt; <a class='struct' href='https://doc.rust-lang.org/nightly/collections/vec/struct.Vec.html' title='collections::vec::Vec'>Vec</a>&lt;<a class='struct' href='https://doc.rust-lang.org/nightly/syntax/ptr/struct.P.html' title='syntax::ptr::P'>P</a>&lt;<a class='struct' href='https://doc.rust-lang.org/nightly/syntax/ast/struct.Item.html' title='syntax::ast::Item'>Item</a>&gt;&gt;</code></span></h4>
@@ -78,7 +78,7 @@
 <div class='docblock'><p>Builds the interrupts table and associates the #[link_section = &quot;.some_location&quot;] attribute with it.</p>
 
 <p>The type is actually a struct containing the stack pointer as a u32 and an array of ISRs.
-The array generated is of type <code>[Option&lt;fn()&gt;; NUM_INTERRUPTS-1]</code> and defaults to <code>None</code> (0u32)
+The array generated is of type <code>[core::option::Option&lt;fn()&gt;; NUM_INTERRUPTS-1]</code> and defaults to <code>None</code> (0u32)
 for all interrupts. Making this #[repr(C)] structure keeps type safety while achieving the packed
 table structure we need.</p>
 </div><h4 id='method.build_nvic_ty' class='method'><span id='build_nvic_ty.v' class='invisible'><code>fn <a href='#method.build_nvic_ty' class='fnname'>build_nvic_ty</a>(&amp;self) -&gt; <a class='struct' href='https://doc.rust-lang.org/nightly/syntax/ptr/struct.P.html' title='syntax::ptr::P'>P</a>&lt;<a class='struct' href='https://doc.rust-lang.org/nightly/syntax/ast/struct.Item.html' title='syntax::ast::Item'>Item</a>&gt;</code></span></h4>
