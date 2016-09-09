@@ -529,7 +529,7 @@ impl<'a> Builder<'a> {
                             .field("stack").build(match &self.mcu.stack.base {
                                 &StaticValue::Ident(ref raw, _, sp) => { // TODO: use the already parsed Ident
                                     if self.mcu.externs.contains_key(raw) {
-                                        self.base_builder.expr().span(sp).ref_().id(raw.as_str())
+                                        self.base_builder.expr().span(sp).block().unsafe_().expr().ref_().id(raw.as_str())
                                     } else {
                                         self.base_builder.expr().id(raw)
                                     }
