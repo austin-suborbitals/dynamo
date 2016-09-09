@@ -185,11 +185,11 @@ impl<'a> Builder<'a> {
         if ! self.mcu.docs.is_empty() {
             preamble = preamble.attr().doc("///");
             for d in &self.mcu.docs {
-                preamble = preamble.attr().doc(format!("/// source: {}", d).as_str());
+                preamble = preamble.attr().doc(format!("/// source: {}", d).as_str()).attr().doc("///");
             }
         }
         if ! self.mcu.link_script.is_empty() {
-            preamble = preamble.attr().doc(format!("/// link script: {}", self.mcu.link_script).as_str());
+            preamble = preamble.attr().doc(format!("/// link script: `{}`", self.mcu.link_script).as_str()).attr().doc("///");
         }
 
         // and add the peripheral fields
