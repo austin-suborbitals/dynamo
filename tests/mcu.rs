@@ -213,9 +213,9 @@ mod sanity {
 
     #[test]
     fn externs() {
-        assert_eq!(data_flash, some_extern_thing::data_flash);
-        assert_eq!(data_flash_end, some_extern_thing::data_flash_end);
-        assert_eq!(data_section, some_extern_thing::data_section);
+        assert_eq!(unsafe{data_flash}, some_extern_thing::data_flash);
+        assert_eq!(unsafe{data_flash_end}, some_extern_thing::data_flash_end);
+        assert_eq!(unsafe{data_section}, some_extern_thing::data_section);
     }
 
     #[test]

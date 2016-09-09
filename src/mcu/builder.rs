@@ -969,6 +969,7 @@ impl<'a> Builder<'a> {
         self.base_builder.item().span(self.mcu.init.span.clone())
             .attr().doc("/// Generated reset handler that creates a new mcu, calls mcu.init(), and calls")
             .attr().doc("/// the function given to `bootloader_exit` with a reference to the mcu instance.")
+            .attr().list("allow").word("private_no_mangle_fns").build()
             .attr().word("no_mangle")
             .pub_().fn_("init").span(self.mcu.init.span.clone())
             .default_return()
