@@ -1102,17 +1102,17 @@
     (<span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>val</span>:<span class='ident'>expr</span>, <span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>err</span>:<span class='ident'>expr</span>, <span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>self_</span>:<span class='ident'>ident</span>) <span class='op'>=&gt;</span> {
         <span class='kw'>match</span> <span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>val</span> {
             <span class='ident'>StaticValue</span>::<span class='ident'>Uint</span>(<span class='ident'>addr</span>, _, <span class='ident'>sp</span>) <span class='op'>=&gt;</span> {
-                <span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>self_</span>.<span class='ident'>base_builder</span>.<span class='ident'>expr</span>().<span class='ident'>span</span>(<span class='ident'>sp</span>).<span class='ident'>lit</span>().<span class='ident'>span</span>(<span class='ident'>sp</span>).<span class='ident'>u32</span>(<span class='ident'>addr</span> <span class='kw'>as</span> <span class='ident'>u32</span>)
+                <span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>self_</span>.<span class='ident'>bldr</span>.<span class='ident'>expr</span>().<span class='ident'>span</span>(<span class='ident'>sp</span>).<span class='ident'>lit</span>().<span class='ident'>span</span>(<span class='ident'>sp</span>).<span class='ident'>u32</span>(<span class='ident'>addr</span> <span class='kw'>as</span> <span class='ident'>u32</span>)
             }
             <span class='ident'>StaticValue</span>::<span class='ident'>Int</span>(<span class='ident'>addr</span>, _, <span class='ident'>sp</span>) <span class='op'>=&gt;</span> {
-                <span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>self_</span>.<span class='ident'>base_builder</span>.<span class='ident'>expr</span>().<span class='ident'>span</span>(<span class='ident'>sp</span>).<span class='ident'>lit</span>().<span class='ident'>span</span>(<span class='ident'>sp</span>).<span class='ident'>u32</span>(<span class='ident'>addr</span> <span class='kw'>as</span> <span class='ident'>u32</span>)
+                <span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>self_</span>.<span class='ident'>bldr</span>.<span class='ident'>expr</span>().<span class='ident'>span</span>(<span class='ident'>sp</span>).<span class='ident'>lit</span>().<span class='ident'>span</span>(<span class='ident'>sp</span>).<span class='ident'>u32</span>(<span class='ident'>addr</span> <span class='kw'>as</span> <span class='ident'>u32</span>)
             }
             <span class='ident'>StaticValue</span>::<span class='ident'>Ident</span>(<span class='kw-2'>ref</span> <span class='ident'>id</span>, _, <span class='ident'>sp</span>) <span class='op'>=&gt;</span> {
-                <span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>self_</span>.<span class='ident'>base_builder</span>.<span class='ident'>expr</span>().<span class='ident'>span</span>(<span class='ident'>sp</span>).<span class='ident'>id</span>(<span class='ident'>id</span>)
+                <span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>self_</span>.<span class='ident'>bldr</span>.<span class='ident'>expr</span>().<span class='ident'>span</span>(<span class='ident'>sp</span>).<span class='ident'>id</span>(<span class='ident'>id</span>)
             }
             <span class='ident'>StaticValue</span>::<span class='ident'>Float</span>(_,_,_,<span class='ident'>sp</span>) <span class='op'>|</span> <span class='ident'>StaticValue</span>::<span class='ident'>Str</span>(_,_,<span class='ident'>sp</span>) <span class='op'>|</span> <span class='ident'>StaticValue</span>::<span class='ident'>Path</span>(_,<span class='ident'>sp</span>) <span class='op'>|</span> <span class='ident'>StaticValue</span>::<span class='ident'>Error</span>(_,<span class='ident'>sp</span>) <span class='op'>=&gt;</span> {
                 <span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>self_</span>.<span class='ident'>parser</span>.<span class='ident'>parser</span>.<span class='ident'>span_fatal</span>(<span class='ident'>sp</span>, <span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>err</span>).<span class='ident'>emit</span>();
-                <span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>self_</span>.<span class='ident'>base_builder</span>.<span class='ident'>expr</span>().<span class='ident'>lit</span>().<span class='ident'>u32</span>(<span class='number'>0</span>)
+                <span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>self_</span>.<span class='ident'>bldr</span>.<span class='ident'>expr</span>().<span class='ident'>lit</span>().<span class='ident'>u32</span>(<span class='number'>0</span>)
             }
         }
     }
@@ -1126,17 +1126,17 @@
     (<span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>val</span>:<span class='ident'>expr</span>, <span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>err</span>:<span class='ident'>expr</span>, <span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>self_</span>:<span class='ident'>ident</span>) <span class='op'>=&gt;</span> {
         <span class='kw'>match</span> <span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>val</span> {
             <span class='ident'>StaticValue</span>::<span class='ident'>Uint</span>(<span class='ident'>addr</span>, _, <span class='ident'>sp</span>) <span class='op'>=&gt;</span> {
-                <span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>self_</span>.<span class='ident'>base_builder</span>.<span class='ident'>span</span>(<span class='ident'>sp</span>).<span class='ident'>expr</span>().<span class='ident'>lit</span>().<span class='ident'>usize</span>(<span class='ident'>addr</span> <span class='kw'>as</span> <span class='ident'>usize</span>)
+                <span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>self_</span>.<span class='ident'>bldr</span>.<span class='ident'>span</span>(<span class='ident'>sp</span>).<span class='ident'>expr</span>().<span class='ident'>lit</span>().<span class='ident'>usize</span>(<span class='ident'>addr</span> <span class='kw'>as</span> <span class='ident'>usize</span>)
             }
             <span class='ident'>StaticValue</span>::<span class='ident'>Int</span>(<span class='ident'>addr</span>, _, <span class='ident'>sp</span>) <span class='op'>=&gt;</span> {
-                <span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>self_</span>.<span class='ident'>base_builder</span>.<span class='ident'>span</span>(<span class='ident'>sp</span>).<span class='ident'>expr</span>().<span class='ident'>lit</span>().<span class='ident'>usize</span>(<span class='ident'>addr</span> <span class='kw'>as</span> <span class='ident'>usize</span>)
+                <span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>self_</span>.<span class='ident'>bldr</span>.<span class='ident'>span</span>(<span class='ident'>sp</span>).<span class='ident'>expr</span>().<span class='ident'>lit</span>().<span class='ident'>usize</span>(<span class='ident'>addr</span> <span class='kw'>as</span> <span class='ident'>usize</span>)
             }
             <span class='ident'>StaticValue</span>::<span class='ident'>Ident</span>(<span class='kw-2'>ref</span> <span class='ident'>id</span>, _, <span class='ident'>sp</span>) <span class='op'>=&gt;</span> {
-                <span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>self_</span>.<span class='ident'>base_builder</span>.<span class='ident'>span</span>(<span class='ident'>sp</span>).<span class='ident'>expr</span>().<span class='ident'>id</span>(<span class='ident'>id</span>)
+                <span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>self_</span>.<span class='ident'>bldr</span>.<span class='ident'>span</span>(<span class='ident'>sp</span>).<span class='ident'>expr</span>().<span class='ident'>id</span>(<span class='ident'>id</span>)
             }
             <span class='ident'>StaticValue</span>::<span class='ident'>Float</span>(_,_,_,<span class='ident'>sp</span>) <span class='op'>|</span> <span class='ident'>StaticValue</span>::<span class='ident'>Str</span>(_,_,<span class='ident'>sp</span>) <span class='op'>|</span> <span class='ident'>StaticValue</span>::<span class='ident'>Path</span>(_,<span class='ident'>sp</span>) <span class='op'>|</span> <span class='ident'>StaticValue</span>::<span class='ident'>Error</span>(_,<span class='ident'>sp</span>) <span class='op'>=&gt;</span> {
                 <span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>self_</span>.<span class='ident'>parser</span>.<span class='ident'>parser</span>.<span class='ident'>span_fatal</span>(<span class='ident'>sp</span>, <span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>err</span>).<span class='ident'>emit</span>();
-                <span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>self_</span>.<span class='ident'>base_builder</span>.<span class='ident'>expr</span>().<span class='ident'>lit</span>().<span class='ident'>usize</span>(<span class='number'>0</span>)
+                <span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>self_</span>.<span class='ident'>bldr</span>.<span class='ident'>expr</span>().<span class='ident'>lit</span>().<span class='ident'>usize</span>(<span class='number'>0</span>)
             }
         }
     }
@@ -1145,12 +1145,12 @@
 <span class='doccomment'>/// Gives an ast::Ty representing `fn()`.</span>
 <span class='macro'>macro_rules</span><span class='macro'>!</span> <span class='ident'>bare_fn</span> {
     (<span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>self_</span>:<span class='ident'>ident</span>) <span class='op'>=&gt;</span> {
-        <span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>self_</span>.<span class='ident'>base_builder</span>.<span class='ident'>ty</span>().<span class='ident'>build_ty_kind</span>(<span class='ident'>ast</span>::<span class='ident'>TyKind</span>::<span class='ident'>BareFn</span>(<span class='ident'>ptr</span>::<span class='ident'>P</span>(
+        <span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>self_</span>.<span class='ident'>bldr</span>.<span class='ident'>ty</span>().<span class='ident'>build_ty_kind</span>(<span class='ident'>ast</span>::<span class='ident'>TyKind</span>::<span class='ident'>BareFn</span>(<span class='ident'>ptr</span>::<span class='ident'>P</span>(
             <span class='ident'>ast</span>::<span class='ident'>BareFnTy</span> {
                 <span class='ident'>unsafety</span>: <span class='ident'>ast</span>::<span class='ident'>Unsafety</span>::<span class='ident'>Normal</span>,
                 <span class='ident'>abi</span>: <span class='ident'>abi</span>::<span class='ident'>Abi</span>::<span class='ident'>Rust</span>,
                 <span class='ident'>lifetimes</span>: <span class='macro'>vec</span><span class='macro'>!</span>(),
-                <span class='ident'>decl</span>: <span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>self_</span>.<span class='ident'>base_builder</span>.<span class='ident'>fn_decl</span>().<span class='ident'>default_return</span>(),
+                <span class='ident'>decl</span>: <span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>self_</span>.<span class='ident'>bldr</span>.<span class='ident'>fn_decl</span>().<span class='ident'>default_return</span>(),
             }
         )))
     }
@@ -1159,7 +1159,7 @@
 <span class='doccomment'>/// Returns an ast::Expr that wraps the expression given as `conv` in a `core::option::Option::Some`.</span>
 <span class='macro'>macro_rules</span><span class='macro'>!</span> <span class='ident'>core_option</span> {
     (<span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>self_</span>:<span class='ident'>ident</span>, <span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>conv</span>:<span class='ident'>expr</span>) <span class='op'>=&gt;</span> {
-        <span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>self_</span>.<span class='ident'>base_builder</span>.<span class='ident'>expr</span>().<span class='ident'>call</span>()
+        <span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>self_</span>.<span class='ident'>bldr</span>.<span class='ident'>expr</span>().<span class='ident'>call</span>()
             .<span class='ident'>path</span>().<span class='ident'>id</span>(<span class='string'>&quot;core&quot;</span>).<span class='ident'>id</span>(<span class='string'>&quot;option&quot;</span>).<span class='ident'>id</span>(<span class='string'>&quot;Option&quot;</span>).<span class='ident'>segment</span>(<span class='string'>&quot;Some&quot;</span>).<span class='ident'>build</span>().<span class='ident'>build</span>()
             .<span class='ident'>with_arg</span>(<span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>conv</span>)
             .<span class='ident'>build</span>()
@@ -1173,7 +1173,7 @@
 <span class='kw'>pub</span> <span class='kw'>struct</span> <span class='ident'>Builder</span><span class='op'>&lt;</span><span class='lifetime'>&#39;a</span><span class='op'>&gt;</span> {
     <span class='ident'>verbose</span>: <span class='ident'>bool</span>,
     <span class='ident'>mcu</span>: <span class='ident'>common</span>::<span class='ident'>McuInfo</span>,
-    <span class='ident'>base_builder</span>: <span class='ident'>aster</span>::<span class='ident'>AstBuilder</span>,
+    <span class='ident'>bldr</span>: <span class='ident'>aster</span>::<span class='ident'>AstBuilder</span>,
     <span class='ident'>parser</span>: <span class='ident'>parser</span>::<span class='ident'>Parser</span><span class='op'>&lt;</span><span class='lifetime'>&#39;a</span><span class='op'>&gt;</span>,
 }
 
@@ -1183,7 +1183,7 @@
         <span class='ident'>Builder</span> {
             <span class='ident'>verbose</span>: <span class='ident'>verbose</span>,
             <span class='ident'>mcu</span>: <span class='ident'>mcu</span>,
-            <span class='ident'>base_builder</span>: <span class='ident'>aster</span>::<span class='ident'>AstBuilder</span>::<span class='ident'>new</span>(),
+            <span class='ident'>bldr</span>: <span class='ident'>aster</span>::<span class='ident'>AstBuilder</span>::<span class='ident'>new</span>(),
             <span class='ident'>parser</span>: <span class='ident'>parser</span>,
         }
     }
@@ -1220,7 +1220,7 @@
     <span class='doccomment'>/// Builds the MCU structure definition including doc comments, impl functions, etc.</span>
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>build_struct</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>ptr</span>::<span class='ident'>P</span><span class='op'>&lt;</span><span class='ident'>ast</span>::<span class='ident'>Item</span><span class='op'>&gt;</span> {
         <span class='comment'>// make the struct builder and add the doc attributes</span>
-        <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>preamble</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>item</span>()
+        <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>preamble</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>item</span>()
             .<span class='ident'>attr</span>().<span class='ident'>list</span>(<span class='string'>&quot;repr&quot;</span>).<span class='ident'>word</span>(<span class='string'>&quot;C&quot;</span>).<span class='ident'>build</span>()
             .<span class='ident'>attr</span>().<span class='ident'>list</span>(<span class='string'>&quot;derive&quot;</span>).<span class='ident'>word</span>(<span class='string'>&quot;Debug&quot;</span>).<span class='ident'>build</span>()
             .<span class='ident'>attr</span>().<span class='ident'>list</span>(<span class='string'>&quot;derive&quot;</span>).<span class='ident'>word</span>(<span class='string'>&quot;Clone&quot;</span>).<span class='ident'>build</span>()
@@ -1239,10 +1239,10 @@
 
         <span class='comment'>// and add the peripheral fields</span>
         <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>fields</span>: <span class='ident'>Vec</span><span class='op'>&lt;</span><span class='ident'>ast</span>::<span class='ident'>StructField</span><span class='op'>&gt;</span> <span class='op'>=</span> <span class='macro'>vec</span><span class='macro'>!</span>[
-            <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>struct_field</span>(<span class='string'>&quot;nvic&quot;</span>).<span class='ident'>pub_</span>().<span class='ident'>ty</span>().<span class='ident'>id</span>(<span class='macro'>format</span><span class='macro'>!</span>(<span class='string'>&quot;{}NVIC&quot;</span>,<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>name</span>).<span class='ident'>as_str</span>()),
+            <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>struct_field</span>(<span class='string'>&quot;nvic&quot;</span>).<span class='ident'>pub_</span>().<span class='ident'>ty</span>().<span class='ident'>id</span>(<span class='macro'>format</span><span class='macro'>!</span>(<span class='string'>&quot;{}NVIC&quot;</span>,<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>name</span>).<span class='ident'>as_str</span>()),
         ];
         <span class='kw'>for</span> <span class='ident'>p</span> <span class='kw'>in</span> <span class='kw-2'>&amp;</span><span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>peripherals</span> {
-            <span class='ident'>fields</span>.<span class='ident'>push</span>(<span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>span</span>(<span class='ident'>p</span>.<span class='ident'>span</span>).<span class='ident'>struct_field</span>(<span class='ident'>p</span>.<span class='ident'>name</span>.<span class='ident'>clone</span>()).<span class='ident'>pub_</span>().<span class='ident'>ty</span>().<span class='ident'>build_ty_kind</span>(<span class='ident'>p</span>.<span class='ident'>path</span>.<span class='ident'>clone</span>()));
+            <span class='ident'>fields</span>.<span class='ident'>push</span>(<span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>span</span>(<span class='ident'>p</span>.<span class='ident'>span</span>).<span class='ident'>struct_field</span>(<span class='ident'>p</span>.<span class='ident'>name</span>.<span class='ident'>clone</span>()).<span class='ident'>pub_</span>().<span class='ident'>ty</span>().<span class='ident'>build_ty_kind</span>(<span class='ident'>p</span>.<span class='ident'>path</span>.<span class='ident'>clone</span>()));
         }
 
         <span class='ident'>preamble</span>.<span class='ident'>pub_</span>().<span class='ident'>struct_</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>name</span>.<span class='ident'>clone</span>()).<span class='ident'>with_fields</span>(<span class='ident'>fields</span>).<span class='ident'>build</span>()
@@ -1250,7 +1250,7 @@
 
     <span class='doccomment'>/// Generates the structure initializer used in both the ::new() function and to initialize the static version (if generated).</span>
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>build_new_struct</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>ptr</span>::<span class='ident'>P</span><span class='op'>&lt;</span><span class='ident'>ast</span>::<span class='ident'>Expr</span><span class='op'>&gt;</span> {
-        <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>built_struct</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>expr</span>()
+        <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>built_struct</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>expr</span>()
             .<span class='ident'>struct_</span>().<span class='ident'>id</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>name</span>.<span class='ident'>clone</span>()).<span class='ident'>build</span>()
                 .<span class='ident'>field</span>(<span class='string'>&quot;nvic&quot;</span>).<span class='ident'>build</span>(<span class='self'>self</span>.<span class='ident'>build_nvic_instance</span>());
 
@@ -1260,7 +1260,7 @@
                 <span class='kw-2'>&amp;</span><span class='ident'>ast</span>::<span class='ident'>TyKind</span>::<span class='ident'>Path</span>(_, <span class='kw-2'>ref</span> <span class='ident'>path</span>) <span class='op'>=&gt;</span> { <span class='ident'>path</span>.<span class='ident'>clone</span>() }
                 _ <span class='op'>=&gt;</span> {
                     <span class='self'>self</span>.<span class='ident'>parser</span>.<span class='ident'>parser</span>.<span class='ident'>span_err</span>(<span class='ident'>p</span>.<span class='ident'>span</span>, <span class='macro'>format</span><span class='macro'>!</span>(<span class='string'>&quot;cannot use non-path type for peripheral {}&quot;</span>, <span class='ident'>p</span>.<span class='ident'>name</span>).<span class='ident'>as_str</span>());
-                    <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>path</span>().<span class='ident'>id</span>(<span class='string'>&quot;builder_error&quot;</span>).<span class='ident'>build</span>()
+                    <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>path</span>().<span class='ident'>id</span>(<span class='string'>&quot;builder_error&quot;</span>).<span class='ident'>build</span>()
                 }
             };
 
@@ -1269,8 +1269,8 @@
                     <span class='ident'>built_struct</span> <span class='op'>=</span> <span class='ident'>built_struct</span>.<span class='ident'>span</span>(<span class='ident'>sp</span>).<span class='ident'>field</span>(<span class='ident'>p</span>.<span class='ident'>name</span>.<span class='ident'>clone</span>())
                         .<span class='ident'>call</span>().<span class='ident'>build_path</span>(<span class='ident'>ty_path</span>).<span class='ident'>arg</span>().<span class='ident'>build</span>(
                             <span class='macro'>ptr_cast</span><span class='macro'>!</span>(
-                                <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>span</span>(<span class='ident'>sp</span>).<span class='ident'>expr</span>().<span class='ident'>u32</span>(<span class='ident'>addr</span>),
-                                <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>ty</span>().<span class='ident'>u8</span>(),
+                                <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>span</span>(<span class='ident'>sp</span>).<span class='ident'>expr</span>().<span class='ident'>u32</span>(<span class='ident'>addr</span>),
+                                <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>ty</span>().<span class='ident'>u8</span>(),
                                 <span class='bool-val'>false</span>
                             )
                         ).<span class='ident'>build</span>();
@@ -1279,8 +1279,8 @@
                     <span class='ident'>built_struct</span> <span class='op'>=</span> <span class='ident'>built_struct</span>.<span class='ident'>span</span>(<span class='ident'>sp</span>).<span class='ident'>field</span>(<span class='ident'>p</span>.<span class='ident'>name</span>.<span class='ident'>clone</span>())
                         .<span class='ident'>call</span>().<span class='ident'>build_path</span>(<span class='ident'>ty_path</span>).<span class='ident'>arg</span>().<span class='ident'>build</span>(
                             <span class='macro'>ptr_cast</span><span class='macro'>!</span>(
-                                <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>span</span>(<span class='ident'>sp</span>).<span class='ident'>expr</span>().<span class='ident'>id</span>(<span class='ident'>name</span>),
-                                <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>ty</span>().<span class='ident'>u8</span>(),
+                                <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>span</span>(<span class='ident'>sp</span>).<span class='ident'>expr</span>().<span class='ident'>id</span>(<span class='ident'>name</span>),
+                                <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>ty</span>().<span class='ident'>u8</span>(),
                                 <span class='bool-val'>false</span>
                             )
                         ).<span class='ident'>build</span>();
@@ -1300,16 +1300,16 @@
         <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>externs</span>: <span class='ident'>Vec</span><span class='op'>&lt;</span><span class='ident'>ast</span>::<span class='ident'>ForeignItem</span><span class='op'>&gt;</span> <span class='op'>=</span> <span class='macro'>vec</span><span class='macro'>!</span>();
         <span class='kw'>for</span> (<span class='ident'>k</span>, <span class='ident'>e</span>) <span class='kw'>in</span> <span class='kw-2'>&amp;</span><span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>externs</span> {
             <span class='ident'>externs</span>.<span class='ident'>push</span>(<span class='ident'>ast</span>::<span class='ident'>ForeignItem</span> {
-                <span class='ident'>ident</span>: <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>id</span>(<span class='ident'>k</span>),
+                <span class='ident'>ident</span>: <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>id</span>(<span class='ident'>k</span>),
                 <span class='ident'>attrs</span>: <span class='macro'>vec</span><span class='macro'>!</span>(),
-                <span class='ident'>node</span>: <span class='ident'>ast</span>::<span class='ident'>ForeignItemKind</span>::<span class='ident'>Static</span>(<span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>ty</span>().<span class='ident'>span</span>(<span class='ident'>e</span>.<span class='number'>1</span>).<span class='ident'>build_ty_kind</span>(<span class='ident'>e</span>.<span class='number'>0</span>.<span class='ident'>clone</span>()), <span class='bool-val'>false</span>),
+                <span class='ident'>node</span>: <span class='ident'>ast</span>::<span class='ident'>ForeignItemKind</span>::<span class='ident'>Static</span>(<span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>ty</span>().<span class='ident'>span</span>(<span class='ident'>e</span>.<span class='number'>1</span>).<span class='ident'>build_ty_kind</span>(<span class='ident'>e</span>.<span class='number'>0</span>.<span class='ident'>clone</span>()), <span class='bool-val'>false</span>),
                 <span class='ident'>id</span>: <span class='number'>0xFFFFFFFF</span>,
                 <span class='ident'>span</span>: <span class='ident'>e</span>.<span class='number'>1</span>,
                 <span class='ident'>vis</span>: <span class='ident'>ast</span>::<span class='ident'>Visibility</span>::<span class='ident'>Inherited</span>,
             });
         }
 
-        <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>item</span>().<span class='ident'>build_item_kind</span>(<span class='string'>&quot;extern_block&quot;</span>, <span class='ident'>ast</span>::<span class='ident'>ItemKind</span>::<span class='ident'>ForeignMod</span>(<span class='ident'>ast</span>::<span class='ident'>ForeignMod</span>{
+        <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>item</span>().<span class='ident'>build_item_kind</span>(<span class='string'>&quot;extern_block&quot;</span>, <span class='ident'>ast</span>::<span class='ident'>ItemKind</span>::<span class='ident'>ForeignMod</span>(<span class='ident'>ast</span>::<span class='ident'>ForeignMod</span>{
             <span class='ident'>abi</span>: <span class='ident'>abi</span>::<span class='ident'>Abi</span>::<span class='ident'>C</span>,
             <span class='ident'>items</span>: <span class='ident'>externs</span>
         }))
@@ -1360,7 +1360,7 @@
 
     <span class='doccomment'>/// Entry for generating the impl block for the mcu.</span>
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>build_impl</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>ptr</span>::<span class='ident'>P</span><span class='op'>&lt;</span><span class='ident'>ast</span>::<span class='ident'>Item</span><span class='op'>&gt;</span> {
-        <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>impl_block</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>item</span>().<span class='ident'>impl_</span>();
+        <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>impl_block</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>item</span>().<span class='ident'>impl_</span>();
         <span class='ident'>impl_block</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>build_const_vals</span>(<span class='ident'>impl_block</span>);
 
         <span class='comment'>// create the ::new() method</span>
@@ -1401,12 +1401,12 @@
             .<span class='ident'>self_</span>().<span class='ident'>ref_</span>().<span class='ident'>default_return</span>()
             .<span class='ident'>block</span>().<span class='ident'>unsafe_</span>()
                 .<span class='ident'>stmt</span>().<span class='ident'>expr</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>data</span>.<span class='ident'>span</span>).<span class='ident'>call</span>().<span class='ident'>id</span>(<span class='string'>&quot;volatile_copy_nonoverlapping_memory&quot;</span>)
-                    .<span class='ident'>with_arg</span>(<span class='macro'>ptr_cast</span><span class='macro'>!</span>(<span class='ident'>dest_expr</span>, <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>ty</span>().<span class='ident'>u8</span>(), <span class='bool-val'>true</span> <span class='comment'>/* mut ptr */</span>))
-                    .<span class='ident'>with_arg</span>(<span class='macro'>ptr_cast</span><span class='macro'>!</span>(<span class='ident'>begin_expr</span>.<span class='ident'>clone</span>(), <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>ty</span>().<span class='ident'>u8</span>(), <span class='bool-val'>false</span> <span class='comment'>/* const ptr */</span>))
+                    .<span class='ident'>with_arg</span>(<span class='macro'>ptr_cast</span><span class='macro'>!</span>(<span class='ident'>dest_expr</span>, <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>ty</span>().<span class='ident'>u8</span>(), <span class='bool-val'>true</span> <span class='comment'>/* mut ptr */</span>))
+                    .<span class='ident'>with_arg</span>(<span class='macro'>ptr_cast</span><span class='macro'>!</span>(<span class='ident'>begin_expr</span>.<span class='ident'>clone</span>(), <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>ty</span>().<span class='ident'>u8</span>(), <span class='bool-val'>false</span> <span class='comment'>/* const ptr */</span>))
                     .<span class='ident'>with_arg</span>(
-                        <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>expr</span>().<span class='ident'>build_expr_kind</span>(<span class='ident'>ast</span>::<span class='ident'>ExprKind</span>::<span class='ident'>Cast</span>(
-                            <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>expr</span>().<span class='ident'>paren</span>().<span class='ident'>build_sub</span>(<span class='ident'>end_expr</span>, <span class='ident'>begin_expr</span>),
-                            <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>ty</span>().<span class='ident'>usize</span>()
+                        <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>expr</span>().<span class='ident'>build_expr_kind</span>(<span class='ident'>ast</span>::<span class='ident'>ExprKind</span>::<span class='ident'>Cast</span>(
+                            <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>expr</span>().<span class='ident'>paren</span>().<span class='ident'>build_sub</span>(<span class='ident'>end_expr</span>, <span class='ident'>begin_expr</span>),
+                            <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>ty</span>().<span class='ident'>usize</span>()
                         ))
                     )
                 .<span class='ident'>build</span>()
@@ -1426,11 +1426,11 @@
             .<span class='ident'>self_</span>().<span class='ident'>ref_</span>().<span class='ident'>default_return</span>()
             .<span class='ident'>block</span>().<span class='ident'>unsafe_</span>()
                 .<span class='ident'>stmt</span>().<span class='ident'>expr</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>data</span>.<span class='ident'>span</span>).<span class='ident'>call</span>().<span class='ident'>id</span>(<span class='string'>&quot;volatile_set_memory&quot;</span>)
-                    .<span class='ident'>with_arg</span>(<span class='macro'>ptr_cast</span><span class='macro'>!</span>(<span class='ident'>begin_expr</span>.<span class='ident'>clone</span>(), <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>ty</span>().<span class='ident'>u8</span>(), <span class='bool-val'>true</span> <span class='comment'>/* mut ptr */</span>))
+                    .<span class='ident'>with_arg</span>(<span class='macro'>ptr_cast</span><span class='macro'>!</span>(<span class='ident'>begin_expr</span>.<span class='ident'>clone</span>(), <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>ty</span>().<span class='ident'>u8</span>(), <span class='bool-val'>true</span> <span class='comment'>/* mut ptr */</span>))
                     .<span class='ident'>arg</span>().<span class='ident'>u8</span>(<span class='number'>0</span>)
                     .<span class='ident'>with_arg</span>(<span class='macro'>cast</span><span class='macro'>!</span>(
-                        <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>expr</span>().<span class='ident'>paren</span>().<span class='ident'>build_sub</span>(<span class='ident'>end_expr</span>.<span class='ident'>clone</span>(), <span class='ident'>begin_expr</span>.<span class='ident'>clone</span>()),
-                        <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>ty</span>().<span class='ident'>usize</span>()
+                        <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>expr</span>().<span class='ident'>paren</span>().<span class='ident'>build_sub</span>(<span class='ident'>end_expr</span>.<span class='ident'>clone</span>(), <span class='ident'>begin_expr</span>.<span class='ident'>clone</span>()),
+                        <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>ty</span>().<span class='ident'>usize</span>()
                     ))
                 .<span class='ident'>build</span>()
             .<span class='ident'>build</span>()
@@ -1485,8 +1485,8 @@
     <span class='doccomment'>/// table structure we need.</span>
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>build_interrupts</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>Vec</span><span class='op'>&lt;</span><span class='ident'>ptr</span>::<span class='ident'>P</span><span class='op'>&lt;</span><span class='ident'>ast</span>::<span class='ident'>Item</span><span class='op'>&gt;&gt;</span> {
         <span class='kw'>let</span> <span class='ident'>stack_ty</span> <span class='op'>=</span> <span class='kw'>match</span> <span class='self'>self</span>.<span class='ident'>is_extern</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>stack</span>.<span class='ident'>base</span>) {
-            <span class='bool-val'>true</span> <span class='op'>=&gt;</span> { <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>interrupts</span>.<span class='ident'>span</span>).<span class='ident'>ty</span>().<span class='ident'>ref_</span>().<span class='ident'>lifetime</span>(<span class='string'>&quot;&#39;static&quot;</span>).<span class='ident'>ty</span>().<span class='ident'>u32</span>() }
-            <span class='bool-val'>false</span> <span class='op'>=&gt;</span> { <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>interrupts</span>.<span class='ident'>span</span>).<span class='ident'>ty</span>().<span class='ident'>u32</span>() }
+            <span class='bool-val'>true</span> <span class='op'>=&gt;</span> { <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>interrupts</span>.<span class='ident'>span</span>).<span class='ident'>ty</span>().<span class='ident'>ref_</span>().<span class='ident'>lifetime</span>(<span class='string'>&quot;&#39;static&quot;</span>).<span class='ident'>ty</span>().<span class='ident'>u32</span>() }
+            <span class='bool-val'>false</span> <span class='op'>=&gt;</span> { <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>interrupts</span>.<span class='ident'>span</span>).<span class='ident'>ty</span>().<span class='ident'>u32</span>() }
         };
 
         <span class='kw'>let</span> <span class='ident'>num_ints</span> <span class='op'>=</span> <span class='kw'>if</span> <span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>interrupts</span>.<span class='ident'>total_ints</span> <span class='op'>==</span> <span class='number'>0</span> {
@@ -1496,25 +1496,25 @@
         } <span class='kw'>as</span> <span class='ident'>usize</span>;
 
         <span class='comment'>// make an &quot;easy to reference&quot; type InterruptArray that holds ISRs [2, N]</span>
-        <span class='kw'>let</span> <span class='ident'>int_type</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>item</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>interrupts</span>.<span class='ident'>span</span>)
+        <span class='kw'>let</span> <span class='ident'>int_type</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>item</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>interrupts</span>.<span class='ident'>span</span>)
             .<span class='ident'>attr</span>().<span class='ident'>list</span>(<span class='string'>&quot;repr&quot;</span>).<span class='ident'>word</span>(<span class='string'>&quot;C&quot;</span>).<span class='ident'>build</span>()
             .<span class='ident'>pub_</span>().<span class='ident'>struct_</span>(<span class='string'>&quot;Interrupts&quot;</span>)
                 .<span class='ident'>field</span>(<span class='string'>&quot;stack&quot;</span>).<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>interrupts</span>.<span class='ident'>span</span>).<span class='ident'>build_ty</span>(<span class='ident'>stack_ty</span>)
                 .<span class='ident'>field</span>(<span class='string'>&quot;isrs&quot;</span>).<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>interrupts</span>.<span class='ident'>span</span>).<span class='ident'>ty</span>()
                     .<span class='ident'>build_ty_kind</span>(<span class='ident'>ast</span>::<span class='ident'>TyKind</span>::<span class='ident'>FixedLengthVec</span>(
-                        <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>ty</span>()
+                        <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>ty</span>()
                             .<span class='ident'>path</span>().<span class='ident'>id</span>(<span class='string'>&quot;core&quot;</span>).<span class='ident'>id</span>(<span class='string'>&quot;option&quot;</span>).<span class='ident'>segment</span>(<span class='string'>&quot;Option&quot;</span>).<span class='ident'>with_ty</span>(<span class='macro'>bare_fn</span><span class='macro'>!</span>(<span class='self'>self</span>)).<span class='ident'>build</span>().<span class='ident'>build</span>(),
-                        <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>expr</span>().<span class='ident'>lit</span>().<span class='ident'>usize</span>(<span class='ident'>num_ints</span>)
+                        <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>expr</span>().<span class='ident'>lit</span>().<span class='ident'>usize</span>(<span class='ident'>num_ints</span>)
                     ))
                 .<span class='ident'>build</span>();
 
-        <span class='kw'>let</span> <span class='ident'>none_expr</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>expr</span>().<span class='ident'>path</span>().<span class='ident'>id</span>(<span class='string'>&quot;core&quot;</span>).<span class='ident'>id</span>(<span class='string'>&quot;option&quot;</span>).<span class='ident'>id</span>(<span class='string'>&quot;Option&quot;</span>).<span class='ident'>segment</span>(<span class='string'>&quot;None&quot;</span>).<span class='ident'>build</span>().<span class='ident'>build</span>();
+        <span class='kw'>let</span> <span class='ident'>none_expr</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>expr</span>().<span class='ident'>path</span>().<span class='ident'>id</span>(<span class='string'>&quot;core&quot;</span>).<span class='ident'>id</span>(<span class='string'>&quot;option&quot;</span>).<span class='ident'>id</span>(<span class='string'>&quot;Option&quot;</span>).<span class='ident'>segment</span>(<span class='string'>&quot;None&quot;</span>).<span class='ident'>build</span>().<span class='ident'>build</span>();
         <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>ints</span>: <span class='ident'>Vec</span><span class='op'>&lt;</span><span class='ident'>ptr</span>::<span class='ident'>P</span><span class='op'>&lt;</span><span class='ident'>ast</span>::<span class='ident'>Expr</span><span class='op'>&gt;&gt;</span> <span class='op'>=</span> <span class='macro'>vec</span><span class='macro'>!</span>[<span class='ident'>none_expr</span>.<span class='ident'>clone</span>(); <span class='ident'>num_ints</span>];
 
         <span class='comment'>// TODO: I don&#39;t really like the -1 stuff because of stack</span>
         <span class='comment'>// add the entry pointer to the interrupt list</span>
         <span class='kw'>if</span> <span class='op'>!</span> <span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>no_init</span> {
-            <span class='ident'>ints</span>[<span class='number'>0</span>] <span class='op'>=</span> <span class='macro'>core_option</span><span class='macro'>!</span>(<span class='self'>self</span>, <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>expr</span>().<span class='ident'>id</span>(<span class='string'>&quot;init&quot;</span>));
+            <span class='ident'>ints</span>[<span class='number'>0</span>] <span class='op'>=</span> <span class='macro'>core_option</span><span class='macro'>!</span>(<span class='self'>self</span>, <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>expr</span>().<span class='ident'>id</span>(<span class='string'>&quot;init&quot;</span>));
         }
 
         <span class='kw'>for</span> <span class='ident'>i</span> <span class='kw'>in</span> <span class='kw-2'>&amp;</span><span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>interrupts</span>.<span class='ident'>ints</span> {
@@ -1535,11 +1535,11 @@
                     <span class='kw'>if</span> <span class='ident'>id</span>.<span class='ident'>name</span>.<span class='ident'>to_string</span>() <span class='op'>==</span> <span class='string'>&quot;None&quot;</span>.<span class='ident'>to_string</span>() {
                         <span class='ident'>none_expr</span>.<span class='ident'>clone</span>()
                     } <span class='kw'>else</span> {
-                        <span class='macro'>core_option</span><span class='macro'>!</span>(<span class='self'>self</span>, <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>expr</span>().<span class='ident'>span</span>(<span class='ident'>sp</span>).<span class='ident'>id</span>(<span class='ident'>id</span>))
+                        <span class='macro'>core_option</span><span class='macro'>!</span>(<span class='self'>self</span>, <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>expr</span>().<span class='ident'>span</span>(<span class='ident'>sp</span>).<span class='ident'>id</span>(<span class='ident'>id</span>))
                     }
                 }
                 <span class='kw-2'>&amp;</span><span class='ident'>StaticValue</span>::<span class='ident'>Path</span>(<span class='kw-2'>ref</span> <span class='ident'>path</span>, <span class='ident'>sp</span>) <span class='op'>=&gt;</span> {
-                    <span class='macro'>core_option</span><span class='macro'>!</span>(<span class='self'>self</span>, <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>expr</span>().<span class='ident'>span</span>(<span class='ident'>sp</span>).<span class='ident'>build_path</span>(<span class='ident'>path</span>.<span class='ident'>clone</span>()))
+                    <span class='macro'>core_option</span><span class='macro'>!</span>(<span class='self'>self</span>, <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>expr</span>().<span class='ident'>span</span>(<span class='ident'>sp</span>).<span class='ident'>build_path</span>(<span class='ident'>path</span>.<span class='ident'>clone</span>()))
                 }
 
                 <span class='comment'>// not allowed</span>
@@ -1563,20 +1563,20 @@
 
         <span class='macro'>vec</span><span class='macro'>!</span>[
             <span class='ident'>int_type</span>,
-            <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>item</span>()
+            <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>item</span>()
                 .<span class='ident'>attr</span>().<span class='ident'>name_value</span>(<span class='string'>&quot;link_section&quot;</span>).<span class='ident'>str</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>interrupts</span>.<span class='ident'>link_location</span>.<span class='ident'>as_str</span>())
                 .<span class='ident'>pub_</span>().<span class='ident'>build_item_kind</span>(
                     <span class='string'>&quot;INTERRUPTS&quot;</span>,
                     <span class='ident'>ast</span>::<span class='ident'>ItemKind</span>::<span class='ident'>Static</span>(
-                        <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>ty</span>().<span class='ident'>id</span>(<span class='string'>&quot;Interrupts&quot;</span>),
+                        <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>ty</span>().<span class='ident'>id</span>(<span class='string'>&quot;Interrupts&quot;</span>),
                         <span class='ident'>ast</span>::<span class='ident'>Mutability</span>::<span class='ident'>Immutable</span>,
-                        <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>expr</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>stack</span>.<span class='ident'>span</span>).<span class='ident'>struct_</span>().<span class='ident'>id</span>(<span class='string'>&quot;Interrupts&quot;</span>).<span class='ident'>build</span>()
+                        <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>expr</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>stack</span>.<span class='ident'>span</span>).<span class='ident'>struct_</span>().<span class='ident'>id</span>(<span class='string'>&quot;Interrupts&quot;</span>).<span class='ident'>build</span>()
                             .<span class='ident'>field</span>(<span class='string'>&quot;stack&quot;</span>).<span class='ident'>build</span>(<span class='kw'>match</span> <span class='kw-2'>&amp;</span><span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>stack</span>.<span class='ident'>base</span> {
                                 <span class='kw-2'>&amp;</span><span class='ident'>StaticValue</span>::<span class='ident'>Ident</span>(<span class='kw-2'>ref</span> <span class='ident'>raw</span>, _, <span class='ident'>sp</span>) <span class='op'>=&gt;</span> { <span class='comment'>// TODO: use the already parsed Ident</span>
                                     <span class='kw'>if</span> <span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>externs</span>.<span class='ident'>contains_key</span>(<span class='ident'>raw</span>) {
-                                        <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>expr</span>().<span class='ident'>span</span>(<span class='ident'>sp</span>).<span class='ident'>block</span>().<span class='ident'>unsafe_</span>().<span class='ident'>expr</span>().<span class='ident'>ref_</span>().<span class='ident'>id</span>(<span class='ident'>raw</span>.<span class='ident'>as_str</span>())
+                                        <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>expr</span>().<span class='ident'>span</span>(<span class='ident'>sp</span>).<span class='ident'>block</span>().<span class='ident'>unsafe_</span>().<span class='ident'>expr</span>().<span class='ident'>ref_</span>().<span class='ident'>id</span>(<span class='ident'>raw</span>.<span class='ident'>as_str</span>())
                                     } <span class='kw'>else</span> {
-                                        <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>expr</span>().<span class='ident'>id</span>(<span class='ident'>raw</span>)
+                                        <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>expr</span>().<span class='ident'>id</span>(<span class='ident'>raw</span>)
                                     }
                                 }
                                 _ <span class='op'>=&gt;</span> {
@@ -1596,15 +1596,15 @@
     <span class='doccomment'>/// It will look and function just like an ioreg peripheral, but generated here instead.</span>
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>build_nvic_ty</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>ptr</span>::<span class='ident'>P</span><span class='op'>&lt;</span><span class='ident'>ast</span>::<span class='ident'>Item</span><span class='op'>&gt;</span> {
         <span class='kw'>let</span> <span class='ident'>ty_name</span> <span class='op'>=</span> <span class='macro'>format</span><span class='macro'>!</span>(<span class='string'>&quot;{}NVIC&quot;</span>, <span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>name</span>);
-        <span class='kw'>let</span> <span class='ident'>bitslice</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>ty</span>().<span class='ident'>build_ty_kind</span>(<span class='ident'>ast</span>::<span class='ident'>TyKind</span>::<span class='ident'>FixedLengthVec</span>(
-            <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>ty</span>().<span class='ident'>u32</span>(),
-            <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>expr</span>().<span class='ident'>usize</span>(<span class='number'>8</span>),
+        <span class='kw'>let</span> <span class='ident'>bitslice</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>ty</span>().<span class='ident'>build_ty_kind</span>(<span class='ident'>ast</span>::<span class='ident'>TyKind</span>::<span class='ident'>FixedLengthVec</span>(
+            <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>ty</span>().<span class='ident'>u32</span>(),
+            <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>expr</span>().<span class='ident'>usize</span>(<span class='number'>8</span>),
         ));
-        <span class='kw'>let</span> <span class='ident'>byteslice</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>ty</span>().<span class='ident'>build_ty_kind</span>(<span class='ident'>ast</span>::<span class='ident'>TyKind</span>::<span class='ident'>FixedLengthVec</span>(
-            <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>ty</span>().<span class='ident'>u8</span>(),
-            <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>expr</span>().<span class='ident'>usize</span>(<span class='number'>240</span>),    <span class='comment'>// TODO: verify not 256 like others</span>
+        <span class='kw'>let</span> <span class='ident'>byteslice</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>ty</span>().<span class='ident'>build_ty_kind</span>(<span class='ident'>ast</span>::<span class='ident'>TyKind</span>::<span class='ident'>FixedLengthVec</span>(
+            <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>ty</span>().<span class='ident'>u8</span>(),
+            <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>expr</span>().<span class='ident'>usize</span>(<span class='number'>240</span>),    <span class='comment'>// TODO: verify not 256 like others</span>
         ));
-        <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>preamble</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>item</span>()
+        <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>preamble</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>item</span>()
             .<span class='ident'>attr</span>().<span class='ident'>list</span>(<span class='string'>&quot;repr&quot;</span>).<span class='ident'>word</span>(<span class='string'>&quot;C&quot;</span>).<span class='ident'>build</span>()
             .<span class='ident'>attr</span>().<span class='ident'>list</span>(<span class='string'>&quot;derive&quot;</span>).<span class='ident'>word</span>(<span class='string'>&quot;Clone&quot;</span>).<span class='ident'>build</span>()
             .<span class='ident'>attr</span>().<span class='ident'>list</span>(<span class='string'>&quot;derive&quot;</span>).<span class='ident'>word</span>(<span class='string'>&quot;Debug&quot;</span>).<span class='ident'>build</span>()
@@ -1634,38 +1634,38 @@
     <span class='doccomment'>/// This is used for NVIC::new() as well as the MCU instantiation.</span>
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>build_nvic_instance</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>ptr</span>::<span class='ident'>P</span><span class='op'>&lt;</span><span class='ident'>ast</span>::<span class='ident'>Expr</span><span class='op'>&gt;</span> {
         <span class='kw'>let</span> <span class='ident'>ty_name</span> <span class='op'>=</span> <span class='macro'>format</span><span class='macro'>!</span>(<span class='string'>&quot;{}NVIC&quot;</span>, <span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>name</span>);
-        <span class='kw'>let</span> <span class='ident'>bitslice</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>ty</span>().<span class='ident'>build_ty_kind</span>(<span class='ident'>ast</span>::<span class='ident'>TyKind</span>::<span class='ident'>FixedLengthVec</span>(
-            <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>ty</span>().<span class='ident'>u32</span>(),
-            <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>expr</span>().<span class='ident'>usize</span>(<span class='number'>8</span>),
+        <span class='kw'>let</span> <span class='ident'>bitslice</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>ty</span>().<span class='ident'>build_ty_kind</span>(<span class='ident'>ast</span>::<span class='ident'>TyKind</span>::<span class='ident'>FixedLengthVec</span>(
+            <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>ty</span>().<span class='ident'>u32</span>(),
+            <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>expr</span>().<span class='ident'>usize</span>(<span class='number'>8</span>),
         ));
-        <span class='kw'>let</span> <span class='ident'>byteslice</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>ty</span>().<span class='ident'>build_ty_kind</span>(<span class='ident'>ast</span>::<span class='ident'>TyKind</span>::<span class='ident'>FixedLengthVec</span>(
-            <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>ty</span>().<span class='ident'>u8</span>(),
-            <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>expr</span>().<span class='ident'>usize</span>(<span class='number'>240</span>),    <span class='comment'>// TODO: verify not 256 like others</span>
+        <span class='kw'>let</span> <span class='ident'>byteslice</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>ty</span>().<span class='ident'>build_ty_kind</span>(<span class='ident'>ast</span>::<span class='ident'>TyKind</span>::<span class='ident'>FixedLengthVec</span>(
+            <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>ty</span>().<span class='ident'>u8</span>(),
+            <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>expr</span>().<span class='ident'>usize</span>(<span class='number'>240</span>),    <span class='comment'>// TODO: verify not 256 like others</span>
         ));
 
-        <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>expr</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>struct_</span>().<span class='ident'>id</span>(<span class='ident'>ty_name</span>.<span class='ident'>as_str</span>()).<span class='ident'>build</span>()
+        <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>expr</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>struct_</span>().<span class='ident'>id</span>(<span class='ident'>ty_name</span>.<span class='ident'>as_str</span>()).<span class='ident'>build</span>()
             .<span class='ident'>field</span>(<span class='string'>&quot;iser&quot;</span>).<span class='ident'>build</span>(<span class='macro'>ptr_cast</span><span class='macro'>!</span>(
-                <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>expr</span>().<span class='ident'>u32</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>addr</span> <span class='op'>+</span> <span class='number'>0x100</span>), <span class='comment'>// TODO: verify offset</span>
+                <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>expr</span>().<span class='ident'>u32</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>addr</span> <span class='op'>+</span> <span class='number'>0x100</span>), <span class='comment'>// TODO: verify offset</span>
                 <span class='ident'>bitslice</span>.<span class='ident'>clone</span>(),<span class='bool-val'>true</span>
             ))
             .<span class='ident'>field</span>(<span class='string'>&quot;icer&quot;</span>).<span class='ident'>build</span>(<span class='macro'>ptr_cast</span><span class='macro'>!</span>(
-                <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>expr</span>().<span class='ident'>u32</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>addr</span> <span class='op'>+</span> <span class='number'>0x180</span>), <span class='comment'>// TODO: verify offset</span>
+                <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>expr</span>().<span class='ident'>u32</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>addr</span> <span class='op'>+</span> <span class='number'>0x180</span>), <span class='comment'>// TODO: verify offset</span>
                 <span class='ident'>bitslice</span>.<span class='ident'>clone</span>(),<span class='bool-val'>true</span>
             ))
             .<span class='ident'>field</span>(<span class='string'>&quot;ispr&quot;</span>).<span class='ident'>build</span>(<span class='macro'>ptr_cast</span><span class='macro'>!</span>(
-                <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>expr</span>().<span class='ident'>u32</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>addr</span> <span class='op'>+</span> <span class='number'>0x200</span>), <span class='comment'>// TODO: verify offset</span>
+                <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>expr</span>().<span class='ident'>u32</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>addr</span> <span class='op'>+</span> <span class='number'>0x200</span>), <span class='comment'>// TODO: verify offset</span>
                 <span class='ident'>bitslice</span>.<span class='ident'>clone</span>(),<span class='bool-val'>true</span>
             ))
             .<span class='ident'>field</span>(<span class='string'>&quot;icpr&quot;</span>).<span class='ident'>build</span>(<span class='macro'>ptr_cast</span><span class='macro'>!</span>(
-                <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>expr</span>().<span class='ident'>u32</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>addr</span> <span class='op'>+</span> <span class='number'>0x280</span>), <span class='comment'>// TODO: verify offset</span>
+                <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>expr</span>().<span class='ident'>u32</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>addr</span> <span class='op'>+</span> <span class='number'>0x280</span>), <span class='comment'>// TODO: verify offset</span>
                 <span class='ident'>bitslice</span>.<span class='ident'>clone</span>(),<span class='bool-val'>true</span>
             ))
             .<span class='ident'>field</span>(<span class='string'>&quot;iabr&quot;</span>).<span class='ident'>build</span>(<span class='macro'>ptr_cast</span><span class='macro'>!</span>(
-                <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>expr</span>().<span class='ident'>u32</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>addr</span> <span class='op'>+</span> <span class='number'>0x300</span>), <span class='comment'>// TODO: verify offset</span>
+                <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>expr</span>().<span class='ident'>u32</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>addr</span> <span class='op'>+</span> <span class='number'>0x300</span>), <span class='comment'>// TODO: verify offset</span>
                 <span class='ident'>bitslice</span>.<span class='ident'>clone</span>(),<span class='bool-val'>true</span>
             ))
             .<span class='ident'>field</span>(<span class='string'>&quot;ipr&quot;</span>).<span class='ident'>build</span>(<span class='macro'>ptr_cast</span><span class='macro'>!</span>(
-                <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>expr</span>().<span class='ident'>u32</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>addr</span> <span class='op'>+</span> <span class='number'>0x400</span>), <span class='comment'>// TODO: verify offset</span>
+                <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>expr</span>().<span class='ident'>u32</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>addr</span> <span class='op'>+</span> <span class='number'>0x400</span>), <span class='comment'>// TODO: verify offset</span>
                 <span class='ident'>byteslice</span>,<span class='bool-val'>true</span>
             ))
             .<span class='ident'>build</span>()
@@ -1675,7 +1675,7 @@
     <span class='doccomment'>/// Generates the functions that will exist on the NVIC handler, but not the NVIC trait.</span>
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>build_nvic_impl</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>ptr</span>::<span class='ident'>P</span><span class='op'>&lt;</span><span class='ident'>ast</span>::<span class='ident'>Item</span><span class='op'>&gt;</span> {
         <span class='kw'>let</span> <span class='ident'>ty_name</span> <span class='op'>=</span> <span class='macro'>format</span><span class='macro'>!</span>(<span class='string'>&quot;{}NVIC&quot;</span>, <span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>name</span>);
-        <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>impl_block</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>item</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>impl_</span>();
+        <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>impl_block</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>item</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>impl_</span>();
 
         <span class='comment'>// make the &quot;::new()&quot; function</span>
         <span class='ident'>impl_block</span> <span class='op'>=</span> <span class='ident'>impl_block</span>.<span class='ident'>item</span>(<span class='string'>&quot;new&quot;</span>).<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>)
@@ -1697,7 +1697,7 @@
 
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>build_nvic_trait_impl</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>ptr</span>::<span class='ident'>P</span><span class='op'>&lt;</span><span class='ident'>ast</span>::<span class='ident'>Item</span><span class='op'>&gt;</span> {
         <span class='kw'>let</span> <span class='ident'>ty_name</span> <span class='op'>=</span> <span class='macro'>format</span><span class='macro'>!</span>(<span class='string'>&quot;{}NVIC&quot;</span>, <span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>name</span>); <span class='comment'>// TODO: consolidate this fn/macro to one place</span>
-        <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>blk</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>item</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>impl_</span>()
+        <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>blk</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>item</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>impl_</span>()
             .<span class='ident'>trait_</span>().<span class='ident'>build</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>trait_path</span>.<span class='ident'>clone</span>().<span class='ident'>unwrap</span>());
         <span class='ident'>blk</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>build_nvic_trait_fns</span>(<span class='ident'>blk</span>);
         <span class='ident'>blk</span>.<span class='ident'>ty</span>().<span class='ident'>id</span>(<span class='ident'>ty_name</span>.<span class='ident'>as_str</span>())
@@ -1726,16 +1726,16 @@
                         .<span class='ident'>paren</span>().<span class='ident'>deref</span>().<span class='ident'>field</span>(<span class='string'>&quot;iser&quot;</span>).<span class='ident'>self_</span>()
                         .<span class='ident'>div</span>()
                             .<span class='ident'>build</span>(<span class='macro'>cast</span><span class='macro'>!</span>(
-                                <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>expr</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>id</span>(<span class='string'>&quot;irq&quot;</span>),
-                                <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>ty</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>usize</span>()
+                                <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>expr</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>id</span>(<span class='string'>&quot;irq&quot;</span>),
+                                <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>ty</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>usize</span>()
                             ))
                             .<span class='ident'>lit</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>usize</span>(<span class='number'>32</span>)
                     .<span class='ident'>shl</span>()
                         .<span class='ident'>lit</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>u32</span>(<span class='number'>1</span>)
                         .<span class='ident'>paren</span>().<span class='ident'>rem</span>()
                             .<span class='ident'>build</span>(<span class='macro'>cast</span><span class='macro'>!</span>(
-                                <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>expr</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>id</span>(<span class='string'>&quot;irq&quot;</span>),
-                                <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>ty</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>u32</span>()
+                                <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>expr</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>id</span>(<span class='string'>&quot;irq&quot;</span>),
+                                <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>ty</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>u32</span>()
                             ))
                             .<span class='ident'>lit</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>u32</span>(<span class='number'>32</span>)
             .<span class='ident'>build</span>();
@@ -1755,16 +1755,16 @@
                         .<span class='ident'>paren</span>().<span class='ident'>deref</span>().<span class='ident'>field</span>(<span class='string'>&quot;icer&quot;</span>).<span class='ident'>self_</span>()
                         .<span class='ident'>div</span>()
                             .<span class='ident'>build</span>(<span class='macro'>cast</span><span class='macro'>!</span>(
-                                <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>expr</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>id</span>(<span class='string'>&quot;irq&quot;</span>),
-                                <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>ty</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>usize</span>()
+                                <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>expr</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>id</span>(<span class='string'>&quot;irq&quot;</span>),
+                                <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>ty</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>usize</span>()
                             ))
                             .<span class='ident'>lit</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>usize</span>(<span class='number'>32</span>)
                     .<span class='ident'>shl</span>()
                         .<span class='ident'>lit</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>u32</span>(<span class='number'>1</span>)
                         .<span class='ident'>paren</span>().<span class='ident'>rem</span>()
                             .<span class='ident'>build</span>(<span class='macro'>cast</span><span class='macro'>!</span>(
-                                <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>expr</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>id</span>(<span class='string'>&quot;irq&quot;</span>),
-                                <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>ty</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>u32</span>()
+                                <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>expr</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>id</span>(<span class='string'>&quot;irq&quot;</span>),
+                                <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>ty</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>u32</span>()
                             ))
                             .<span class='ident'>lit</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>u32</span>(<span class='number'>32</span>)
             .<span class='ident'>build</span>();
@@ -1784,16 +1784,16 @@
                             .<span class='ident'>paren</span>().<span class='ident'>deref</span>().<span class='ident'>field</span>(<span class='string'>&quot;iser&quot;</span>).<span class='ident'>self_</span>()
                             .<span class='ident'>div</span>()
                                 .<span class='ident'>build</span>(<span class='macro'>cast</span><span class='macro'>!</span>(
-                                    <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>expr</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>id</span>(<span class='string'>&quot;irq&quot;</span>),
-                                    <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>ty</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>usize</span>()
+                                    <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>expr</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>id</span>(<span class='string'>&quot;irq&quot;</span>),
+                                    <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>ty</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>usize</span>()
                                 ))
                                 .<span class='ident'>lit</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>usize</span>(<span class='number'>32</span>)
                         .<span class='ident'>shl</span>()
                             .<span class='ident'>lit</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>u32</span>(<span class='number'>1</span>)
                             .<span class='ident'>paren</span>().<span class='ident'>rem</span>()
                                 .<span class='ident'>build</span>(<span class='macro'>cast</span><span class='macro'>!</span>(
-                                    <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>expr</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>id</span>(<span class='string'>&quot;irq&quot;</span>),
-                                    <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>ty</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>u32</span>()
+                                    <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>expr</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>id</span>(<span class='string'>&quot;irq&quot;</span>),
+                                    <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>ty</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>u32</span>()
                                 ))
                                 .<span class='ident'>lit</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>u32</span>(<span class='number'>32</span>)
                     .<span class='ident'>lit</span>().<span class='ident'>u32</span>(<span class='number'>0</span>);
@@ -1816,16 +1816,16 @@
                         .<span class='ident'>paren</span>().<span class='ident'>deref</span>().<span class='ident'>field</span>(<span class='string'>&quot;ispr&quot;</span>).<span class='ident'>self_</span>()
                         .<span class='ident'>div</span>()
                             .<span class='ident'>build</span>(<span class='macro'>cast</span><span class='macro'>!</span>(
-                                <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>expr</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>id</span>(<span class='string'>&quot;irq&quot;</span>),
-                                <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>ty</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>usize</span>()
+                                <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>expr</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>id</span>(<span class='string'>&quot;irq&quot;</span>),
+                                <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>ty</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>usize</span>()
                             ))
                             .<span class='ident'>lit</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>usize</span>(<span class='number'>32</span>)
                     .<span class='ident'>shl</span>()
                         .<span class='ident'>lit</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>u32</span>(<span class='number'>1</span>)
                         .<span class='ident'>paren</span>().<span class='ident'>rem</span>()
                             .<span class='ident'>build</span>(<span class='macro'>cast</span><span class='macro'>!</span>(
-                                <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>expr</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>id</span>(<span class='string'>&quot;irq&quot;</span>),
-                                <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>ty</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>u32</span>()
+                                <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>expr</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>id</span>(<span class='string'>&quot;irq&quot;</span>),
+                                <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>ty</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>u32</span>()
                             ))
                             .<span class='ident'>lit</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>u32</span>(<span class='number'>32</span>)
                 .<span class='ident'>build</span>();
@@ -1845,16 +1845,16 @@
                         .<span class='ident'>paren</span>().<span class='ident'>deref</span>().<span class='ident'>field</span>(<span class='string'>&quot;icpr&quot;</span>).<span class='ident'>self_</span>()
                         .<span class='ident'>div</span>()
                             .<span class='ident'>build</span>(<span class='macro'>cast</span><span class='macro'>!</span>(
-                                <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>expr</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>id</span>(<span class='string'>&quot;irq&quot;</span>),
-                                <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>ty</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>usize</span>()
+                                <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>expr</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>id</span>(<span class='string'>&quot;irq&quot;</span>),
+                                <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>ty</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>usize</span>()
                             ))
                             .<span class='ident'>lit</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>usize</span>(<span class='number'>32</span>)
                     .<span class='ident'>shl</span>()
                         .<span class='ident'>lit</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>u32</span>(<span class='number'>1</span>)
                         .<span class='ident'>paren</span>().<span class='ident'>rem</span>()
                             .<span class='ident'>build</span>(<span class='macro'>cast</span><span class='macro'>!</span>(
-                                <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>expr</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>id</span>(<span class='string'>&quot;irq&quot;</span>),
-                                <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>ty</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>u32</span>()
+                                <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>expr</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>id</span>(<span class='string'>&quot;irq&quot;</span>),
+                                <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>ty</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>u32</span>()
                             ))
                             .<span class='ident'>lit</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>u32</span>(<span class='number'>32</span>)
                 .<span class='ident'>build</span>();
@@ -1874,16 +1874,16 @@
                             .<span class='ident'>paren</span>().<span class='ident'>deref</span>().<span class='ident'>field</span>(<span class='string'>&quot;ispr&quot;</span>).<span class='ident'>self_</span>()
                             .<span class='ident'>div</span>()
                                 .<span class='ident'>build</span>(<span class='macro'>cast</span><span class='macro'>!</span>(
-                                    <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>expr</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>id</span>(<span class='string'>&quot;irq&quot;</span>),
-                                    <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>ty</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>usize</span>()
+                                    <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>expr</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>id</span>(<span class='string'>&quot;irq&quot;</span>),
+                                    <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>ty</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>usize</span>()
                                 ))
                                 .<span class='ident'>lit</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>usize</span>(<span class='number'>32</span>)
                         .<span class='ident'>shl</span>()
                             .<span class='ident'>lit</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>u32</span>(<span class='number'>1</span>)
                             .<span class='ident'>paren</span>().<span class='ident'>rem</span>()
                                 .<span class='ident'>build</span>(<span class='macro'>cast</span><span class='macro'>!</span>(
-                                    <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>expr</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>id</span>(<span class='string'>&quot;irq&quot;</span>),
-                                    <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>ty</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>u32</span>()
+                                    <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>expr</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>id</span>(<span class='string'>&quot;irq&quot;</span>),
+                                    <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>ty</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>u32</span>()
                                 ))
                                 .<span class='ident'>lit</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>u32</span>(<span class='number'>32</span>)
                     .<span class='ident'>lit</span>().<span class='ident'>u32</span>(<span class='number'>0</span>);
@@ -1907,16 +1907,16 @@
                             .<span class='ident'>paren</span>().<span class='ident'>deref</span>().<span class='ident'>field</span>(<span class='string'>&quot;iabr&quot;</span>).<span class='ident'>self_</span>()
                             .<span class='ident'>div</span>()
                                 .<span class='ident'>build</span>(<span class='macro'>cast</span><span class='macro'>!</span>(
-                                    <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>expr</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>id</span>(<span class='string'>&quot;irq&quot;</span>),
-                                    <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>ty</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>usize</span>()
+                                    <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>expr</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>id</span>(<span class='string'>&quot;irq&quot;</span>),
+                                    <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>ty</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>usize</span>()
                                 ))
                                 .<span class='ident'>lit</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>usize</span>(<span class='number'>32</span>)
                         .<span class='ident'>shl</span>()
                             .<span class='ident'>lit</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>u32</span>(<span class='number'>1</span>)
                             .<span class='ident'>paren</span>().<span class='ident'>rem</span>()
                                 .<span class='ident'>build</span>(<span class='macro'>cast</span><span class='macro'>!</span>(
-                                    <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>expr</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>id</span>(<span class='string'>&quot;irq&quot;</span>),
-                                    <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>ty</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>u32</span>()
+                                    <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>expr</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>id</span>(<span class='string'>&quot;irq&quot;</span>),
+                                    <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>ty</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>u32</span>()
                                 ))
                                 .<span class='ident'>lit</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>u32</span>(<span class='number'>32</span>)
                     .<span class='ident'>lit</span>().<span class='ident'>u32</span>(<span class='number'>0</span>);
@@ -1941,8 +1941,8 @@
                     .<span class='ident'>index</span>()
                         .<span class='ident'>paren</span>().<span class='ident'>deref</span>().<span class='ident'>field</span>(<span class='string'>&quot;ipr&quot;</span>).<span class='ident'>self_</span>()
                         .<span class='ident'>build</span>(<span class='macro'>cast</span><span class='macro'>!</span>(
-                            <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>expr</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>id</span>(<span class='string'>&quot;irq&quot;</span>),
-                            <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>ty</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>usize</span>()
+                            <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>expr</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>id</span>(<span class='string'>&quot;irq&quot;</span>),
+                            <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>ty</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>usize</span>()
                         ))
                     .<span class='ident'>shl</span>()
                         .<span class='ident'>paren</span>().<span class='ident'>rem</span>()
@@ -1968,8 +1968,8 @@
                         .<span class='ident'>index</span>()
                             .<span class='ident'>paren</span>().<span class='ident'>deref</span>().<span class='ident'>field</span>(<span class='string'>&quot;ipr&quot;</span>).<span class='ident'>self_</span>()
                             .<span class='ident'>build</span>(<span class='macro'>cast</span><span class='macro'>!</span>(
-                                <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>expr</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>id</span>(<span class='string'>&quot;irq&quot;</span>),
-                                <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>ty</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>usize</span>()
+                                <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>expr</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>id</span>(<span class='string'>&quot;irq&quot;</span>),
+                                <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>ty</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>span</span>).<span class='ident'>usize</span>()
                             ))
                         .<span class='ident'>lit</span>().<span class='ident'>u8</span>(<span class='number'>8</span> <span class='op'>-</span> <span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>nvic</span>.<span class='ident'>prio_bits</span>);
 
@@ -1992,7 +1992,7 @@
     <span class='doccomment'>/// ```</span>
     <span class='doccomment'>///</span>
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>build_init</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>ptr</span>::<span class='ident'>P</span><span class='op'>&lt;</span><span class='ident'>ast</span>::<span class='ident'>Item</span><span class='op'>&gt;</span> {
-        <span class='kw'>let</span> <span class='ident'>exit_bootloader_base</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>stmt</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>init</span>.<span class='ident'>span</span>.<span class='ident'>clone</span>())
+        <span class='kw'>let</span> <span class='ident'>exit_bootloader_base</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>stmt</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>init</span>.<span class='ident'>span</span>.<span class='ident'>clone</span>())
             .<span class='ident'>expr</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>init</span>.<span class='ident'>span</span>.<span class='ident'>clone</span>())
             .<span class='ident'>block</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>init</span>.<span class='ident'>span</span>.<span class='ident'>clone</span>()).<span class='ident'>unsafe_</span>()
                 .<span class='ident'>stmt</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>init</span>.<span class='ident'>span</span>.<span class='ident'>clone</span>()).<span class='ident'>semi</span>()
@@ -2011,7 +2011,7 @@
               .<span class='ident'>build</span>()
           .<span class='ident'>build</span>();
 
-        <span class='self'>self</span>.<span class='ident'>base_builder</span>.<span class='ident'>item</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>init</span>.<span class='ident'>span</span>.<span class='ident'>clone</span>())
+        <span class='self'>self</span>.<span class='ident'>bldr</span>.<span class='ident'>item</span>().<span class='ident'>span</span>(<span class='self'>self</span>.<span class='ident'>mcu</span>.<span class='ident'>init</span>.<span class='ident'>span</span>.<span class='ident'>clone</span>())
             .<span class='ident'>attr</span>().<span class='ident'>doc</span>(<span class='string'>&quot;/// Generated reset handler that creates a new mcu, calls mcu.init(), and calls&quot;</span>)
             .<span class='ident'>attr</span>().<span class='ident'>doc</span>(<span class='string'>&quot;/// the function given to `bootloader_exit` with a reference to the mcu instance.&quot;</span>)
             .<span class='ident'>attr</span>().<span class='ident'>list</span>(<span class='string'>&quot;allow&quot;</span>).<span class='ident'>word</span>(<span class='string'>&quot;private_no_mangle_fns&quot;</span>).<span class='ident'>build</span>()
