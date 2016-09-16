@@ -5,6 +5,10 @@ language: rust
 rust:
     - nightly
 
+script:
+    - cargo build --release --verbose
+    - cargo test --release --verbose
+
 after_success:
     - cargo doc
     - ./scripts/ghp_upload.sh
