@@ -86,7 +86,7 @@ impl fmt::Debug for NonQuoteString {
 /// Generate documentation attributes for the given setter function.
 fn make_setter_doc(func: &common::IoRegFuncDef, seg: &common::IoRegSegmentInfo, off: &common::IoRegOffsetInfo) -> String {
     let mut mask_qual = "";
-    let mask_str = "\n\n**NOTE**: all values in unaligned writes are subject to masking which is not displayed here.";
+    let mask_str = "\n///\n/// **NOTE**: all values in unaligned writes are subject to masking which is not displayed here.";
     
     if func.ty == common::FunctionType::Setter {
         return format!(
@@ -137,7 +137,7 @@ fn make_setter_doc(func: &common::IoRegFuncDef, seg: &common::IoRegSegmentInfo, 
 pub struct Builder<'a> {
     verbose: bool,
     reg: common::IoRegInfo,
-    base_builder: aster::AstBuilder,
+    bldr: aster::AstBuilder,
     parser: ::ioreg::parser::Parser<'a>,
 }
 
@@ -147,7 +147,7 @@ impl<'a> Builder<'a> {
         Builder {
             verbose: verbose,
             reg: ioreg,
-            base_builder: aster::AstBuilder::new(),
+            bldr: aster::AstBuilder::new(),
             parser: parser,
         }
     }
@@ -161,7 +161,7 @@ impl<'a> Builder<'a> {
         let mut items: Vec<ptr::P<ast::Item>> = vec!();
 
         // generate the base "struct" pointer.
-        let mut docced_item = self.base_builder.item().span(self.reg.span)
+        let mut docced_item = self.bldr.item().span(self.reg.span)
             .attr().list("repr").word("C").build()
             .attr().list("derive").word("Debug").build()
             .attr().list("derive").word("Clone").build()
@@ -178,12 +178,12 @@ impl<'a> Builder<'a> {
 
         let type_def = docced_item
             .pub_().tuple_struct(self.reg.name.clone())
-                .field().pub_().build_ty( ptr_type!(self.base_builder.ty().u8(), false) ) // false = immutable
+                .field().pub_().build_ty( ptr_type!(self.bldr.ty().u8(), false) ) // false = immutable
             .build();
         items.push(type_def);
 
         // grab the root-level constants to start the impl block
-        let mut impl_build = self.base_builder.item().span(self.reg.span).impl_();
+        let mut impl_build = self.bldr.item().span(self.reg.span).impl_();
         impl_build = self.build_const_vals(&self.reg.const_vals, impl_build);
 
         // now build the segments
@@ -303,13 +303,13 @@ impl<'a> Builder<'a> {
     pub fn build_read_register<T>(&self, addr: u32, sp: Span) -> ptr::P<ast::Expr>
         where T: parser::ToAstType<T>
     {
-        let self_offset = self.base_builder.expr().span(sp)
+        let self_offset = self.bldr.expr().span(sp)
             .method_call("offset").tup_field(0).self_()
             .arg().lit().isize(addr as isize)
             .build();
 
         // volatile_load(self.0.offset(0x1234) as *T)
-        self.base_builder.expr().span(sp).call().id("volatile_load")
+        self.bldr.expr().span(sp).call().id("volatile_load")
             .with_arg(  ptr_cast!(self_offset, T::to_type(), false)  ) // immutable
             .build()
     }
@@ -318,13 +318,13 @@ impl<'a> Builder<'a> {
     pub fn build_volatile_store_base<T>(&self, addr: u32, sp: Span) -> FnArgsBuilder
         where T: parser::ToAstType<T>
     {
-        let self_offset = self.base_builder.expr().span(sp)
+        let self_offset = self.bldr.expr().span(sp)
             .method_call("offset").tup_field(0).self_()
             .arg().lit().isize(addr as isize)
             .build();
 
         // volatile_store(self.0.offset(0x1234) as *T, 0x1234)
-        self.base_builder.stmt().expr().span(sp).call().id("volatile_store")
+        self.bldr.stmt().expr().span(sp).call().id("volatile_store")
             .with_arg(ptr_cast!(self_offset, T::to_type(), true)) // mutable
     }
 
@@ -343,17 +343,17 @@ impl<'a> Builder<'a> {
             common::FunctionType::Setter => {
                 match v {
                     &common::FunctionValueType::Argument(ref arg_name, sp) => {
-                        base.with_arg( self.base_builder.expr().span(sp).id(arg_name) ).build()
+                        base.with_arg( self.bldr.expr().span(sp).id(arg_name) ).build()
                     }
                     &common::FunctionValueType::Static(_, sp) | &common::FunctionValueType::Reference(_, sp) => {
                         self.parser.parser.span_fatal(sp, "did not expect non-argument type for FunctionType::Setter").emit();
-                        base.with_arg( self.base_builder.expr().span(sp).id("non_argument_err") ).build()
+                        base.with_arg( self.bldr.expr().span(sp).id("non_argument_err") ).build()
                     }
                 }
             }
             common::FunctionType::Getter => {
                 self.parser.parser.span_fatal(fn_def.span, "did not expect getter function for generating volatile_store").emit();
-                base.with_arg( self.base_builder.expr().span(fn_def.span).id("wrong_func_type") ).build()
+                base.with_arg( self.bldr.expr().span(fn_def.span).id("wrong_func_type") ).build()
             }
         }
     }
@@ -422,15 +422,15 @@ impl<'a> Builder<'a> {
 
         match fn_def.ty {
             common::FunctionType::Setter => {
-                let arg_id = self.base_builder.expr().span(fn_def.span).id("val");
+                let arg_id = self.bldr.expr().span(fn_def.span).id("val");
                 let write_val = match off.offset {
                     0 => { arg_id }
                     _ => {
-                        self.base_builder.expr().span(fn_def.span).paren().build_shl(
-                            self.base_builder.expr().span(fn_def.span).paren().build_bit_and(
+                        self.bldr.expr().span(fn_def.span).paren().build_shl(
+                            self.bldr.expr().span(fn_def.span).paren().build_bit_and(
                                 arg_id, T::to_lit(T::narrow(val_mask))
                             ),
-                            self.base_builder.expr().span(fn_def.span).lit().u8(shift_offset)
+                            self.bldr.expr().span(fn_def.span).lit().u8(shift_offset)
                         )
                     }
                 };
@@ -438,8 +438,8 @@ impl<'a> Builder<'a> {
                 fn_block = fn_block.with_stmt(
                     self.build_volatile_store_base::<T>(write_address, fn_def.span)
                         .with_arg(
-                            self.base_builder.expr().span(fn_def.span).build_bit_or(
-                                self.base_builder.expr().span(fn_def.span).id(mask_id),
+                            self.bldr.expr().span(fn_def.span).build_bit_or(
+                                self.bldr.expr().span(fn_def.span).id(mask_id),
                                 write_val
                             )
                         )
@@ -456,9 +456,9 @@ impl<'a> Builder<'a> {
                             T::to_lit(T::narrow( self.get_uint_const_val::<u32>(v, seg) & val_mask ))
                         }
                         _ => {
-                            self.base_builder.expr().span(fn_def.span).paren().build_shl(
+                            self.bldr.expr().span(fn_def.span).paren().build_shl(
                                 T::to_lit( T::narrow( self.get_uint_const_val::<u32>(v, seg) & val_mask )),
-                                self.base_builder.expr().span(fn_def.span).lit().u8(shift_offset)
+                                self.bldr.expr().span(fn_def.span).lit().u8(shift_offset)
                             )
                         }
                     };
@@ -466,8 +466,8 @@ impl<'a> Builder<'a> {
                     fn_block = fn_block.with_stmt(
                         self.build_volatile_store_base::<T>(write_address, fn_def.span)
                             .with_arg(
-                                self.base_builder.expr().span(fn_def.span).build_bit_or(
-                                    self.base_builder.expr().span(fn_def.span).id(mask_id),
+                                self.bldr.expr().span(fn_def.span).build_bit_or(
+                                    self.bldr.expr().span(fn_def.span).id(mask_id),
                                     write_val
                                 )
                             )

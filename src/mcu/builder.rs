@@ -57,17 +57,17 @@ macro_rules! integral_or_ident_to_expr {
     ($val:expr, $err:expr, $self_:ident) => {
         match $val {
             StaticValue::Uint(addr, _, sp) => {
-                $self_.base_builder.expr().span(sp).lit().span(sp).u32(addr as u32)
+                $self_.bldr.expr().span(sp).lit().span(sp).u32(addr as u32)
             }
             StaticValue::Int(addr, _, sp) => {
-                $self_.base_builder.expr().span(sp).lit().span(sp).u32(addr as u32)
+                $self_.bldr.expr().span(sp).lit().span(sp).u32(addr as u32)
             }
             StaticValue::Ident(ref id, _, sp) => {
-                $self_.base_builder.expr().span(sp).id(id)
+                $self_.bldr.expr().span(sp).id(id)
             }
             StaticValue::Float(_,_,_,sp) | StaticValue::Str(_,_,sp) | StaticValue::Path(_,sp) | StaticValue::Error(_,sp) => {
                 $self_.parser.parser.span_fatal(sp, $err).emit();
-                $self_.base_builder.expr().lit().u32(0)
+                $self_.bldr.expr().lit().u32(0)
             }
         }
     }
@@ -81,17 +81,17 @@ macro_rules! integral_or_ident_to_usize_expr {
     ($val:expr, $err:expr, $self_:ident) => {
         match $val {
             StaticValue::Uint(addr, _, sp) => {
-                $self_.base_builder.span(sp).expr().lit().usize(addr as usize)
+                $self_.bldr.span(sp).expr().lit().usize(addr as usize)
             }
             StaticValue::Int(addr, _, sp) => {
-                $self_.base_builder.span(sp).expr().lit().usize(addr as usize)
+                $self_.bldr.span(sp).expr().lit().usize(addr as usize)
             }
             StaticValue::Ident(ref id, _, sp) => {
-                $self_.base_builder.span(sp).expr().id(id)
+                $self_.bldr.span(sp).expr().id(id)
             }
             StaticValue::Float(_,_,_,sp) | StaticValue::Str(_,_,sp) | StaticValue::Path(_,sp) | StaticValue::Error(_,sp) => {
                 $self_.parser.parser.span_fatal(sp, $err).emit();
-                $self_.base_builder.expr().lit().usize(0)
+                $self_.bldr.expr().lit().usize(0)
             }
         }
     }
@@ -100,12 +100,12 @@ macro_rules! integral_or_ident_to_usize_expr {
 /// Gives an ast::Ty representing `fn()`.
 macro_rules! bare_fn {
     ($self_:ident) => {
-        $self_.base_builder.ty().build_ty_kind(ast::TyKind::BareFn(ptr::P(
+        $self_.bldr.ty().build_ty_kind(ast::TyKind::BareFn(ptr::P(
             ast::BareFnTy {
                 unsafety: ast::Unsafety::Normal,
                 abi: abi::Abi::Rust,
                 lifetimes: vec!(),
-                decl: $self_.base_builder.fn_decl().default_return(),
+                decl: $self_.bldr.fn_decl().default_return(),
             }
         )))
     }
@@ -114,7 +114,7 @@ macro_rules! bare_fn {
 /// Returns an ast::Expr that wraps the expression given as `conv` in a `core::option::Option::Some`.
 macro_rules! core_option {
     ($self_:ident, $conv:expr) => {
-        $self_.base_builder.expr().call()
+        $self_.bldr.expr().call()
             .path().id("core").id("option").id("Option").segment("Some").build().build()
             .with_arg($conv)
             .build()
@@ -128,7 +128,7 @@ macro_rules! core_option {
 pub struct Builder<'a> {
     verbose: bool,
     mcu: common::McuInfo,
-    base_builder: aster::AstBuilder,
+    bldr: aster::AstBuilder,
     parser: parser::Parser<'a>,
 }
 
@@ -138,7 +138,7 @@ impl<'a> Builder<'a> {
         Builder {
             verbose: verbose,
             mcu: mcu,
-            base_builder: aster::AstBuilder::new(),
+            bldr: aster::AstBuilder::new(),
             parser: parser,
         }
     }
@@ -175,7 +175,7 @@ impl<'a> Builder<'a> {
     /// Builds the MCU structure definition including doc comments, impl functions, etc.
     pub fn build_struct(&self) -> ptr::P<ast::Item> {
         // make the struct builder and add the doc attributes
-        let mut preamble = self.base_builder.item()
+        let mut preamble = self.bldr.item()
             .attr().list("repr").word("C").build()
             .attr().list("derive").word("Debug").build()
             .attr().list("derive").word("Clone").build()
@@ -194,10 +194,10 @@ impl<'a> Builder<'a> {
 
         // and add the peripheral fields
         let mut fields: Vec<ast::StructField> = vec![
-            self.base_builder.struct_field("nvic").pub_().ty().id(format!("{}NVIC",self.mcu.name).as_str()),
+            self.bldr.struct_field("nvic").pub_().ty().id(format!("{}NVIC",self.mcu.name).as_str()),
         ];
         for p in &self.mcu.peripherals {
-            fields.push(self.base_builder.span(p.span).struct_field(p.name.clone()).pub_().ty().build_ty_kind(p.path.clone()));
+            fields.push(self.bldr.span(p.span).struct_field(p.name.clone()).pub_().ty().build_ty_kind(p.path.clone()));
         }
 
         preamble.pub_().struct_(self.mcu.name.clone()).with_fields(fields).build()
@@ -205,7 +205,7 @@ impl<'a> Builder<'a> {
 
     /// Generates the structure initializer used in both the ::new() function and to initialize the static version (if generated).
     pub fn build_new_struct(&self) -> ptr::P<ast::Expr> {
-        let mut built_struct = self.base_builder.expr()
+        let mut built_struct = self.bldr.expr()
             .struct_().id(self.mcu.name.clone()).build()
                 .field("nvic").build(self.build_nvic_instance());
 
@@ -215,7 +215,7 @@ impl<'a> Builder<'a> {
                 &ast::TyKind::Path(_, ref path) => { path.clone() }
                 _ => {
                     self.parser.parser.span_err(p.span, format!("cannot use non-path type for peripheral {}", p.name).as_str());
-                    self.base_builder.path().id("builder_error").build()
+                    self.bldr.path().id("builder_error").build()
                 }
             };
 
@@ -224,8 +224,8 @@ impl<'a> Builder<'a> {
                     built_struct = built_struct.span(sp).field(p.name.clone())
                         .call().build_path(ty_path).arg().build(
                             ptr_cast!(
-                                self.base_builder.span(sp).expr().u32(addr),
-                                self.base_builder.ty().u8(),
+                                self.bldr.span(sp).expr().u32(addr),
+                                self.bldr.ty().u8(),
                                 false
                             )
                         ).build();
@@ -234,8 +234,8 @@ impl<'a> Builder<'a> {
                     built_struct = built_struct.span(sp).field(p.name.clone())
                         .call().build_path(ty_path).arg().build(
                             ptr_cast!(
-                                self.base_builder.span(sp).expr().id(name),
-                                self.base_builder.ty().u8(),
+                                self.bldr.span(sp).expr().id(name),
+                                self.bldr.ty().u8(),
                                 false
                             )
                         ).build();
@@ -255,16 +255,16 @@ impl<'a> Builder<'a> {
         let mut externs: Vec<ast::ForeignItem> = vec!();
         for (k, e) in &self.mcu.externs {
             externs.push(ast::ForeignItem {
-                ident: self.base_builder.id(k),
+                ident: self.bldr.id(k),
                 attrs: vec!(),
-                node: ast::ForeignItemKind::Static(self.base_builder.ty().span(e.1).build_ty_kind(e.0.clone()), false),
+                node: ast::ForeignItemKind::Static(self.bldr.ty().span(e.1).build_ty_kind(e.0.clone()), false),
                 id: 0xFFFFFFFF,
                 span: e.1,
                 vis: ast::Visibility::Inherited,
             });
         }
 
-        self.base_builder.item().build_item_kind("extern_block", ast::ItemKind::ForeignMod(ast::ForeignMod{
+        self.bldr.item().build_item_kind("extern_block", ast::ItemKind::ForeignMod(ast::ForeignMod{
             abi: abi::Abi::C,
             items: externs
         }))
@@ -315,7 +315,7 @@ impl<'a> Builder<'a> {
 
     /// Entry for generating the impl block for the mcu.
     pub fn build_impl(&self) -> ptr::P<ast::Item> {
-        let mut impl_block = self.base_builder.item().impl_();
+        let mut impl_block = self.bldr.item().impl_();
         impl_block = self.build_const_vals(impl_block);
 
         // create the ::new() method
@@ -356,12 +356,12 @@ impl<'a> Builder<'a> {
             .self_().ref_().default_return()
             .block().unsafe_()
                 .stmt().expr().span(self.mcu.data.span).call().id("volatile_copy_nonoverlapping_memory")
-                    .with_arg(ptr_cast!(dest_expr, self.base_builder.ty().u8(), true /* mut ptr */))
-                    .with_arg(ptr_cast!(begin_expr.clone(), self.base_builder.ty().u8(), false /* const ptr */))
+                    .with_arg(ptr_cast!(dest_expr, self.bldr.ty().u8(), true /* mut ptr */))
+                    .with_arg(ptr_cast!(begin_expr.clone(), self.bldr.ty().u8(), false /* const ptr */))
                     .with_arg(
-                        self.base_builder.expr().build_expr_kind(ast::ExprKind::Cast(
-                            self.base_builder.expr().paren().build_sub(end_expr, begin_expr),
-                            self.base_builder.ty().usize()
+                        self.bldr.expr().build_expr_kind(ast::ExprKind::Cast(
+                            self.bldr.expr().paren().build_sub(end_expr, begin_expr),
+                            self.bldr.ty().usize()
                         ))
                     )
                 .build()
@@ -381,11 +381,11 @@ impl<'a> Builder<'a> {
             .self_().ref_().default_return()
             .block().unsafe_()
                 .stmt().expr().span(self.mcu.data.span).call().id("volatile_set_memory")
-                    .with_arg(ptr_cast!(begin_expr.clone(), self.base_builder.ty().u8(), true /* mut ptr */))
+                    .with_arg(ptr_cast!(begin_expr.clone(), self.bldr.ty().u8(), true /* mut ptr */))
                     .arg().u8(0)
                     .with_arg(cast!(
-                        self.base_builder.expr().paren().build_sub(end_expr.clone(), begin_expr.clone()),
-                        self.base_builder.ty().usize()
+                        self.bldr.expr().paren().build_sub(end_expr.clone(), begin_expr.clone()),
+                        self.bldr.ty().usize()
                     ))
                 .build()
             .build()
@@ -440,8 +440,8 @@ impl<'a> Builder<'a> {
     /// table structure we need.
     pub fn build_interrupts(&self) -> Vec<ptr::P<ast::Item>> {
         let stack_ty = match self.is_extern(&self.mcu.stack.base) {
-            true => { self.base_builder.span(self.mcu.interrupts.span).ty().ref_().lifetime("'static").ty().u32() }
-            false => { self.base_builder.span(self.mcu.interrupts.span).ty().u32() }
+            true => { self.bldr.span(self.mcu.interrupts.span).ty().ref_().lifetime("'static").ty().u32() }
+            false => { self.bldr.span(self.mcu.interrupts.span).ty().u32() }
         };
 
         let num_ints = if self.mcu.interrupts.total_ints == 0 {
@@ -451,25 +451,25 @@ impl<'a> Builder<'a> {
         } as usize;
 
         // make an "easy to reference" type InterruptArray that holds ISRs [2, N]
-        let int_type = self.base_builder.item().span(self.mcu.interrupts.span)
+        let int_type = self.bldr.item().span(self.mcu.interrupts.span)
             .attr().list("repr").word("C").build()
             .pub_().struct_("Interrupts")
                 .field("stack").span(self.mcu.interrupts.span).build_ty(stack_ty)
                 .field("isrs").span(self.mcu.interrupts.span).ty()
                     .build_ty_kind(ast::TyKind::FixedLengthVec(
-                        self.base_builder.ty()
+                        self.bldr.ty()
                             .path().id("core").id("option").segment("Option").with_ty(bare_fn!(self)).build().build(),
-                        self.base_builder.expr().lit().usize(num_ints)
+                        self.bldr.expr().lit().usize(num_ints)
                     ))
                 .build();
 
-        let none_expr = self.base_builder.expr().path().id("core").id("option").id("Option").segment("None").build().build();
+        let none_expr = self.bldr.expr().path().id("core").id("option").id("Option").segment("None").build().build();
         let mut ints: Vec<ptr::P<ast::Expr>> = vec![none_expr.clone(); num_ints];
 
         // TODO: I don't really like the -1 stuff because of stack
         // add the entry pointer to the interrupt list
         if ! self.mcu.no_init {
-            ints[0] = core_option!(self, self.base_builder.expr().id("init"));
+            ints[0] = core_option!(self, self.bldr.expr().id("init"));
         }
 
         for i in &self.mcu.interrupts.ints {
@@ -490,11 +490,11 @@ impl<'a> Builder<'a> {
                     if id.name.to_string() == "None".to_string() {
                         none_expr.clone()
                     } else {
-                        core_option!(self, self.base_builder.expr().span(sp).id(id))
+                        core_option!(self, self.bldr.expr().span(sp).id(id))
                     }
                 }
                 &StaticValue::Path(ref path, sp) => {
-                    core_option!(self, self.base_builder.expr().span(sp).build_path(path.clone()))
+                    core_option!(self, self.bldr.expr().span(sp).build_path(path.clone()))
                 }
 
                 // not allowed
@@ -518,20 +518,20 @@ impl<'a> Builder<'a> {
 
         vec![
             int_type,
-            self.base_builder.item()
+            self.bldr.item()
                 .attr().name_value("link_section").str(self.mcu.interrupts.link_location.as_str())
                 .pub_().build_item_kind(
                     "INTERRUPTS",
                     ast::ItemKind::Static(
-                        self.base_builder.ty().id("Interrupts"),
+                        self.bldr.ty().id("Interrupts"),
                         ast::Mutability::Immutable,
-                        self.base_builder.expr().span(self.mcu.stack.span).struct_().id("Interrupts").build()
+                        self.bldr.expr().span(self.mcu.stack.span).struct_().id("Interrupts").build()
                             .field("stack").build(match &self.mcu.stack.base {
                                 &StaticValue::Ident(ref raw, _, sp) => { // TODO: use the already parsed Ident
                                     if self.mcu.externs.contains_key(raw) {
-                                        self.base_builder.expr().span(sp).block().unsafe_().expr().ref_().id(raw.as_str())
+                                        self.bldr.expr().span(sp).block().unsafe_().expr().ref_().id(raw.as_str())
                                     } else {
-                                        self.base_builder.expr().id(raw)
+                                        self.bldr.expr().id(raw)
                                     }
                                 }
                                 _ => {
@@ -551,15 +551,15 @@ impl<'a> Builder<'a> {
     /// It will look and function just like an ioreg peripheral, but generated here instead.
     pub fn build_nvic_ty(&self) -> ptr::P<ast::Item> {
         let ty_name = format!("{}NVIC", self.mcu.name);
-        let bitslice = self.base_builder.ty().build_ty_kind(ast::TyKind::FixedLengthVec(
-            self.base_builder.ty().u32(),
-            self.base_builder.expr().usize(8),
+        let bitslice = self.bldr.ty().build_ty_kind(ast::TyKind::FixedLengthVec(
+            self.bldr.ty().u32(),
+            self.bldr.expr().usize(8),
         ));
-        let byteslice = self.base_builder.ty().build_ty_kind(ast::TyKind::FixedLengthVec(
-            self.base_builder.ty().u8(),
-            self.base_builder.expr().usize(240),    // TODO: verify not 256 like others
+        let byteslice = self.bldr.ty().build_ty_kind(ast::TyKind::FixedLengthVec(
+            self.bldr.ty().u8(),
+            self.bldr.expr().usize(240),    // TODO: verify not 256 like others
         ));
-        let mut preamble = self.base_builder.item()
+        let mut preamble = self.bldr.item()
             .attr().list("repr").word("C").build()
             .attr().list("derive").word("Clone").build()
             .attr().list("derive").word("Debug").build()
@@ -589,38 +589,38 @@ impl<'a> Builder<'a> {
     /// This is used for NVIC::new() as well as the MCU instantiation.
     pub fn build_nvic_instance(&self) -> ptr::P<ast::Expr> {
         let ty_name = format!("{}NVIC", self.mcu.name);
-        let bitslice = self.base_builder.ty().build_ty_kind(ast::TyKind::FixedLengthVec(
-            self.base_builder.ty().u32(),
-            self.base_builder.expr().usize(8),
+        let bitslice = self.bldr.ty().build_ty_kind(ast::TyKind::FixedLengthVec(
+            self.bldr.ty().u32(),
+            self.bldr.expr().usize(8),
         ));
-        let byteslice = self.base_builder.ty().build_ty_kind(ast::TyKind::FixedLengthVec(
-            self.base_builder.ty().u8(),
-            self.base_builder.expr().usize(240),    // TODO: verify not 256 like others
+        let byteslice = self.bldr.ty().build_ty_kind(ast::TyKind::FixedLengthVec(
+            self.bldr.ty().u8(),
+            self.bldr.expr().usize(240),    // TODO: verify not 256 like others
         ));
 
-        self.base_builder.expr().span(self.mcu.nvic.span).struct_().id(ty_name.as_str()).build()
+        self.bldr.expr().span(self.mcu.nvic.span).struct_().id(ty_name.as_str()).build()
             .field("iser").build(ptr_cast!(
-                self.base_builder.expr().u32(self.mcu.nvic.addr + 0x100), // TODO: verify offset
+                self.bldr.expr().u32(self.mcu.nvic.addr + 0x100), // TODO: verify offset
                 bitslice.clone(),true
             ))
             .field("icer").build(ptr_cast!(
-                self.base_builder.expr().u32(self.mcu.nvic.addr + 0x180), // TODO: verify offset
+                self.bldr.expr().u32(self.mcu.nvic.addr + 0x180), // TODO: verify offset
                 bitslice.clone(),true
             ))
             .field("ispr").build(ptr_cast!(
-                self.base_builder.expr().u32(self.mcu.nvic.addr + 0x200), // TODO: verify offset
+                self.bldr.expr().u32(self.mcu.nvic.addr + 0x200), // TODO: verify offset
                 bitslice.clone(),true
             ))
             .field("icpr").build(ptr_cast!(
-                self.base_builder.expr().u32(self.mcu.nvic.addr + 0x280), // TODO: verify offset
+                self.bldr.expr().u32(self.mcu.nvic.addr + 0x280), // TODO: verify offset
                 bitslice.clone(),true
             ))
             .field("iabr").build(ptr_cast!(
-                self.base_builder.expr().u32(self.mcu.nvic.addr + 0x300), // TODO: verify offset
+                self.bldr.expr().u32(self.mcu.nvic.addr + 0x300), // TODO: verify offset
                 bitslice.clone(),true
             ))
             .field("ipr").build(ptr_cast!(
-                self.base_builder.expr().u32(self.mcu.nvic.addr + 0x400), // TODO: verify offset
+                self.bldr.expr().u32(self.mcu.nvic.addr + 0x400), // TODO: verify offset
                 byteslice,true
             ))
             .build()
@@ -630,7 +630,7 @@ impl<'a> Builder<'a> {
     /// Generates the functions that will exist on the NVIC handler, but not the NVIC trait.
     pub fn build_nvic_impl(&self) -> ptr::P<ast::Item> {
         let ty_name = format!("{}NVIC", self.mcu.name);
-        let mut impl_block = self.base_builder.item().span(self.mcu.nvic.span).impl_();
+        let mut impl_block = self.bldr.item().span(self.mcu.nvic.span).impl_();
 
         // make the "::new()" function
         impl_block = impl_block.item("new").span(self.mcu.nvic.span)
@@ -652,7 +652,7 @@ impl<'a> Builder<'a> {
 
     pub fn build_nvic_trait_impl(&self) -> ptr::P<ast::Item> {
         let ty_name = format!("{}NVIC", self.mcu.name); // TODO: consolidate this fn/macro to one place
-        let mut blk = self.base_builder.item().span(self.mcu.nvic.span).impl_()
+        let mut blk = self.bldr.item().span(self.mcu.nvic.span).impl_()
             .trait_().build(self.mcu.nvic.trait_path.clone().unwrap());
         blk = self.build_nvic_trait_fns(blk);
         blk.ty().id(ty_name.as_str())
@@ -681,16 +681,16 @@ impl<'a> Builder<'a> {
                         .paren().deref().field("iser").self_()
                         .div()
                             .build(cast!(
-                                self.base_builder.expr().span(self.mcu.nvic.span).id("irq"),
-                                self.base_builder.ty().span(self.mcu.nvic.span).usize()
+                                self.bldr.expr().span(self.mcu.nvic.span).id("irq"),
+                                self.bldr.ty().span(self.mcu.nvic.span).usize()
                             ))
                             .lit().span(self.mcu.nvic.span).usize(32)
                     .shl()
                         .lit().span(self.mcu.nvic.span).u32(1)
                         .paren().rem()
                             .build(cast!(
-                                self.base_builder.expr().span(self.mcu.nvic.span).id("irq"),
-                                self.base_builder.ty().span(self.mcu.nvic.span).u32()
+                                self.bldr.expr().span(self.mcu.nvic.span).id("irq"),
+                                self.bldr.ty().span(self.mcu.nvic.span).u32()
                             ))
                             .lit().span(self.mcu.nvic.span).u32(32)
             .build();
@@ -710,16 +710,16 @@ impl<'a> Builder<'a> {
                         .paren().deref().field("icer").self_()
                         .div()
                             .build(cast!(
-                                self.base_builder.expr().span(self.mcu.nvic.span).id("irq"),
-                                self.base_builder.ty().span(self.mcu.nvic.span).usize()
+                                self.bldr.expr().span(self.mcu.nvic.span).id("irq"),
+                                self.bldr.ty().span(self.mcu.nvic.span).usize()
                             ))
                             .lit().span(self.mcu.nvic.span).usize(32)
                     .shl()
                         .lit().span(self.mcu.nvic.span).u32(1)
                         .paren().rem()
                             .build(cast!(
-                                self.base_builder.expr().span(self.mcu.nvic.span).id("irq"),
-                                self.base_builder.ty().span(self.mcu.nvic.span).u32()
+                                self.bldr.expr().span(self.mcu.nvic.span).id("irq"),
+                                self.bldr.ty().span(self.mcu.nvic.span).u32()
                             ))
                             .lit().span(self.mcu.nvic.span).u32(32)
             .build();
@@ -739,16 +739,16 @@ impl<'a> Builder<'a> {
                             .paren().deref().field("iser").self_()
                             .div()
                                 .build(cast!(
-                                    self.base_builder.expr().span(self.mcu.nvic.span).id("irq"),
-                                    self.base_builder.ty().span(self.mcu.nvic.span).usize()
+                                    self.bldr.expr().span(self.mcu.nvic.span).id("irq"),
+                                    self.bldr.ty().span(self.mcu.nvic.span).usize()
                                 ))
                                 .lit().span(self.mcu.nvic.span).usize(32)
                         .shl()
                             .lit().span(self.mcu.nvic.span).u32(1)
                             .paren().rem()
                                 .build(cast!(
-                                    self.base_builder.expr().span(self.mcu.nvic.span).id("irq"),
-                                    self.base_builder.ty().span(self.mcu.nvic.span).u32()
+                                    self.bldr.expr().span(self.mcu.nvic.span).id("irq"),
+                                    self.bldr.ty().span(self.mcu.nvic.span).u32()
                                 ))
                                 .lit().span(self.mcu.nvic.span).u32(32)
                     .lit().u32(0);
@@ -771,16 +771,16 @@ impl<'a> Builder<'a> {
                         .paren().deref().field("ispr").self_()
                         .div()
                             .build(cast!(
-                                self.base_builder.expr().span(self.mcu.nvic.span).id("irq"),
-                                self.base_builder.ty().span(self.mcu.nvic.span).usize()
+                                self.bldr.expr().span(self.mcu.nvic.span).id("irq"),
+                                self.bldr.ty().span(self.mcu.nvic.span).usize()
                             ))
                             .lit().span(self.mcu.nvic.span).usize(32)
                     .shl()
                         .lit().span(self.mcu.nvic.span).u32(1)
                         .paren().rem()
                             .build(cast!(
-                                self.base_builder.expr().span(self.mcu.nvic.span).id("irq"),
-                                self.base_builder.ty().span(self.mcu.nvic.span).u32()
+                                self.bldr.expr().span(self.mcu.nvic.span).id("irq"),
+                                self.bldr.ty().span(self.mcu.nvic.span).u32()
                             ))
                             .lit().span(self.mcu.nvic.span).u32(32)
                 .build();
@@ -800,16 +800,16 @@ impl<'a> Builder<'a> {
                         .paren().deref().field("icpr").self_()
                         .div()
                             .build(cast!(
-                                self.base_builder.expr().span(self.mcu.nvic.span).id("irq"),
-                                self.base_builder.ty().span(self.mcu.nvic.span).usize()
+                                self.bldr.expr().span(self.mcu.nvic.span).id("irq"),
+                                self.bldr.ty().span(self.mcu.nvic.span).usize()
                             ))
                             .lit().span(self.mcu.nvic.span).usize(32)
                     .shl()
                         .lit().span(self.mcu.nvic.span).u32(1)
                         .paren().rem()
                             .build(cast!(
-                                self.base_builder.expr().span(self.mcu.nvic.span).id("irq"),
-                                self.base_builder.ty().span(self.mcu.nvic.span).u32()
+                                self.bldr.expr().span(self.mcu.nvic.span).id("irq"),
+                                self.bldr.ty().span(self.mcu.nvic.span).u32()
                             ))
                             .lit().span(self.mcu.nvic.span).u32(32)
                 .build();
@@ -829,16 +829,16 @@ impl<'a> Builder<'a> {
                             .paren().deref().field("ispr").self_()
                             .div()
                                 .build(cast!(
-                                    self.base_builder.expr().span(self.mcu.nvic.span).id("irq"),
-                                    self.base_builder.ty().span(self.mcu.nvic.span).usize()
+                                    self.bldr.expr().span(self.mcu.nvic.span).id("irq"),
+                                    self.bldr.ty().span(self.mcu.nvic.span).usize()
                                 ))
                                 .lit().span(self.mcu.nvic.span).usize(32)
                         .shl()
                             .lit().span(self.mcu.nvic.span).u32(1)
                             .paren().rem()
                                 .build(cast!(
-                                    self.base_builder.expr().span(self.mcu.nvic.span).id("irq"),
-                                    self.base_builder.ty().span(self.mcu.nvic.span).u32()
+                                    self.bldr.expr().span(self.mcu.nvic.span).id("irq"),
+                                    self.bldr.ty().span(self.mcu.nvic.span).u32()
                                 ))
                                 .lit().span(self.mcu.nvic.span).u32(32)
                     .lit().u32(0);
@@ -862,16 +862,16 @@ impl<'a> Builder<'a> {
                             .paren().deref().field("iabr").self_()
                             .div()
                                 .build(cast!(
-                                    self.base_builder.expr().span(self.mcu.nvic.span).id("irq"),
-                                    self.base_builder.ty().span(self.mcu.nvic.span).usize()
+                                    self.bldr.expr().span(self.mcu.nvic.span).id("irq"),
+                                    self.bldr.ty().span(self.mcu.nvic.span).usize()
                                 ))
                                 .lit().span(self.mcu.nvic.span).usize(32)
                         .shl()
                             .lit().span(self.mcu.nvic.span).u32(1)
                             .paren().rem()
                                 .build(cast!(
-                                    self.base_builder.expr().span(self.mcu.nvic.span).id("irq"),
-                                    self.base_builder.ty().span(self.mcu.nvic.span).u32()
+                                    self.bldr.expr().span(self.mcu.nvic.span).id("irq"),
+                                    self.bldr.ty().span(self.mcu.nvic.span).u32()
                                 ))
                                 .lit().span(self.mcu.nvic.span).u32(32)
                     .lit().u32(0);
@@ -896,8 +896,8 @@ impl<'a> Builder<'a> {
                     .index()
                         .paren().deref().field("ipr").self_()
                         .build(cast!(
-                            self.base_builder.expr().span(self.mcu.nvic.span).id("irq"),
-                            self.base_builder.ty().span(self.mcu.nvic.span).usize()
+                            self.bldr.expr().span(self.mcu.nvic.span).id("irq"),
+                            self.bldr.ty().span(self.mcu.nvic.span).usize()
                         ))
                     .shl()
                         .paren().rem()
@@ -923,8 +923,8 @@ impl<'a> Builder<'a> {
                         .index()
                             .paren().deref().field("ipr").self_()
                             .build(cast!(
-                                self.base_builder.expr().span(self.mcu.nvic.span).id("irq"),
-                                self.base_builder.ty().span(self.mcu.nvic.span).usize()
+                                self.bldr.expr().span(self.mcu.nvic.span).id("irq"),
+                                self.bldr.ty().span(self.mcu.nvic.span).usize()
                             ))
                         .lit().u8(8 - self.mcu.nvic.prio_bits);
 
@@ -947,7 +947,7 @@ impl<'a> Builder<'a> {
     /// ```
     ///
     pub fn build_init(&self) -> ptr::P<ast::Item> {
-        let exit_bootloader_base = self.base_builder.stmt().span(self.mcu.init.span.clone())
+        let exit_bootloader_base = self.bldr.stmt().span(self.mcu.init.span.clone())
             .expr().span(self.mcu.init.span.clone())
             .block().span(self.mcu.init.span.clone()).unsafe_()
                 .stmt().span(self.mcu.init.span.clone()).semi()
@@ -966,7 +966,7 @@ impl<'a> Builder<'a> {
               .build()
           .build();
 
-        self.base_builder.item().span(self.mcu.init.span.clone())
+        self.bldr.item().span(self.mcu.init.span.clone())
             .attr().doc("/// Generated reset handler that creates a new mcu, calls mcu.init(), and calls")
             .attr().doc("/// the function given to `bootloader_exit` with a reference to the mcu instance.")
             .attr().list("allow").word("private_no_mangle_fns").build()
