@@ -976,7 +976,7 @@ impl<'a> Builder<'a> {
             .block()
                 .stmt().span(self.mcu.init.span.clone())
                     .let_id("mcu")
-                        .call()
+                        .expr().call()
                             .path().span(self.mcu.init.span.clone()).id(self.mcu.name.clone()).id("new").build()
                         .build()
                 .stmt().span(self.mcu.init.span.clone()).expr().span(self.mcu.init.span.clone())
