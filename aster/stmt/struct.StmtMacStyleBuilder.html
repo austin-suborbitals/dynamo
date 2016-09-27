@@ -4,10 +4,10 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="generator" content="rustdoc">
-    <meta name="description" content="API documentation for the Rust `StmtLetIdBuilder` struct in crate `aster`.">
-    <meta name="keywords" content="rust, rustlang, rust-lang, StmtLetIdBuilder">
+    <meta name="description" content="API documentation for the Rust `StmtMacStyleBuilder` struct in crate `aster`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, StmtMacStyleBuilder">
 
-    <title>aster::stmt::StmtLetIdBuilder - Rust</title>
+    <title>aster::stmt::StmtMacStyleBuilder - Rust</title>
 
     <link rel="stylesheet" type="text/css" href="../../rustdoc.css">
     <link rel="stylesheet" type="text/css" href="../../main.css">
@@ -28,7 +28,7 @@
 
     <nav class="sidebar">
         
-        <p class='location'><a href='../index.html'>aster</a>::<wbr><a href='index.html'>stmt</a></p><script>window.sidebarCurrent = {name: 'StmtLetIdBuilder', ty: 'struct', relpath: ''};</script><script defer src="sidebar-items.js"></script>
+        <p class='location'><a href='../index.html'>aster</a>::<wbr><a href='index.html'>stmt</a></p><script>window.sidebarCurrent = {name: 'StmtMacStyleBuilder', ty: 'struct', relpath: ''};</script><script defer src="sidebar-items.js"></script>
     </nav>
 
     <nav class="sub">
@@ -43,14 +43,14 @@
     </nav>
 
     <section id='main' class="content struct">
-<h1 class='fqn'><span class='in-band'>Struct <a href='../index.html'>aster</a>::<wbr><a href='index.html'>stmt</a>::<wbr><a class='struct' href=''>StmtLetIdBuilder</a></span><span class='out-of-band'><span id='render-detail'>
+<h1 class='fqn'><span class='in-band'>Struct <a href='../index.html'>aster</a>::<wbr><a href='index.html'>stmt</a>::<wbr><a class='struct' href=''>StmtMacStyleBuilder</a></span><span class='out-of-band'><span id='render-detail'>
                    <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
                        [<span class='inner'>&#x2212;</span>]
                    </a>
-               </span><a id='src-3636' class='srclink' href='../../src/aster/stmt.rs.html#122' title='goto source code'>[src]</a></span></h1>
-<pre class='rust struct'>pub struct StmtLetIdBuilder&lt;F&gt;(_, _);</pre><h2 id='implementations'>Trait Implementations</h2><h3 class='impl'><span class='in-band'><code>impl&lt;F&gt; <a class='trait' href='../../aster/invoke/trait.Invoke.html' title='aster::invoke::Invoke'>Invoke</a>&lt;<a class='struct' href='https://doc.rust-lang.org/nightly/syntax/ptr/struct.P.html' title='syntax::ptr::P'>P</a>&lt;<a class='struct' href='https://doc.rust-lang.org/nightly/syntax/ast/struct.Expr.html' title='syntax::ast::Expr'>Expr</a>&gt;&gt; for <a class='struct' href='../../aster/stmt/struct.StmtLetIdBuilder.html' title='aster::stmt::StmtLetIdBuilder'>StmtLetIdBuilder</a>&lt;F&gt; <span class='where'>where F: <a class='trait' href='../../aster/invoke/trait.Invoke.html' title='aster::invoke::Invoke'>Invoke</a>&lt;<a class='struct' href='https://doc.rust-lang.org/nightly/syntax/ast/struct.Stmt.html' title='syntax::ast::Stmt'>Stmt</a>&gt;</span></code></span><span class='out-of-band'><div class='ghost'></div><a id='src-3641' class='srclink' href='../../src/aster/stmt.rs.html#124-132' title='goto source code'>[src]</a></span></h3>
+               </span><a id='src-3729' class='srclink' href='../../src/aster/stmt.rs.html#185-189' title='goto source code'>[src]</a></span></h1>
+<pre class='rust struct'>pub struct StmtMacStyleBuilder&lt;F&gt; { /* fields omitted */ }</pre><h2 id='implementations'>Trait Implementations</h2><h3 class='impl'><span class='in-band'><code>impl&lt;F&gt; <a class='trait' href='../../aster/invoke/trait.Invoke.html' title='aster::invoke::Invoke'>Invoke</a>&lt;<a class='type' href='https://doc.rust-lang.org/nightly/syntax/ast/type.Mac.html' title='syntax::ast::Mac'>Mac</a>&gt; for <a class='struct' href='../../aster/stmt/struct.StmtMacStyleBuilder.html' title='aster::stmt::StmtMacStyleBuilder'>StmtMacStyleBuilder</a>&lt;F&gt; <span class='where'>where F: <a class='trait' href='../../aster/invoke/trait.Invoke.html' title='aster::invoke::Invoke'>Invoke</a>&lt;<a class='struct' href='https://doc.rust-lang.org/nightly/syntax/ast/struct.Stmt.html' title='syntax::ast::Stmt'>Stmt</a>&gt;</span></code></span><span class='out-of-band'><div class='ghost'></div><a id='src-3734' class='srclink' href='../../src/aster/stmt.rs.html#191-199' title='goto source code'>[src]</a></span></h3>
 <div class='impl-items'><h4 id='associatedtype.Result' class='type'><span id='Result.t' class='invisible'><code>type <a href='../../aster/invoke/trait.Invoke.html#associatedtype.Result' class='type'>Result</a> = F::Result</code></span></h4>
-<h4 id='method.invoke' class='method'><span id='invoke.v' class='invisible'><code>fn <a href='../../aster/invoke/trait.Invoke.html#tymethod.invoke' class='fnname'>invoke</a>(self, expr: <a class='struct' href='https://doc.rust-lang.org/nightly/syntax/ptr/struct.P.html' title='syntax::ptr::P'>P</a>&lt;<a class='struct' href='https://doc.rust-lang.org/nightly/syntax/ast/struct.Expr.html' title='syntax::ast::Expr'>Expr</a>&gt;) -&gt; F::Result</code></span></h4>
+<h4 id='method.invoke' class='method'><span id='invoke.v' class='invisible'><code>fn <a href='../../aster/invoke/trait.Invoke.html#tymethod.invoke' class='fnname'>invoke</a>(self, mac: <a class='type' href='https://doc.rust-lang.org/nightly/syntax/ast/type.Mac.html' title='syntax::ast::Mac'>Mac</a>) -&gt; F::Result</code></span></h4>
 </div></section>
     <section id='search' class="content hidden"></section>
 
