@@ -258,7 +258,7 @@ impl<'a> Builder<'a> {
                 ident: self.bldr.id(k),
                 attrs: vec!(),
                 node: ast::ForeignItemKind::Static(self.bldr.ty().span(e.1).build_ty_kind(e.0.clone()), false),
-                id: 0xFFFFFFFF,
+                id: ast::NodeId::from_u32(0xFFFFFFFF),
                 span: e.1,
                 vis: ast::Visibility::Inherited,
             });
