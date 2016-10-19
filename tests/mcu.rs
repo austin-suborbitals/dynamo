@@ -73,8 +73,8 @@ mod sanity {
     fn some_common_handler() { }
 
     mod peregrine { pub mod isr { pub mod default {
-		pub static mut some_val: u32 = 0x12345678;
-		pub fn some_default_handler() { unsafe{some_val = 0x87654321;} }
+		pub static mut SOME_VAL: u32 = 0x12345678;
+		pub fn some_default_handler() { unsafe{SOME_VAL = 0x87654321;} }
 	}}}
 
     mcu!(

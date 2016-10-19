@@ -309,7 +309,7 @@ impl<'a> Parser<'a> {
                 // if we have a literal, we expect it to be an integral, so parse that
                 token::Token::Literal(token::Lit::Integer(_), _) => {  // TODO: consider float
                     match read_uint_for_register!(self, width) {
-                        Ok(i) => { result.values.push(common::FunctionValueType::Static(i as u32, self.parser.last_span)); }
+                        Ok(i) => { result.values.push(common::FunctionValueType::Static(i as u32, self.parser.prev_span)); }
                         Err(e) => {
                             self.set_err(e.as_str());
                             break;  // TODO: better return
@@ -319,7 +319,7 @@ impl<'a> Parser<'a> {
 
                 // otherwise, we expect an ident to reference a defined variable
                 token::Ident(_) => {
-                    result.values.push(common::FunctionValueType::Reference(self.parse_ident_string(), self.parser.last_span));
+                    result.values.push(common::FunctionValueType::Reference(self.parse_ident_string(), self.parser.prev_span));
                 }
 
                 // consider everything else an error

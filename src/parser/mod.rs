@@ -200,7 +200,7 @@ impl<'a> CommonParser<'a> {
 
     /// Sets a syntax error on the span **before** the parser's current token cursor.
     pub fn set_err_last(&mut self, err: &str) {
-        self.parser.span_err(self.parser.last_span, err);
+        self.parser.span_err(self.parser.prev_span, err);
     }
 
     /// Sets a fatal error on the parser's current token, and emits the diagnostic.
@@ -210,7 +210,7 @@ impl<'a> CommonParser<'a> {
 
     /// Sets a fatal error on the parser's previous token, and emits the diagnostic.
     pub fn set_fatal_err_last(&mut self, err: &str) {
-        self.parser.span_fatal(self.parser.last_span, err).emit();
+        self.parser.span_fatal(self.parser.prev_span, err).emit();
     }
 
     /// Sets a syntax error on the span representing the current segment.

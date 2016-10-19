@@ -587,7 +587,7 @@ mod input_fn {
 
 #[cfg(test)]
 mod init {
-    static mut test_val: u16 = 0x1234u16;
+    static mut TEST_VAL: u16 = 0x1234u16;
     ioreg!(
         name => TestingStruct;
 
@@ -602,7 +602,7 @@ mod init {
         init =>
         /// While not as elegant to look at, you can totally custom-docstring this guy
         fn init(&self) {
-            unsafe { test_val = 0x4321; }
+            unsafe { TEST_VAL = 0x4321; }
         };
     );
 
@@ -616,7 +616,7 @@ mod init {
     fn run_init() {
         let t = TestingStruct(0 as *mut u8);
         t.init();
-        unsafe { assert_eq!(0x4321, test_val); }
+        unsafe { assert_eq!(0x4321, TEST_VAL); }
     }
 }
 

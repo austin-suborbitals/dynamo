@@ -456,7 +456,7 @@ impl<'a> Builder<'a> {
             .pub_().struct_("Interrupts")
                 .field("stack").span(self.mcu.interrupts.span).build_ty(stack_ty)
                 .field("isrs").span(self.mcu.interrupts.span).ty()
-                    .build_ty_kind(ast::TyKind::FixedLengthVec(
+                    .build_ty_kind(ast::TyKind::Array(
                         self.bldr.ty()
                             .path().id("core").id("option").segment("Option").with_ty(bare_fn!(self)).build().build(),
                         self.bldr.expr().lit().usize(num_ints)
@@ -551,11 +551,11 @@ impl<'a> Builder<'a> {
     /// It will look and function just like an ioreg peripheral, but generated here instead.
     pub fn build_nvic_ty(&self) -> ptr::P<ast::Item> {
         let ty_name = format!("{}NVIC", self.mcu.name);
-        let bitslice = self.bldr.ty().build_ty_kind(ast::TyKind::FixedLengthVec(
+        let bitslice = self.bldr.ty().build_ty_kind(ast::TyKind::Array(
             self.bldr.ty().u32(),
             self.bldr.expr().usize(8),
         ));
-        let byteslice = self.bldr.ty().build_ty_kind(ast::TyKind::FixedLengthVec(
+        let byteslice = self.bldr.ty().build_ty_kind(ast::TyKind::Array(
             self.bldr.ty().u8(),
             self.bldr.expr().usize(240),    // TODO: verify not 256 like others
         ));
@@ -589,11 +589,11 @@ impl<'a> Builder<'a> {
     /// This is used for NVIC::new() as well as the MCU instantiation.
     pub fn build_nvic_instance(&self) -> ptr::P<ast::Expr> {
         let ty_name = format!("{}NVIC", self.mcu.name);
-        let bitslice = self.bldr.ty().build_ty_kind(ast::TyKind::FixedLengthVec(
+        let bitslice = self.bldr.ty().build_ty_kind(ast::TyKind::Array(
             self.bldr.ty().u32(),
             self.bldr.expr().usize(8),
         ));
-        let byteslice = self.bldr.ty().build_ty_kind(ast::TyKind::FixedLengthVec(
+        let byteslice = self.bldr.ty().build_ty_kind(ast::TyKind::Array(
             self.bldr.ty().u8(),
             self.bldr.expr().usize(240),    // TODO: verify not 256 like others
         ));
