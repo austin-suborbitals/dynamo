@@ -52,7 +52,7 @@
 <div class='impl-items'><h4 id='method.with_callback' class='method'><span id='with_callback.v' class='invisible'><code>fn <a href='#method.with_callback' class='fnname'>with_callback</a>&lt;I&gt;(id: I, callback: F) -&gt; Self <span class='where'>where I: <a class='trait' href='../../aster/ident/trait.ToIdent.html' title='aster::ident::ToIdent'>ToIdent</a></span></code></span></h4>
 <h4 id='method.span' class='method'><span id='span.v' class='invisible'><code>fn <a href='#method.span' class='fnname'>span</a>(self, span: <a class='struct' href='https://doc.rust-lang.org/nightly/syntax_pos/struct.Span.html' title='syntax_pos::Span'>Span</a>) -&gt; Self</code></span></h4>
 <h4 id='method.with_generics' class='method'><span id='with_generics.v' class='invisible'><code>fn <a href='#method.with_generics' class='fnname'>with_generics</a>(self, generics: <a class='struct' href='https://doc.rust-lang.org/nightly/syntax/ast/struct.Generics.html' title='syntax::ast::Generics'>Generics</a>) -&gt; Self</code></span></h4>
-<h4 id='method.with_lifetimes' class='method'><span id='with_lifetimes.v' class='invisible'><code>fn <a href='#method.with_lifetimes' class='fnname'>with_lifetimes</a>&lt;I,&nbsp;L&gt;(self, iter: I) -&gt; Self <span class='where'>where I: <a class='trait' href='https://doc.rust-lang.org/nightly/core/iter/traits/trait.IntoIterator.html' title='core::iter::traits::IntoIterator'>IntoIterator</a>&lt;Item=L&gt;, L: <a class='trait' href='../../aster/lifetime/trait.IntoLifetime.html' title='aster::lifetime::IntoLifetime'>IntoLifetime</a></span></code></span></h4>
+<h4 id='method.with_lifetimes' class='method'><span id='with_lifetimes.v' class='invisible'><code>fn <a href='#method.with_lifetimes' class='fnname'>with_lifetimes</a>&lt;I, L&gt;(self, iter: I) -&gt; Self <span class='where'>where I: <a class='trait' href='https://doc.rust-lang.org/nightly/core/iter/traits/trait.IntoIterator.html' title='core::iter::traits::IntoIterator'>IntoIterator</a>&lt;Item=L&gt;, L: <a class='trait' href='../../aster/lifetime/trait.IntoLifetime.html' title='aster::lifetime::IntoLifetime'>IntoLifetime</a></span></code></span></h4>
 <h4 id='method.with_lifetime' class='method'><span id='with_lifetime.v' class='invisible'><code>fn <a href='#method.with_lifetime' class='fnname'>with_lifetime</a>&lt;L&gt;(self, lifetime: L) -&gt; Self <span class='where'>where L: <a class='trait' href='../../aster/lifetime/trait.IntoLifetime.html' title='aster::lifetime::IntoLifetime'>IntoLifetime</a></span></code></span></h4>
 <h4 id='method.lifetime' class='method'><span id='lifetime.v' class='invisible'><code>fn <a href='#method.lifetime' class='fnname'>lifetime</a>&lt;N&gt;(self, name: N) -&gt; Self <span class='where'>where N: <a class='trait' href='../../aster/name/trait.ToName.html' title='aster::name::ToName'>ToName</a></span></code></span></h4>
 <h4 id='method.with_tys' class='method'><span id='with_tys.v' class='invisible'><code>fn <a href='#method.with_tys' class='fnname'>with_tys</a>&lt;I&gt;(self, iter: I) -&gt; Self <span class='where'>where I: <a class='trait' href='https://doc.rust-lang.org/nightly/core/iter/traits/trait.IntoIterator.html' title='core::iter::traits::IntoIterator'>IntoIterator</a>&lt;Item=<a class='struct' href='https://doc.rust-lang.org/nightly/syntax/ptr/struct.P.html' title='syntax::ptr::P'>P</a>&lt;<a class='struct' href='https://doc.rust-lang.org/nightly/syntax/ast/struct.Ty.html' title='syntax::ast::Ty'>Ty</a>&gt;&gt;</span></code></span></h4>
@@ -123,11 +123,9 @@
     <script>
         window.rootPath = "../../";
         window.currentCrate = "aster";
-        window.playgroundUrl = "";
     </script>
     <script src="../../jquery.js"></script>
     <script src="../../main.js"></script>
-    
     <script defer src="../../search-index.js"></script>
 </body>
 </html>
