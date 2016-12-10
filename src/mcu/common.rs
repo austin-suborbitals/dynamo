@@ -2,6 +2,7 @@ extern crate aster;
 extern crate syntax;
 
 use syntax::ast;
+use syntax::symbol;
 use syntax::codemap::Span;
 use syntax::ext::quote::rt::DUMMY_SP;
 
@@ -136,7 +137,6 @@ pub struct McuInfo {
 impl McuInfo {
     /// Returns a basic, nulled, MCU to be parsed into.
     pub fn default() -> Self {
-        let bldr = aster::AstBuilder::new();
         McuInfo{
             name: "".to_string(),
             no_init: false,
@@ -172,7 +172,7 @@ impl McuInfo {
             init:  InitInfo{
                 exit: StaticValue::Ident(
                     "main".to_string(),
-                    ast::Ident::with_empty_ctxt(bldr.name("main")),
+                    ast::Ident::with_empty_ctxt(symbol::Symbol::intern("main")),
                     DUMMY_SP
                 ),
                 span: DUMMY_SP,

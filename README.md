@@ -6,7 +6,8 @@ dynamo [![Build Status](https://travis-ci.org/austin-suborbitals/dynamo.svg?bran
 rust version
 ============
 
-Current canonical version: `nightly-2016-07-21`. Travis will continue to test `nightly`.
+It is unrealistic to maintain a canonical version. However, updates required to maintain nightly compatibility are typically trivial.
+Realizing it is broken (I don't update very day) is the hardest part. Feel free to open a PR/Issue.
 
-This is _typically_ gated by `serde-rs/aster`, so newer versions may work as `aster` gets updated.
+This incompatibility is _typically_ gated by `serde-rs/aster` as `rust-nightly` gets released.
 

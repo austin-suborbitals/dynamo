@@ -5,6 +5,7 @@ extern crate aster;
 use syntax::ast;
 use syntax::ptr;
 use syntax::tokenstream;
+use syntax::symbol;
 use syntax::parse::token;
 use syntax::codemap::Span;
 use syntax::ext::base::ExtCtxt;
@@ -118,7 +119,7 @@ impl ToAstType<u32> for u32 {
 pub enum StaticValue {
     Int(i32, String, Span),
     Uint(u32, String, Span),
-    Float(f32, token::InternedString, String, Span), // TODO: avoid carrying the interned string around
+    Float(f32, symbol::Symbol, String, Span), // TODO: avoid carrying the symbol around
     Str(String, String, Span),
     Ident(String, ast::Ident, Span),
     Path(ast::Path, Span),
@@ -358,7 +359,7 @@ impl<'a> CommonParser<'a> {
             Ok(i) => { i }
             Err(e) => {
                 self.set_err(e.message());
-                ast::Ident::with_empty_ctxt(self.builder.name("error"))
+                self.builder.id("error")
             }
         }
     }
@@ -371,7 +372,7 @@ impl<'a> CommonParser<'a> {
             Ok(i) => { i }
             Err(e) => {
                 self.set_err(e.message());
-                ast::Path::from_ident(DUMMY_SP, aster::AstBuilder::new().id("error"))
+                ast::Path::from_ident(DUMMY_SP, self.builder.id("error"))
             }
         }
     }
@@ -451,7 +452,7 @@ impl<'a> CommonParser<'a> {
 
     /// Parses the parser's current token as a literal, and converts it to our StaticValue type.
     ///
-    /// **Note:** Numeric literals are parsed as u32, and as such, must fit within u32::max_value().
+    /// **Note:** Numeric literals are tokenized as u32, and as such, must fit within u32::max_value().
     /// **Note:** Signed integers are not yet supported.
     ///
     /// There are multiple error cases here, depending on the type of literal.
@@ -477,7 +478,7 @@ impl<'a> CommonParser<'a> {
                         match l.node {
                             // TODO: do we care about type? stored as f64....
                             ast::LitKind::Float(s, _) | ast::LitKind::FloatUnsuffixed(s) => {
-                                let conv = s.parse::<f32>();
+                                let conv = s.as_str().parse::<f32>();
                                 if conv.is_err() {
                                     return StaticValue::Error(conv.unwrap_err().to_string(), curr_span);
                                 }

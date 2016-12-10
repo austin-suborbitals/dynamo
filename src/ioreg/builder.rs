@@ -305,7 +305,7 @@ impl<'a> Builder<'a> {
     {
         let self_offset = self.bldr.expr().span(sp)
             .method_call("offset").tup_field(0).self_()
-            .arg().lit().isize(addr as isize)
+            .arg().lit().isize(addr as usize)
             .build();
 
         // volatile_load(self.0.offset(0x1234) as *T)
@@ -320,7 +320,7 @@ impl<'a> Builder<'a> {
     {
         let self_offset = self.bldr.expr().span(sp)
             .method_call("offset").tup_field(0).self_()
-            .arg().lit().isize(addr as isize)
+            .arg().lit().isize(addr as usize)
             .build();
 
         // volatile_store(self.0.offset(0x1234) as *T, 0x1234)
