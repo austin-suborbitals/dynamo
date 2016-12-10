@@ -4,10 +4,10 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="generator" content="rustdoc">
-    <meta name="description" content="Source to the Rust file `/home/travis/.cargo/registry/src/github.com-1ecc6299db9ec823/aster-0.30.0/src/name.rs`.">
+    <meta name="description" content="Source to the Rust file `src/lib.rs`.">
     <meta name="keywords" content="rust, rustlang, rust-lang">
 
-    <title>name.rs.html -- source</title>
+    <title>lib.rs.html -- source</title>
 
     <link rel="stylesheet" type="text/css" href="../../rustdoc.css">
     <link rel="stylesheet" type="text/css" href="../../main.css">
@@ -70,42 +70,34 @@
 <span id="26">26</span>
 <span id="27">27</span>
 <span id="28">28</span>
-<span id="29">29</span>
-<span id="30">30</span>
-<span id="31">31</span>
-<span id="32">32</span>
 </pre><pre class='rust '>
-<span class='kw'>use</span> <span class='ident'>syntax</span>::<span class='ident'>ast</span>;
-<span class='kw'>use</span> <span class='ident'>syntax</span>::<span class='ident'>parse</span>::<span class='ident'>token</span>;
+<span class='attribute'>#<span class='op'>!</span>[<span class='ident'>feature</span>(<span class='ident'>const_fn</span>)]</span>
+<span class='attribute'>#<span class='op'>!</span>[<span class='ident'>feature</span>(<span class='ident'>rustc_private</span>)]</span>
+<span class='attribute'>#<span class='op'>!</span>[<span class='ident'>feature</span>(<span class='ident'>plugin_registrar</span>)]</span>
+<span class='attribute'>#<span class='op'>!</span>[<span class='ident'>feature</span>(<span class='ident'>core_intrinsics</span>)]</span>
+<span class='attribute'>#<span class='op'>!</span>[<span class='ident'>feature</span>(<span class='ident'>associated_consts</span>)]</span>
 
-<span class='comment'>//////////////////////////////////////////////////////////////////////////////</span>
+<span class='kw'>extern</span> <span class='kw'>crate</span> <span class='ident'>syntax</span>;
+<span class='kw'>extern</span> <span class='kw'>crate</span> <span class='ident'>rustc</span>;
+<span class='kw'>extern</span> <span class='kw'>crate</span> <span class='ident'>rustc_plugin</span>;
 
-<span class='kw'>pub</span> <span class='kw'>trait</span> <span class='ident'>ToName</span> {
-    <span class='kw'>fn</span> <span class='ident'>to_name</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>ast</span>::<span class='ident'>Name</span>;
-}
+<span class='kw'>use</span> <span class='ident'>rustc_plugin</span>::<span class='ident'>Registry</span>;
 
-<span class='kw'>impl</span> <span class='ident'>ToName</span> <span class='kw'>for</span> <span class='ident'>ast</span>::<span class='ident'>Name</span> {
-    <span class='kw'>fn</span> <span class='ident'>to_name</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>ast</span>::<span class='ident'>Name</span> {
-        <span class='op'>*</span><span class='self'>self</span>
-    }
-}
+<span class='kw'>pub</span> <span class='kw'>mod</span> <span class='ident'>parser</span>;
+<span class='kw'>pub</span> <span class='kw'>mod</span> <span class='ident'>ioreg</span>;
+<span class='kw'>pub</span> <span class='kw'>mod</span> <span class='ident'>mcu</span>;
 
-<span class='kw'>impl</span><span class='op'>&lt;</span><span class='lifetime'>&#39;a</span><span class='op'>&gt;</span> <span class='ident'>ToName</span> <span class='kw'>for</span> <span class='kw-2'>&amp;</span><span class='lifetime'>&#39;a</span> <span class='ident'>str</span> {
-    <span class='kw'>fn</span> <span class='ident'>to_name</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>ast</span>::<span class='ident'>Name</span> {
-        <span class='ident'>token</span>::<span class='ident'>intern</span>(<span class='op'>*</span><span class='self'>self</span>)
-    }
-}
+<span class='comment'>//</span>
+<span class='comment'>// plugin registration</span>
+<span class='comment'>//</span>
 
-<span class='kw'>impl</span><span class='op'>&lt;</span><span class='lifetime'>&#39;a</span>, <span class='ident'>T</span><span class='op'>&gt;</span> <span class='ident'>ToName</span> <span class='kw'>for</span> <span class='kw-2'>&amp;</span><span class='lifetime'>&#39;a</span> <span class='ident'>T</span> <span class='kw'>where</span> <span class='ident'>T</span>: <span class='ident'>ToName</span> {
-    <span class='kw'>fn</span> <span class='ident'>to_name</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>ast</span>::<span class='ident'>Name</span> {
-        (<span class='op'>*</span><span class='op'>*</span><span class='self'>self</span>).<span class='ident'>to_name</span>()
-    }
-}
+<span class='attribute'>#[<span class='ident'>plugin_registrar</span>]</span>
+<span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>plugin_registrar</span>(<span class='ident'>reg</span>: <span class='kw-2'>&amp;</span><span class='kw-2'>mut</span> <span class='ident'>Registry</span>) {
+    <span class='ident'>reg</span>.<span class='ident'>register_macro</span>(<span class='string'>&quot;ioreg&quot;</span>, <span class='ident'>ioreg</span>::<span class='ident'>expand_ioreg</span>);
+    <span class='ident'>reg</span>.<span class='ident'>register_macro</span>(<span class='string'>&quot;ioreg_debug&quot;</span>, <span class='ident'>ioreg</span>::<span class='ident'>expand_ioreg_debug</span>);
 
-<span class='kw'>impl</span><span class='op'>&lt;</span><span class='lifetime'>&#39;a</span>, <span class='ident'>T</span><span class='op'>&gt;</span> <span class='ident'>ToName</span> <span class='kw'>for</span> <span class='kw-2'>&amp;</span><span class='lifetime'>&#39;a</span> <span class='kw-2'>mut</span> <span class='ident'>T</span> <span class='kw'>where</span> <span class='ident'>T</span>: <span class='ident'>ToName</span> {
-    <span class='kw'>fn</span> <span class='ident'>to_name</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>ast</span>::<span class='ident'>Name</span> {
-        (<span class='op'>*</span><span class='op'>*</span><span class='self'>self</span>).<span class='ident'>to_name</span>()
-    }
+    <span class='ident'>reg</span>.<span class='ident'>register_macro</span>(<span class='string'>&quot;mcu&quot;</span>, <span class='ident'>mcu</span>::<span class='ident'>expand_mcu</span>);
+    <span class='ident'>reg</span>.<span class='ident'>register_macro</span>(<span class='string'>&quot;mcu_debug&quot;</span>, <span class='ident'>mcu</span>::<span class='ident'>expand_mcu_debug</span>);
 }
 </pre>
 </section>
@@ -163,7 +155,7 @@
 
     <script>
         window.rootPath = "../../";
-        window.currentCrate = "aster";
+        window.currentCrate = "dynamo";
     </script>
     <script src="../../jquery.js"></script>
     <script src="../../main.js"></script>

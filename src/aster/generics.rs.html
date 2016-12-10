@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="generator" content="rustdoc">
-    <meta name="description" content="Source to the Rust file `/home/travis/.cargo/registry/src/github.com-1ecc6299db9ec823/aster-0.30.0/src/generics.rs`.">
+    <meta name="description" content="Source to the Rust file `/home/travis/.cargo/registry/src/github.com-1ecc6299db9ec823/aster-0.36.0/src/generics.rs`.">
     <meta name="keywords" content="rust, rustlang, rust-lang">
 
     <title>generics.rs.html -- source</title>
@@ -306,8 +306,8 @@
 <span class='kw'>use</span> <span class='ident'>ident</span>::<span class='ident'>ToIdent</span>;
 <span class='kw'>use</span> <span class='ident'>invoke</span>::{<span class='ident'>Invoke</span>, <span class='ident'>Identity</span>};
 <span class='kw'>use</span> <span class='ident'>lifetime</span>::{<span class='ident'>IntoLifetime</span>, <span class='ident'>IntoLifetimeDef</span>, <span class='ident'>LifetimeDefBuilder</span>};
-<span class='kw'>use</span> <span class='ident'>name</span>::<span class='ident'>ToName</span>;
 <span class='kw'>use</span> <span class='ident'>path</span>::<span class='ident'>IntoPath</span>;
+<span class='kw'>use</span> <span class='ident'>symbol</span>::<span class='ident'>ToSymbol</span>;
 <span class='kw'>use</span> <span class='ident'>ty_param</span>::<span class='ident'>TyParamBuilder</span>;
 <span class='kw'>use</span> <span class='ident'>where_predicate</span>::<span class='ident'>WherePredicateBuilder</span>;
 
@@ -376,7 +376,7 @@
 
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>with_lifetime_names</span><span class='op'>&lt;</span><span class='ident'>I</span>, <span class='ident'>N</span><span class='op'>&gt;</span>(<span class='kw-2'>mut</span> <span class='self'>self</span>, <span class='ident'>iter</span>: <span class='ident'>I</span>) <span class='op'>-&gt;</span> <span class='self'>Self</span>
         <span class='kw'>where</span> <span class='ident'>I</span>: <span class='ident'>IntoIterator</span><span class='op'>&lt;</span><span class='ident'>Item</span><span class='op'>=</span><span class='ident'>N</span><span class='op'>&gt;</span>,
-              <span class='ident'>N</span>: <span class='ident'>ToName</span>,
+              <span class='ident'>N</span>: <span class='ident'>ToSymbol</span>,
     {
         <span class='kw'>for</span> <span class='ident'>name</span> <span class='kw'>in</span> <span class='ident'>iter</span> {
             <span class='self'>self</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>lifetime_name</span>(<span class='ident'>name</span>);
@@ -390,13 +390,13 @@
     }
 
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>lifetime_name</span><span class='op'>&lt;</span><span class='ident'>N</span><span class='op'>&gt;</span>(<span class='self'>self</span>, <span class='ident'>name</span>: <span class='ident'>N</span>) <span class='op'>-&gt;</span> <span class='self'>Self</span>
-        <span class='kw'>where</span> <span class='ident'>N</span>: <span class='ident'>ToName</span>,
+        <span class='kw'>where</span> <span class='ident'>N</span>: <span class='ident'>ToSymbol</span>,
     {
         <span class='self'>self</span>.<span class='ident'>lifetime</span>(<span class='ident'>name</span>).<span class='ident'>build</span>()
     }
 
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>lifetime</span><span class='op'>&lt;</span><span class='ident'>N</span><span class='op'>&gt;</span>(<span class='self'>self</span>, <span class='ident'>name</span>: <span class='ident'>N</span>) <span class='op'>-&gt;</span> <span class='ident'>LifetimeDefBuilder</span><span class='op'>&lt;</span><span class='self'>Self</span><span class='op'>&gt;</span>
-        <span class='kw'>where</span> <span class='ident'>N</span>: <span class='ident'>ToName</span>,
+        <span class='kw'>where</span> <span class='ident'>N</span>: <span class='ident'>ToSymbol</span>,
     {
         <span class='ident'>LifetimeDefBuilder</span>::<span class='ident'>with_callback</span>(<span class='ident'>name</span>, <span class='self'>self</span>)
     }

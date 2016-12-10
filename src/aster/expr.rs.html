@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="generator" content="rustdoc">
-    <meta name="description" content="Source to the Rust file `/home/travis/.cargo/registry/src/github.com-1ecc6299db9ec823/aster-0.30.0/src/expr.rs`.">
+    <meta name="description" content="Source to the Rust file `/home/travis/.cargo/registry/src/github.com-1ecc6299db9ec823/aster-0.36.0/src/expr.rs`.">
     <meta name="keywords" content="rust, rustlang, rust-lang">
 
     <title>expr.rs.html -- source</title>
@@ -2143,8 +2143,88 @@
 <span id="2099">2099</span>
 <span id="2100">2100</span>
 <span id="2101">2101</span>
+<span id="2102">2102</span>
+<span id="2103">2103</span>
+<span id="2104">2104</span>
+<span id="2105">2105</span>
+<span id="2106">2106</span>
+<span id="2107">2107</span>
+<span id="2108">2108</span>
+<span id="2109">2109</span>
+<span id="2110">2110</span>
+<span id="2111">2111</span>
+<span id="2112">2112</span>
+<span id="2113">2113</span>
+<span id="2114">2114</span>
+<span id="2115">2115</span>
+<span id="2116">2116</span>
+<span id="2117">2117</span>
+<span id="2118">2118</span>
+<span id="2119">2119</span>
+<span id="2120">2120</span>
+<span id="2121">2121</span>
+<span id="2122">2122</span>
+<span id="2123">2123</span>
+<span id="2124">2124</span>
+<span id="2125">2125</span>
+<span id="2126">2126</span>
+<span id="2127">2127</span>
+<span id="2128">2128</span>
+<span id="2129">2129</span>
+<span id="2130">2130</span>
+<span id="2131">2131</span>
+<span id="2132">2132</span>
+<span id="2133">2133</span>
+<span id="2134">2134</span>
+<span id="2135">2135</span>
+<span id="2136">2136</span>
+<span id="2137">2137</span>
+<span id="2138">2138</span>
+<span id="2139">2139</span>
+<span id="2140">2140</span>
+<span id="2141">2141</span>
+<span id="2142">2142</span>
+<span id="2143">2143</span>
+<span id="2144">2144</span>
+<span id="2145">2145</span>
+<span id="2146">2146</span>
+<span id="2147">2147</span>
+<span id="2148">2148</span>
+<span id="2149">2149</span>
+<span id="2150">2150</span>
+<span id="2151">2151</span>
+<span id="2152">2152</span>
+<span id="2153">2153</span>
+<span id="2154">2154</span>
+<span id="2155">2155</span>
+<span id="2156">2156</span>
+<span id="2157">2157</span>
+<span id="2158">2158</span>
+<span id="2159">2159</span>
+<span id="2160">2160</span>
+<span id="2161">2161</span>
+<span id="2162">2162</span>
+<span id="2163">2163</span>
+<span id="2164">2164</span>
+<span id="2165">2165</span>
+<span id="2166">2166</span>
+<span id="2167">2167</span>
+<span id="2168">2168</span>
+<span id="2169">2169</span>
+<span id="2170">2170</span>
+<span id="2171">2171</span>
+<span id="2172">2172</span>
+<span id="2173">2173</span>
+<span id="2174">2174</span>
+<span id="2175">2175</span>
+<span id="2176">2176</span>
+<span id="2177">2177</span>
+<span id="2178">2178</span>
+<span id="2179">2179</span>
+<span id="2180">2180</span>
+<span id="2181">2181</span>
 </pre><pre class='rust '>
-<span class='attribute'>#<span class='op'>!</span>[<span class='ident'>cfg_attr</span>(<span class='ident'>feature</span> <span class='op'>=</span> <span class='string'>&quot;unstable-testing&quot;</span>, <span class='ident'>allow</span>(<span class='ident'>should_implement_trait</span>))]</span>
+<span class='attribute'>#<span class='op'>!</span>[<span class='ident'>cfg_attr</span>(<span class='ident'>feature</span> <span class='op'>=</span> <span class='string'>&quot;clippy&quot;</span>, <span class='ident'>allow</span>(<span class='ident'>should_implement_trait</span>))]</span>
 
 <span class='kw'>use</span> <span class='ident'>std</span>::<span class='ident'>iter</span>::<span class='ident'>IntoIterator</span>;
 
@@ -2163,7 +2243,7 @@
 <span class='kw'>use</span> <span class='ident'>pat</span>::<span class='ident'>PatBuilder</span>;
 <span class='kw'>use</span> <span class='ident'>path</span>::{<span class='ident'>IntoPath</span>, <span class='ident'>PathBuilder</span>};
 <span class='kw'>use</span> <span class='ident'>qpath</span>::<span class='ident'>QPathBuilder</span>;
-<span class='kw'>use</span> <span class='ident'>str</span>::<span class='ident'>ToInternedString</span>;
+<span class='kw'>use</span> <span class='ident'>symbol</span>::<span class='ident'>ToSymbol</span>;
 <span class='kw'>use</span> <span class='ident'>ty</span>::<span class='ident'>TyBuilder</span>;
 
 <span class='comment'>//////////////////////////////////////////////////////////////////////////////</span>
@@ -2178,6 +2258,20 @@
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>new</span>() <span class='op'>-&gt;</span> <span class='self'>Self</span> {
         <span class='ident'>ExprBuilder</span>::<span class='ident'>with_callback</span>(<span class='ident'>Identity</span>)
     }
+}
+
+<span class='macro'>macro_rules</span><span class='macro'>!</span> <span class='ident'>signed_int_method</span> {
+    (<span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>ty</span>:<span class='ident'>ident</span>, <span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>unsigned</span>:<span class='ident'>ident</span>) <span class='op'>=&gt;</span> {
+        <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>ty</span>(<span class='self'>self</span>, <span class='ident'>val</span>: <span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>ty</span>) <span class='op'>-&gt;</span> <span class='ident'>F</span>::<span class='prelude-ty'>Result</span> {
+            <span class='kw'>if</span> <span class='ident'>val</span> <span class='op'>==</span> ::<span class='ident'>std</span>::<span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>ty</span>::<span class='ident'>MIN</span> {
+                <span class='self'>self</span>.<span class='ident'>neg</span>().<span class='ident'>lit</span>().<span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>ty</span>(<span class='ident'>val</span> <span class='kw'>as</span> <span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>unsigned</span>)
+            } <span class='kw'>else</span> <span class='kw'>if</span> <span class='ident'>val</span> <span class='op'>&lt;</span> <span class='number'>0</span> {
+                <span class='self'>self</span>.<span class='ident'>neg</span>().<span class='ident'>lit</span>().<span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>ty</span>(<span class='op'>-</span><span class='ident'>val</span> <span class='kw'>as</span> <span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>unsigned</span>)
+            } <span class='kw'>else</span> {
+                <span class='self'>self</span>.<span class='ident'>lit</span>().<span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>ty</span>(<span class='ident'>val</span> <span class='kw'>as</span> <span class='macro-nonterminal'>$</span><span class='macro-nonterminal'>unsigned</span>)
+            }
+        }
+    };
 }
 
 <span class='kw'>impl</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;</span> <span class='ident'>ExprBuilder</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;</span>
@@ -2264,10 +2358,12 @@
     }
 
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>int</span>(<span class='self'>self</span>, <span class='ident'>value</span>: <span class='ident'>i64</span>) <span class='op'>-&gt;</span> <span class='ident'>F</span>::<span class='prelude-ty'>Result</span> {
-        <span class='kw'>if</span> <span class='ident'>value</span> <span class='op'>&lt;</span> <span class='number'>0</span> {
-            <span class='self'>self</span>.<span class='ident'>neg</span>().<span class='ident'>lit</span>().<span class='ident'>int</span>(<span class='op'>-</span><span class='ident'>value</span>)
+        <span class='kw'>if</span> <span class='ident'>value</span> <span class='op'>==</span> ::<span class='ident'>std</span>::<span class='ident'>i64</span>::<span class='ident'>MIN</span> {
+            <span class='self'>self</span>.<span class='ident'>neg</span>().<span class='ident'>lit</span>().<span class='ident'>int</span>(<span class='ident'>value</span> <span class='kw'>as</span> <span class='ident'>u64</span>)
+        } <span class='kw'>else</span> <span class='kw'>if</span> <span class='ident'>value</span> <span class='op'>&lt;</span> <span class='number'>0</span> {
+            <span class='self'>self</span>.<span class='ident'>neg</span>().<span class='ident'>lit</span>().<span class='ident'>int</span>(<span class='op'>-</span><span class='ident'>value</span> <span class='kw'>as</span> <span class='ident'>u64</span>)
         } <span class='kw'>else</span> {
-            <span class='self'>self</span>.<span class='ident'>lit</span>().<span class='ident'>int</span>(<span class='ident'>value</span>)
+            <span class='self'>self</span>.<span class='ident'>lit</span>().<span class='ident'>int</span>(<span class='ident'>value</span> <span class='kw'>as</span> <span class='ident'>u64</span>)
         }
     }
 
@@ -2275,45 +2371,11 @@
         <span class='self'>self</span>.<span class='ident'>lit</span>().<span class='ident'>uint</span>(<span class='ident'>value</span> <span class='kw'>as</span> <span class='ident'>u64</span>)
     }
 
-    <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>isize</span>(<span class='self'>self</span>, <span class='ident'>value</span>: <span class='ident'>isize</span>) <span class='op'>-&gt;</span> <span class='ident'>F</span>::<span class='prelude-ty'>Result</span> {
-        <span class='kw'>if</span> <span class='ident'>value</span> <span class='op'>&lt;</span> <span class='number'>0</span> {
-            <span class='self'>self</span>.<span class='ident'>neg</span>().<span class='ident'>lit</span>().<span class='ident'>isize</span>(<span class='op'>-</span><span class='ident'>value</span>)
-        } <span class='kw'>else</span> {
-            <span class='self'>self</span>.<span class='ident'>lit</span>().<span class='ident'>isize</span>(<span class='ident'>value</span>)
-        }
-    }
-
-    <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>i8</span>(<span class='self'>self</span>, <span class='ident'>value</span>: <span class='ident'>i8</span>) <span class='op'>-&gt;</span> <span class='ident'>F</span>::<span class='prelude-ty'>Result</span> {
-        <span class='kw'>if</span> <span class='ident'>value</span> <span class='op'>&lt;</span> <span class='number'>0</span> {
-            <span class='self'>self</span>.<span class='ident'>neg</span>().<span class='ident'>lit</span>().<span class='ident'>i8</span>(<span class='op'>-</span><span class='ident'>value</span>)
-        } <span class='kw'>else</span> {
-            <span class='self'>self</span>.<span class='ident'>lit</span>().<span class='ident'>i8</span>(<span class='ident'>value</span>)
-        }
-    }
-
-    <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>i16</span>(<span class='self'>self</span>, <span class='ident'>value</span>: <span class='ident'>i16</span>) <span class='op'>-&gt;</span> <span class='ident'>F</span>::<span class='prelude-ty'>Result</span> {
-        <span class='kw'>if</span> <span class='ident'>value</span> <span class='op'>&lt;</span> <span class='number'>0</span> {
-            <span class='self'>self</span>.<span class='ident'>neg</span>().<span class='ident'>lit</span>().<span class='ident'>i16</span>(<span class='op'>-</span><span class='ident'>value</span>)
-        } <span class='kw'>else</span> {
-            <span class='self'>self</span>.<span class='ident'>lit</span>().<span class='ident'>i16</span>(<span class='ident'>value</span>)
-        }
-    }
-
-    <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>i32</span>(<span class='self'>self</span>, <span class='ident'>value</span>: <span class='ident'>i32</span>) <span class='op'>-&gt;</span> <span class='ident'>F</span>::<span class='prelude-ty'>Result</span> {
-        <span class='kw'>if</span> <span class='ident'>value</span> <span class='op'>&lt;</span> <span class='number'>0</span> {
-            <span class='self'>self</span>.<span class='ident'>neg</span>().<span class='ident'>lit</span>().<span class='ident'>i32</span>(<span class='op'>-</span><span class='ident'>value</span>)
-        } <span class='kw'>else</span> {
-            <span class='self'>self</span>.<span class='ident'>lit</span>().<span class='ident'>i32</span>(<span class='ident'>value</span>)
-        }
-    }
-
-    <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>i64</span>(<span class='self'>self</span>, <span class='ident'>value</span>: <span class='ident'>i64</span>) <span class='op'>-&gt;</span> <span class='ident'>F</span>::<span class='prelude-ty'>Result</span> {
-        <span class='kw'>if</span> <span class='ident'>value</span> <span class='op'>&lt;</span> <span class='number'>0</span> {
-            <span class='self'>self</span>.<span class='ident'>neg</span>().<span class='ident'>lit</span>().<span class='ident'>i64</span>(<span class='op'>-</span><span class='ident'>value</span>)
-        } <span class='kw'>else</span> {
-            <span class='self'>self</span>.<span class='ident'>lit</span>().<span class='ident'>i64</span>(<span class='ident'>value</span>)
-        }
-    }
+    <span class='macro'>signed_int_method</span><span class='macro'>!</span>(<span class='ident'>i8</span>, <span class='ident'>u8</span>);
+    <span class='macro'>signed_int_method</span><span class='macro'>!</span>(<span class='ident'>i16</span>, <span class='ident'>u16</span>);
+    <span class='macro'>signed_int_method</span><span class='macro'>!</span>(<span class='ident'>i32</span>, <span class='ident'>u32</span>);
+    <span class='macro'>signed_int_method</span><span class='macro'>!</span>(<span class='ident'>i64</span>, <span class='ident'>u64</span>);
+    <span class='macro'>signed_int_method</span><span class='macro'>!</span>(<span class='ident'>isize</span>, <span class='ident'>usize</span>);
 
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>usize</span>(<span class='self'>self</span>, <span class='ident'>value</span>: <span class='ident'>usize</span>) <span class='op'>-&gt;</span> <span class='ident'>F</span>::<span class='prelude-ty'>Result</span> {
         <span class='self'>self</span>.<span class='ident'>lit</span>().<span class='ident'>usize</span>(<span class='ident'>value</span>)
@@ -2336,19 +2398,19 @@
     }
 
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>f32</span><span class='op'>&lt;</span><span class='ident'>S</span><span class='op'>&gt;</span>(<span class='self'>self</span>, <span class='ident'>value</span>: <span class='ident'>S</span>) <span class='op'>-&gt;</span> <span class='ident'>F</span>::<span class='prelude-ty'>Result</span>
-        <span class='kw'>where</span> <span class='ident'>S</span>: <span class='ident'>ToInternedString</span>,
+        <span class='kw'>where</span> <span class='ident'>S</span>: <span class='ident'>ToSymbol</span>,
     {
         <span class='self'>self</span>.<span class='ident'>lit</span>().<span class='ident'>f32</span>(<span class='ident'>value</span>)
     }
 
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>f64</span><span class='op'>&lt;</span><span class='ident'>S</span><span class='op'>&gt;</span>(<span class='self'>self</span>, <span class='ident'>value</span>: <span class='ident'>S</span>) <span class='op'>-&gt;</span> <span class='ident'>F</span>::<span class='prelude-ty'>Result</span>
-        <span class='kw'>where</span> <span class='ident'>S</span>: <span class='ident'>ToInternedString</span>,
+        <span class='kw'>where</span> <span class='ident'>S</span>: <span class='ident'>ToSymbol</span>,
     {
         <span class='self'>self</span>.<span class='ident'>lit</span>().<span class='ident'>f64</span>(<span class='ident'>value</span>)
     }
 
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>str</span><span class='op'>&lt;</span><span class='ident'>S</span><span class='op'>&gt;</span>(<span class='self'>self</span>, <span class='ident'>value</span>: <span class='ident'>S</span>) <span class='op'>-&gt;</span> <span class='ident'>F</span>::<span class='prelude-ty'>Result</span>
-        <span class='kw'>where</span> <span class='ident'>S</span>: <span class='ident'>ToInternedString</span>,
+        <span class='kw'>where</span> <span class='ident'>S</span>: <span class='ident'>ToSymbol</span>,
     {
         <span class='self'>self</span>.<span class='ident'>lit</span>().<span class='ident'>str</span>(<span class='ident'>value</span>)
     }
@@ -2566,14 +2628,14 @@
     }
 
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>break_</span>(<span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>F</span>::<span class='prelude-ty'>Result</span> {
-        <span class='self'>self</span>.<span class='ident'>build_expr_kind</span>(<span class='ident'>ast</span>::<span class='ident'>ExprKind</span>::<span class='ident'>Break</span>(<span class='prelude-val'>None</span>))
+        <span class='self'>self</span>.<span class='ident'>build_expr_kind</span>(<span class='ident'>ast</span>::<span class='ident'>ExprKind</span>::<span class='ident'>Break</span>(<span class='prelude-val'>None</span>, <span class='prelude-val'>None</span>))
     }
 
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>break_to</span><span class='op'>&lt;</span><span class='ident'>I</span><span class='op'>&gt;</span>(<span class='self'>self</span>, <span class='ident'>label</span>: <span class='ident'>I</span>) <span class='op'>-&gt;</span> <span class='ident'>F</span>::<span class='prelude-ty'>Result</span>
         <span class='kw'>where</span> <span class='ident'>I</span>: <span class='ident'>ToIdent</span>,
     {
         <span class='kw'>let</span> <span class='ident'>label</span> <span class='op'>=</span> <span class='ident'>respan</span>(<span class='self'>self</span>.<span class='ident'>span</span>, <span class='ident'>label</span>.<span class='ident'>to_ident</span>());
-        <span class='self'>self</span>.<span class='ident'>build_expr_kind</span>(<span class='ident'>ast</span>::<span class='ident'>ExprKind</span>::<span class='ident'>Break</span>(<span class='prelude-val'>Some</span>(<span class='ident'>label</span>)))
+        <span class='self'>self</span>.<span class='ident'>build_expr_kind</span>(<span class='ident'>ast</span>::<span class='ident'>ExprKind</span>::<span class='ident'>Break</span>(<span class='prelude-val'>Some</span>(<span class='ident'>label</span>), <span class='prelude-val'>None</span>))
     }
 
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>continue_</span>(<span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>F</span>::<span class='prelude-ty'>Result</span> {
@@ -2820,6 +2882,12 @@
         <span class='ident'>ExprBuilder</span>::<span class='ident'>with_callback</span>(<span class='ident'>ExprIndexBuilder</span> {
             <span class='ident'>builder</span>: <span class='self'>self</span>,
         }).<span class='ident'>span</span>(<span class='ident'>span</span>)
+    }
+
+    <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>range</span>(<span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>ExprRangeBuilder</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;</span> {
+        <span class='ident'>ExprRangeBuilder</span> {
+            <span class='ident'>builder</span>: <span class='self'>self</span>,
+        }
     }
 
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>build_repeat</span>(<span class='self'>self</span>, <span class='ident'>lhs</span>: <span class='ident'>P</span><span class='op'>&lt;</span><span class='ident'>ast</span>::<span class='ident'>Expr</span><span class='op'>&gt;</span>, <span class='ident'>rhs</span>: <span class='ident'>P</span><span class='op'>&lt;</span><span class='ident'>ast</span>::<span class='ident'>Expr</span><span class='op'>&gt;</span>) <span class='op'>-&gt;</span> <span class='ident'>F</span>::<span class='prelude-ty'>Result</span> {
@@ -3267,6 +3335,7 @@
             <span class='ident'>ident</span>: <span class='ident'>respan</span>(<span class='self'>self</span>.<span class='ident'>builder</span>.<span class='ident'>span</span>, <span class='self'>self</span>.<span class='ident'>id</span>.<span class='ident'>to_ident</span>()),
             <span class='ident'>expr</span>: <span class='ident'>expr</span>,
             <span class='ident'>span</span>: <span class='self'>self</span>.<span class='ident'>builder</span>.<span class='ident'>span</span>,
+            <span class='ident'>is_shorthand</span>: <span class='bool-val'>false</span>,
         };
         <span class='self'>self</span>.<span class='ident'>builder</span>.<span class='ident'>fields</span>.<span class='ident'>push</span>(<span class='ident'>field</span>);
         <span class='self'>self</span>.<span class='ident'>builder</span>
@@ -3577,6 +3646,100 @@
 
     <span class='kw'>fn</span> <span class='ident'>invoke</span>(<span class='self'>self</span>, <span class='ident'>rhs</span>: <span class='ident'>P</span><span class='op'>&lt;</span><span class='ident'>ast</span>::<span class='ident'>Expr</span><span class='op'>&gt;</span>) <span class='op'>-&gt;</span> <span class='ident'>F</span>::<span class='prelude-ty'>Result</span> {
         <span class='self'>self</span>.<span class='ident'>builder</span>.<span class='ident'>build_index</span>(<span class='self'>self</span>.<span class='ident'>lhs</span>, <span class='ident'>rhs</span>)
+    }
+}
+
+<span class='comment'>//////////////////////////////////////////////////////////////////////////////</span>
+
+<span class='kw'>pub</span> <span class='kw'>struct</span> <span class='ident'>ExprRangeBuilder</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;</span> {
+    <span class='ident'>builder</span>: <span class='ident'>ExprBuilder</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;</span>,
+}
+
+<span class='kw'>impl</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;</span> <span class='ident'>ExprRangeBuilder</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;</span>
+    <span class='kw'>where</span> <span class='ident'>F</span>: <span class='ident'>Invoke</span><span class='op'>&lt;</span><span class='ident'>P</span><span class='op'>&lt;</span><span class='ident'>ast</span>::<span class='ident'>Expr</span><span class='op'>&gt;&gt;</span>,
+{
+    <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>from</span>(<span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>ExprBuilder</span><span class='op'>&lt;</span><span class='self'>Self</span><span class='op'>&gt;</span> {
+        <span class='ident'>ExprBuilder</span>::<span class='ident'>with_callback</span>(<span class='self'>self</span>)
+    }
+
+    <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>to</span>(<span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>ExprBuilder</span><span class='op'>&lt;</span><span class='ident'>ExprRangeToBuilder</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;&gt;</span> {
+        <span class='self'>self</span>.<span class='ident'>from_opt</span>(<span class='prelude-val'>None</span>).<span class='ident'>to</span>()
+    }
+
+    <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>to_inclusive</span>(<span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>ExprBuilder</span><span class='op'>&lt;</span><span class='ident'>ExprRangeToBuilder</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;&gt;</span> {
+        <span class='self'>self</span>.<span class='ident'>from_opt</span>(<span class='prelude-val'>None</span>).<span class='ident'>to_inclusive</span>()
+    }
+
+    <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>from_opt</span>(<span class='self'>self</span>, <span class='ident'>from</span>: <span class='prelude-ty'>Option</span><span class='op'>&lt;</span><span class='ident'>P</span><span class='op'>&lt;</span><span class='ident'>ast</span>::<span class='ident'>Expr</span><span class='op'>&gt;&gt;</span>) <span class='op'>-&gt;</span> <span class='ident'>ExprRangeFromBuilder</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;</span> {
+        <span class='ident'>ExprRangeFromBuilder</span> {
+            <span class='ident'>builder</span>: <span class='self'>self</span>.<span class='ident'>builder</span>,
+            <span class='ident'>from</span>: <span class='ident'>from</span>,
+        }
+    }
+
+    <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>build</span>(<span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>F</span>::<span class='prelude-ty'>Result</span> {
+        <span class='self'>self</span>.<span class='ident'>from_opt</span>(<span class='prelude-val'>None</span>).<span class='ident'>build</span>()
+    }
+}
+
+<span class='kw'>impl</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;</span> <span class='ident'>Invoke</span><span class='op'>&lt;</span><span class='ident'>P</span><span class='op'>&lt;</span><span class='ident'>ast</span>::<span class='ident'>Expr</span><span class='op'>&gt;&gt;</span> <span class='kw'>for</span> <span class='ident'>ExprRangeBuilder</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;</span>
+    <span class='kw'>where</span> <span class='ident'>F</span>: <span class='ident'>Invoke</span><span class='op'>&lt;</span><span class='ident'>P</span><span class='op'>&lt;</span><span class='ident'>ast</span>::<span class='ident'>Expr</span><span class='op'>&gt;&gt;</span>,
+{
+    <span class='kw'>type</span> <span class='prelude-ty'>Result</span> <span class='op'>=</span> <span class='ident'>ExprRangeFromBuilder</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;</span>;
+
+    <span class='kw'>fn</span> <span class='ident'>invoke</span>(<span class='self'>self</span>, <span class='ident'>from</span>: <span class='ident'>P</span><span class='op'>&lt;</span><span class='ident'>ast</span>::<span class='ident'>Expr</span><span class='op'>&gt;</span>) <span class='op'>-&gt;</span> <span class='ident'>ExprRangeFromBuilder</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;</span> {
+        <span class='self'>self</span>.<span class='ident'>from_opt</span>(<span class='prelude-val'>Some</span>(<span class='ident'>from</span>))
+    }
+}
+
+<span class='comment'>//////////////////////////////////////////////////////////////////////////////</span>
+
+<span class='kw'>pub</span> <span class='kw'>struct</span> <span class='ident'>ExprRangeFromBuilder</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;</span> {
+    <span class='ident'>builder</span>: <span class='ident'>ExprBuilder</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;</span>,
+    <span class='ident'>from</span>: <span class='prelude-ty'>Option</span><span class='op'>&lt;</span><span class='ident'>P</span><span class='op'>&lt;</span><span class='ident'>ast</span>::<span class='ident'>Expr</span><span class='op'>&gt;&gt;</span>,
+}
+
+<span class='kw'>impl</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;</span> <span class='ident'>ExprRangeFromBuilder</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;</span>
+    <span class='kw'>where</span> <span class='ident'>F</span>: <span class='ident'>Invoke</span><span class='op'>&lt;</span><span class='ident'>P</span><span class='op'>&lt;</span><span class='ident'>ast</span>::<span class='ident'>Expr</span><span class='op'>&gt;&gt;</span>,
+{
+    <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>to</span>(<span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>ExprBuilder</span><span class='op'>&lt;</span><span class='ident'>ExprRangeToBuilder</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;&gt;</span> {
+        <span class='ident'>ExprBuilder</span>::<span class='ident'>with_callback</span>(<span class='ident'>ExprRangeToBuilder</span> {
+            <span class='ident'>builder</span>: <span class='self'>self</span>,
+            <span class='ident'>limit</span>: <span class='ident'>ast</span>::<span class='ident'>RangeLimits</span>::<span class='ident'>HalfOpen</span>,
+        })
+    }
+
+    <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>to_inclusive</span>(<span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>ExprBuilder</span><span class='op'>&lt;</span><span class='ident'>ExprRangeToBuilder</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;&gt;</span> {
+        <span class='ident'>ExprBuilder</span>::<span class='ident'>with_callback</span>(<span class='ident'>ExprRangeToBuilder</span> {
+            <span class='ident'>builder</span>: <span class='self'>self</span>,
+            <span class='ident'>limit</span>: <span class='ident'>ast</span>::<span class='ident'>RangeLimits</span>::<span class='ident'>Closed</span>,
+        })
+    }
+
+    <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>build</span>(<span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>F</span>::<span class='prelude-ty'>Result</span> {
+        <span class='self'>self</span>.<span class='ident'>to_opt</span>(<span class='prelude-val'>None</span>, <span class='ident'>ast</span>::<span class='ident'>RangeLimits</span>::<span class='ident'>HalfOpen</span>)
+    }
+
+    <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>to_opt</span>(<span class='self'>self</span>, <span class='ident'>to</span>: <span class='prelude-ty'>Option</span><span class='op'>&lt;</span><span class='ident'>P</span><span class='op'>&lt;</span><span class='ident'>ast</span>::<span class='ident'>Expr</span><span class='op'>&gt;&gt;</span>, <span class='ident'>limit</span>: <span class='ident'>ast</span>::<span class='ident'>RangeLimits</span>) <span class='op'>-&gt;</span> <span class='ident'>F</span>::<span class='prelude-ty'>Result</span> {
+        <span class='kw'>let</span> <span class='ident'>kind</span> <span class='op'>=</span> <span class='ident'>ast</span>::<span class='ident'>ExprKind</span>::<span class='ident'>Range</span>(<span class='self'>self</span>.<span class='ident'>from</span>, <span class='ident'>to</span>, <span class='ident'>limit</span>);
+        <span class='self'>self</span>.<span class='ident'>builder</span>.<span class='ident'>build_expr_kind</span>(<span class='ident'>kind</span>)
+    }
+}
+
+<span class='comment'>//////////////////////////////////////////////////////////////////////////////</span>
+
+<span class='kw'>pub</span> <span class='kw'>struct</span> <span class='ident'>ExprRangeToBuilder</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;</span> {
+    <span class='ident'>builder</span>: <span class='ident'>ExprRangeFromBuilder</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;</span>,
+    <span class='ident'>limit</span>: <span class='ident'>ast</span>::<span class='ident'>RangeLimits</span>,
+}
+
+<span class='kw'>impl</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;</span> <span class='ident'>Invoke</span><span class='op'>&lt;</span><span class='ident'>P</span><span class='op'>&lt;</span><span class='ident'>ast</span>::<span class='ident'>Expr</span><span class='op'>&gt;&gt;</span> <span class='kw'>for</span> <span class='ident'>ExprRangeToBuilder</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;</span>
+    <span class='kw'>where</span> <span class='ident'>F</span>: <span class='ident'>Invoke</span><span class='op'>&lt;</span><span class='ident'>P</span><span class='op'>&lt;</span><span class='ident'>ast</span>::<span class='ident'>Expr</span><span class='op'>&gt;&gt;</span>,
+{
+    <span class='kw'>type</span> <span class='prelude-ty'>Result</span> <span class='op'>=</span> <span class='ident'>F</span>::<span class='prelude-ty'>Result</span>;
+
+    <span class='kw'>fn</span> <span class='ident'>invoke</span>(<span class='self'>self</span>, <span class='ident'>expr</span>: <span class='ident'>P</span><span class='op'>&lt;</span><span class='ident'>ast</span>::<span class='ident'>Expr</span><span class='op'>&gt;</span>) <span class='op'>-&gt;</span> <span class='ident'>F</span>::<span class='prelude-ty'>Result</span> {
+        <span class='self'>self</span>.<span class='ident'>builder</span>.<span class='ident'>to_opt</span>(<span class='prelude-val'>Some</span>(<span class='ident'>expr</span>), <span class='self'>self</span>.<span class='ident'>limit</span>)
     }
 }
 
@@ -4067,8 +4230,8 @@
         <span class='ident'>FnDeclBuilder</span>::<span class='ident'>with_callback</span>(<span class='self'>self</span>)
     }
 
-    <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>build_fn_decl</span>(<span class='self'>self</span>, <span class='ident'>fn_decl</span>: <span class='ident'>P</span><span class='op'>&lt;</span><span class='ident'>ast</span>::<span class='ident'>FnDecl</span><span class='op'>&gt;</span>) <span class='op'>-&gt;</span> <span class='ident'>ExprClosureBlockBuilder</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;</span> {
-        <span class='ident'>ExprClosureBlockBuilder</span> {
+    <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>build_fn_decl</span>(<span class='self'>self</span>, <span class='ident'>fn_decl</span>: <span class='ident'>P</span><span class='op'>&lt;</span><span class='ident'>ast</span>::<span class='ident'>FnDecl</span><span class='op'>&gt;</span>) <span class='op'>-&gt;</span> <span class='ident'>ExprClosureExprBuilder</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;</span> {
+        <span class='ident'>ExprClosureExprBuilder</span> {
             <span class='ident'>builder</span>: <span class='self'>self</span>.<span class='ident'>builder</span>,
             <span class='ident'>capture_by</span>: <span class='self'>self</span>.<span class='ident'>capture_by</span>,
             <span class='ident'>fn_decl</span>: <span class='ident'>fn_decl</span>,
@@ -4078,45 +4241,42 @@
 }
 
 <span class='kw'>impl</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;</span> <span class='ident'>Invoke</span><span class='op'>&lt;</span><span class='ident'>P</span><span class='op'>&lt;</span><span class='ident'>ast</span>::<span class='ident'>FnDecl</span><span class='op'>&gt;&gt;</span> <span class='kw'>for</span> <span class='ident'>ExprClosureBuilder</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;</span> {
-    <span class='kw'>type</span> <span class='prelude-ty'>Result</span> <span class='op'>=</span> <span class='ident'>ExprClosureBlockBuilder</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;</span>;
+    <span class='kw'>type</span> <span class='prelude-ty'>Result</span> <span class='op'>=</span> <span class='ident'>ExprClosureExprBuilder</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;</span>;
 
-    <span class='kw'>fn</span> <span class='ident'>invoke</span>(<span class='self'>self</span>, <span class='ident'>fn_decl</span>: <span class='ident'>P</span><span class='op'>&lt;</span><span class='ident'>ast</span>::<span class='ident'>FnDecl</span><span class='op'>&gt;</span>) <span class='op'>-&gt;</span> <span class='ident'>ExprClosureBlockBuilder</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;</span> {
+    <span class='kw'>fn</span> <span class='ident'>invoke</span>(<span class='self'>self</span>, <span class='ident'>fn_decl</span>: <span class='ident'>P</span><span class='op'>&lt;</span><span class='ident'>ast</span>::<span class='ident'>FnDecl</span><span class='op'>&gt;</span>) <span class='op'>-&gt;</span> <span class='ident'>ExprClosureExprBuilder</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;</span> {
         <span class='self'>self</span>.<span class='ident'>build_fn_decl</span>(<span class='ident'>fn_decl</span>)
     }
 }
 
 <span class='comment'>//////////////////////////////////////////////////////////////////////////////</span>
 
-<span class='kw'>pub</span> <span class='kw'>struct</span> <span class='ident'>ExprClosureBlockBuilder</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;</span> {
+<span class='kw'>pub</span> <span class='kw'>struct</span> <span class='ident'>ExprClosureExprBuilder</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;</span> {
     <span class='ident'>builder</span>: <span class='ident'>ExprBuilder</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;</span>,
     <span class='ident'>capture_by</span>: <span class='ident'>ast</span>::<span class='ident'>CaptureBy</span>,
     <span class='ident'>fn_decl</span>: <span class='ident'>P</span><span class='op'>&lt;</span><span class='ident'>ast</span>::<span class='ident'>FnDecl</span><span class='op'>&gt;</span>,
     <span class='ident'>span</span>: <span class='ident'>Span</span>,
 }
 
-<span class='kw'>impl</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;</span> <span class='ident'>ExprClosureBlockBuilder</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;</span>
+<span class='kw'>impl</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;</span> <span class='ident'>ExprClosureExprBuilder</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;</span>
     <span class='kw'>where</span> <span class='ident'>F</span>: <span class='ident'>Invoke</span><span class='op'>&lt;</span><span class='ident'>P</span><span class='op'>&lt;</span><span class='ident'>ast</span>::<span class='ident'>Expr</span><span class='op'>&gt;&gt;</span>,
 {
-    <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>expr</span>(<span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>ExprBuilder</span><span class='op'>&lt;</span><span class='ident'>BlockBuilder</span><span class='op'>&lt;</span><span class='self'>Self</span><span class='op'>&gt;&gt;</span> {
-        <span class='self'>self</span>.<span class='ident'>block</span>().<span class='ident'>expr</span>()
+    <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>expr</span>(<span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>ExprBuilder</span><span class='op'>&lt;</span><span class='self'>Self</span><span class='op'>&gt;</span> {
+        <span class='kw'>let</span> <span class='ident'>span</span> <span class='op'>=</span> <span class='self'>self</span>.<span class='ident'>span</span>;
+        <span class='ident'>ExprBuilder</span>::<span class='ident'>with_callback</span>(<span class='self'>self</span>).<span class='ident'>span</span>(<span class='ident'>span</span>)
     }
 
-    <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>block</span>(<span class='self'>self</span>) <span class='op'>-&gt;</span> <span class='ident'>BlockBuilder</span><span class='op'>&lt;</span><span class='self'>Self</span><span class='op'>&gt;</span> {
-        <span class='ident'>BlockBuilder</span>::<span class='ident'>with_callback</span>(<span class='self'>self</span>)
-    }
-
-    <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>build_block</span>(<span class='self'>self</span>, <span class='ident'>block</span>: <span class='ident'>P</span><span class='op'>&lt;</span><span class='ident'>ast</span>::<span class='ident'>Block</span><span class='op'>&gt;</span>) <span class='op'>-&gt;</span> <span class='ident'>F</span>::<span class='prelude-ty'>Result</span> {
-        <span class='self'>self</span>.<span class='ident'>builder</span>.<span class='ident'>build_expr_kind</span>(<span class='ident'>ast</span>::<span class='ident'>ExprKind</span>::<span class='ident'>Closure</span>(<span class='self'>self</span>.<span class='ident'>capture_by</span>, <span class='self'>self</span>.<span class='ident'>fn_decl</span>, <span class='ident'>block</span>, <span class='self'>self</span>.<span class='ident'>span</span>))
+    <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>build_expr</span>(<span class='self'>self</span>, <span class='ident'>expr</span>: <span class='ident'>P</span><span class='op'>&lt;</span><span class='ident'>ast</span>::<span class='ident'>Expr</span><span class='op'>&gt;</span>) <span class='op'>-&gt;</span> <span class='ident'>F</span>::<span class='prelude-ty'>Result</span> {
+        <span class='self'>self</span>.<span class='ident'>builder</span>.<span class='ident'>build_expr_kind</span>(<span class='ident'>ast</span>::<span class='ident'>ExprKind</span>::<span class='ident'>Closure</span>(<span class='self'>self</span>.<span class='ident'>capture_by</span>, <span class='self'>self</span>.<span class='ident'>fn_decl</span>, <span class='ident'>expr</span>, <span class='self'>self</span>.<span class='ident'>span</span>))
     }
 }
 
-<span class='kw'>impl</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;</span> <span class='ident'>Invoke</span><span class='op'>&lt;</span><span class='ident'>P</span><span class='op'>&lt;</span><span class='ident'>ast</span>::<span class='ident'>Block</span><span class='op'>&gt;&gt;</span> <span class='kw'>for</span> <span class='ident'>ExprClosureBlockBuilder</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;</span>
+<span class='kw'>impl</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;</span> <span class='ident'>Invoke</span><span class='op'>&lt;</span><span class='ident'>P</span><span class='op'>&lt;</span><span class='ident'>ast</span>::<span class='ident'>Expr</span><span class='op'>&gt;&gt;</span> <span class='kw'>for</span> <span class='ident'>ExprClosureExprBuilder</span><span class='op'>&lt;</span><span class='ident'>F</span><span class='op'>&gt;</span>
     <span class='kw'>where</span> <span class='ident'>F</span>: <span class='ident'>Invoke</span><span class='op'>&lt;</span><span class='ident'>P</span><span class='op'>&lt;</span><span class='ident'>ast</span>::<span class='ident'>Expr</span><span class='op'>&gt;&gt;</span>,
 {
     <span class='kw'>type</span> <span class='prelude-ty'>Result</span> <span class='op'>=</span> <span class='ident'>F</span>::<span class='prelude-ty'>Result</span>;
 
-    <span class='kw'>fn</span> <span class='ident'>invoke</span>(<span class='self'>self</span>, <span class='ident'>block</span>: <span class='ident'>P</span><span class='op'>&lt;</span><span class='ident'>ast</span>::<span class='ident'>Block</span><span class='op'>&gt;</span>) <span class='op'>-&gt;</span> <span class='ident'>F</span>::<span class='prelude-ty'>Result</span> {
-        <span class='self'>self</span>.<span class='ident'>build_block</span>(<span class='ident'>block</span>)
+    <span class='kw'>fn</span> <span class='ident'>invoke</span>(<span class='self'>self</span>, <span class='ident'>expr</span>: <span class='ident'>P</span><span class='op'>&lt;</span><span class='ident'>ast</span>::<span class='ident'>Expr</span><span class='op'>&gt;</span>) <span class='op'>-&gt;</span> <span class='ident'>F</span>::<span class='prelude-ty'>Result</span> {
+        <span class='self'>self</span>.<span class='ident'>build_expr</span>(<span class='ident'>expr</span>)
     }
 }
 

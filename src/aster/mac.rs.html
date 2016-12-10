@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="generator" content="rustdoc">
-    <meta name="description" content="Source to the Rust file `/home/travis/.cargo/registry/src/github.com-1ecc6299db9ec823/aster-0.30.0/src/mac.rs`.">
+    <meta name="description" content="Source to the Rust file `/home/travis/.cargo/registry/src/github.com-1ecc6299db9ec823/aster-0.36.0/src/mac.rs`.">
     <meta name="keywords" content="rust, rustlang, rust-lang">
 
     <title>mac.rs.html -- source</title>
@@ -186,7 +186,6 @@
 <span id="142">142</span>
 <span id="143">143</span>
 <span id="144">144</span>
-<span id="145">145</span>
 </pre><pre class='rust '>
 <span class='kw'>use</span> <span class='ident'>syntax</span>::<span class='ident'>ast</span>;
 <span class='kw'>use</span> <span class='ident'>syntax</span>::<span class='ident'>codemap</span>::{<span class='self'>self</span>, <span class='ident'>DUMMY_SP</span>, <span class='ident'>Span</span>, <span class='ident'>respan</span>};
@@ -199,8 +198,8 @@
 
 <span class='kw'>use</span> <span class='ident'>expr</span>::<span class='ident'>ExprBuilder</span>;
 <span class='kw'>use</span> <span class='ident'>invoke</span>::{<span class='ident'>Invoke</span>, <span class='ident'>Identity</span>};
-<span class='kw'>use</span> <span class='ident'>name</span>::<span class='ident'>ToName</span>;
 <span class='kw'>use</span> <span class='ident'>path</span>::<span class='ident'>PathBuilder</span>;
+<span class='kw'>use</span> <span class='ident'>symbol</span>::<span class='ident'>ToSymbol</span>;
 
 <span class='doccomment'>/// A Builder for macro invocations.</span>
 <span class='doccomment'>///</span>
@@ -320,15 +319,14 @@
     <span class='kw'>let</span> <span class='ident'>info</span> <span class='op'>=</span> <span class='ident'>codemap</span>::<span class='ident'>ExpnInfo</span> {
         <span class='ident'>call_site</span>: <span class='ident'>codemap</span>::<span class='ident'>DUMMY_SP</span>,
         <span class='ident'>callee</span>: <span class='ident'>codemap</span>::<span class='ident'>NameAndSpan</span> {
-            <span class='ident'>format</span>: <span class='ident'>codemap</span>::<span class='ident'>MacroAttribute</span>(<span class='string'>&quot;test&quot;</span>.<span class='ident'>to_name</span>()),
+            <span class='ident'>format</span>: <span class='ident'>codemap</span>::<span class='ident'>MacroAttribute</span>(<span class='string'>&quot;test&quot;</span>.<span class='ident'>to_symbol</span>()),
             <span class='ident'>allow_internal_unstable</span>: <span class='bool-val'>false</span>,
             <span class='ident'>span</span>: <span class='prelude-val'>None</span>
         }
     };
 
-    <span class='kw'>let</span> <span class='ident'>cfg</span> <span class='op'>=</span> <span class='macro'>vec</span><span class='macro'>!</span>[];
     <span class='kw'>let</span> <span class='ident'>ecfg</span> <span class='op'>=</span> <span class='ident'>expand</span>::<span class='ident'>ExpansionConfig</span>::<span class='ident'>default</span>(<span class='ident'>String</span>::<span class='ident'>new</span>());
-    <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>cx</span> <span class='op'>=</span> <span class='ident'>ExtCtxt</span>::<span class='ident'>new</span>(<span class='ident'>sess</span>, <span class='ident'>cfg</span>, <span class='ident'>ecfg</span>, <span class='ident'>macro_loader</span>);
+    <span class='kw'>let</span> <span class='kw-2'>mut</span> <span class='ident'>cx</span> <span class='op'>=</span> <span class='ident'>ExtCtxt</span>::<span class='ident'>new</span>(<span class='ident'>sess</span>, <span class='ident'>ecfg</span>, <span class='ident'>macro_loader</span>);
     <span class='ident'>cx</span>.<span class='ident'>bt_push</span>(<span class='ident'>info</span>);
 
     <span class='ident'>cx</span>

@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="generator" content="rustdoc">
-    <meta name="description" content="Source to the Rust file `/home/travis/.cargo/registry/src/github.com-1ecc6299db9ec823/aster-0.30.0/src/lib.rs`.">
+    <meta name="description" content="Source to the Rust file `/home/travis/.cargo/registry/src/github.com-1ecc6299db9ec823/aster-0.36.0/src/lib.rs`.">
     <meta name="keywords" content="rust, rustlang, rust-lang">
 
     <title>lib.rs.html -- source</title>
@@ -264,13 +264,11 @@
 <span id="220">220</span>
 <span id="221">221</span>
 <span id="222">222</span>
-<span id="223">223</span>
-<span id="224">224</span>
 </pre><pre class='rust '>
 <span class='attribute'>#<span class='op'>!</span>[<span class='ident'>cfg_attr</span>(<span class='ident'>not</span>(<span class='ident'>feature</span> <span class='op'>=</span> <span class='string'>&quot;with-syntex&quot;</span>), <span class='ident'>feature</span>(<span class='ident'>rustc_private</span>))]</span>
-<span class='attribute'>#<span class='op'>!</span>[<span class='ident'>cfg_attr</span>(<span class='ident'>feature</span> <span class='op'>=</span> <span class='string'>&quot;unstable-testing&quot;</span>, <span class='ident'>feature</span>(<span class='ident'>plugin</span>))]</span>
-<span class='attribute'>#<span class='op'>!</span>[<span class='ident'>cfg_attr</span>(<span class='ident'>feature</span> <span class='op'>=</span> <span class='string'>&quot;unstable-testing&quot;</span>, <span class='ident'>plugin</span>(<span class='ident'>clippy</span>))]</span>
-<span class='attribute'>#<span class='op'>!</span>[<span class='ident'>cfg_attr</span>(<span class='ident'>feature</span> <span class='op'>=</span> <span class='string'>&quot;unstable-testing&quot;</span>, <span class='ident'>allow</span>(<span class='ident'>wrong_self_convention</span>))]</span>
+<span class='attribute'>#<span class='op'>!</span>[<span class='ident'>cfg_attr</span>(<span class='ident'>feature</span> <span class='op'>=</span> <span class='string'>&quot;clippy&quot;</span>, <span class='ident'>feature</span>(<span class='ident'>plugin</span>))]</span>
+<span class='attribute'>#<span class='op'>!</span>[<span class='ident'>cfg_attr</span>(<span class='ident'>feature</span> <span class='op'>=</span> <span class='string'>&quot;clippy&quot;</span>, <span class='ident'>plugin</span>(<span class='ident'>clippy</span>))]</span>
+<span class='attribute'>#<span class='op'>!</span>[<span class='ident'>cfg_attr</span>(<span class='ident'>feature</span> <span class='op'>=</span> <span class='string'>&quot;clippy&quot;</span>, <span class='ident'>allow</span>(<span class='ident'>wrong_self_convention</span>))]</span>
 
 <span class='attribute'>#[<span class='ident'>cfg</span>(<span class='ident'>feature</span> <span class='op'>=</span> <span class='string'>&quot;with-syntex&quot;</span>)]</span>
 <span class='kw'>extern</span> <span class='kw'>crate</span> <span class='ident'>syntex_syntax</span> <span class='kw'>as</span> <span class='ident'>syntax</span>;
@@ -280,7 +278,6 @@
 
 <span class='kw'>use</span> <span class='ident'>syntax</span>::<span class='ident'>ast</span>;
 <span class='kw'>use</span> <span class='ident'>syntax</span>::<span class='ident'>codemap</span>::{<span class='ident'>DUMMY_SP</span>, <span class='ident'>Span</span>};
-<span class='kw'>use</span> <span class='ident'>syntax</span>::<span class='ident'>parse</span>::<span class='ident'>token</span>;
 
 <span class='kw'>pub</span> <span class='kw'>mod</span> <span class='ident'>arm</span>;
 <span class='kw'>pub</span> <span class='kw'>mod</span> <span class='ident'>attr</span>;
@@ -296,14 +293,13 @@
 <span class='kw'>pub</span> <span class='kw'>mod</span> <span class='ident'>lit</span>;
 <span class='kw'>pub</span> <span class='kw'>mod</span> <span class='ident'>mac</span>;
 <span class='kw'>pub</span> <span class='kw'>mod</span> <span class='ident'>method</span>;
-<span class='kw'>pub</span> <span class='kw'>mod</span> <span class='ident'>name</span>;
 <span class='kw'>pub</span> <span class='kw'>mod</span> <span class='ident'>pat</span>;
 <span class='kw'>pub</span> <span class='kw'>mod</span> <span class='ident'>path</span>;
 <span class='kw'>pub</span> <span class='kw'>mod</span> <span class='ident'>qpath</span>;
 <span class='kw'>pub</span> <span class='kw'>mod</span> <span class='ident'>self_</span>;
 <span class='kw'>pub</span> <span class='kw'>mod</span> <span class='ident'>stmt</span>;
-<span class='kw'>pub</span> <span class='kw'>mod</span> <span class='ident'>str</span>;
 <span class='kw'>pub</span> <span class='kw'>mod</span> <span class='ident'>struct_field</span>;
+<span class='kw'>pub</span> <span class='kw'>mod</span> <span class='ident'>symbol</span>;
 <span class='kw'>pub</span> <span class='kw'>mod</span> <span class='ident'>ty</span>;
 <span class='kw'>pub</span> <span class='kw'>mod</span> <span class='ident'>ty_param</span>;
 <span class='kw'>pub</span> <span class='kw'>mod</span> <span class='ident'>variant</span>;
@@ -329,10 +325,10 @@
         <span class='self'>self</span>
     }
 
-    <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>interned_string</span><span class='op'>&lt;</span><span class='ident'>S</span><span class='op'>&gt;</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>, <span class='ident'>s</span>: <span class='ident'>S</span>) <span class='op'>-&gt;</span> <span class='ident'>token</span>::<span class='ident'>InternedString</span>
-        <span class='kw'>where</span> <span class='ident'>S</span>: <span class='ident'>str</span>::<span class='ident'>ToInternedString</span>
+    <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>interned_string</span><span class='op'>&lt;</span><span class='ident'>S</span><span class='op'>&gt;</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>, <span class='ident'>s</span>: <span class='ident'>S</span>) <span class='op'>-&gt;</span> <span class='ident'>syntax</span>::<span class='ident'>symbol</span>::<span class='ident'>InternedString</span>
+        <span class='kw'>where</span> <span class='ident'>S</span>: <span class='ident'>symbol</span>::<span class='ident'>ToSymbol</span>
     {
-        <span class='ident'>s</span>.<span class='ident'>to_interned_string</span>()
+        <span class='ident'>s</span>.<span class='ident'>to_symbol</span>().<span class='ident'>as_str</span>()
     }
 
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>id</span><span class='op'>&lt;</span><span class='ident'>I</span><span class='op'>&gt;</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>, <span class='ident'>id</span>: <span class='ident'>I</span>) <span class='op'>-&gt;</span> <span class='ident'>ast</span>::<span class='ident'>Ident</span>
@@ -341,10 +337,10 @@
         <span class='ident'>id</span>.<span class='ident'>to_ident</span>()
     }
 
-    <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>name</span><span class='op'>&lt;</span><span class='ident'>N</span><span class='op'>&gt;</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>, <span class='ident'>name</span>: <span class='ident'>N</span>) <span class='op'>-&gt;</span> <span class='ident'>ast</span>::<span class='ident'>Name</span>
-        <span class='kw'>where</span> <span class='ident'>N</span>: <span class='ident'>name</span>::<span class='ident'>ToName</span>
+    <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>symbol</span><span class='op'>&lt;</span><span class='ident'>N</span><span class='op'>&gt;</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>, <span class='ident'>name</span>: <span class='ident'>N</span>) <span class='op'>-&gt;</span> <span class='ident'>syntax</span>::<span class='ident'>symbol</span>::<span class='ident'>Symbol</span>
+        <span class='kw'>where</span> <span class='ident'>N</span>: <span class='ident'>symbol</span>::<span class='ident'>ToSymbol</span>
     {
-        <span class='ident'>name</span>.<span class='ident'>to_name</span>()
+        <span class='ident'>name</span>.<span class='ident'>to_symbol</span>()
     }
 
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>lifetime</span><span class='op'>&lt;</span><span class='ident'>L</span><span class='op'>&gt;</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>, <span class='ident'>lifetime</span>: <span class='ident'>L</span>) <span class='op'>-&gt;</span> <span class='ident'>ast</span>::<span class='ident'>Lifetime</span>
@@ -378,7 +374,7 @@
     }
 
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>lifetime_def</span><span class='op'>&lt;</span><span class='ident'>N</span><span class='op'>&gt;</span>(<span class='kw-2'>&amp;</span><span class='self'>self</span>, <span class='ident'>name</span>: <span class='ident'>N</span>) <span class='op'>-&gt;</span> <span class='ident'>lifetime</span>::<span class='ident'>LifetimeDefBuilder</span>
-        <span class='kw'>where</span> <span class='ident'>N</span>: <span class='ident'>name</span>::<span class='ident'>ToName</span>,
+        <span class='kw'>where</span> <span class='ident'>N</span>: <span class='ident'>symbol</span>::<span class='ident'>ToSymbol</span>,
     {
         <span class='ident'>lifetime</span>::<span class='ident'>LifetimeDefBuilder</span>::<span class='ident'>new</span>(<span class='ident'>name</span>)
     }

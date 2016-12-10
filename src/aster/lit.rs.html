@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="generator" content="rustdoc">
-    <meta name="description" content="Source to the Rust file `/home/travis/.cargo/registry/src/github.com-1ecc6299db9ec823/aster-0.30.0/src/lit.rs`.">
+    <meta name="description" content="Source to the Rust file `/home/travis/.cargo/registry/src/github.com-1ecc6299db9ec823/aster-0.36.0/src/lit.rs`.">
     <meta name="keywords" content="rust, rustlang, rust-lang">
 
     <title>lit.rs.html -- source</title>
@@ -195,12 +195,6 @@
 <span id="151">151</span>
 <span id="152">152</span>
 <span id="153">153</span>
-<span id="154">154</span>
-<span id="155">155</span>
-<span id="156">156</span>
-<span id="157">157</span>
-<span id="158">158</span>
-<span id="159">159</span>
 </pre><pre class='rust '>
 <span class='kw'>use</span> <span class='ident'>std</span>::<span class='ident'>convert</span>::<span class='ident'>Into</span>;
 <span class='kw'>use</span> <span class='ident'>std</span>::<span class='ident'>rc</span>::<span class='ident'>Rc</span>;
@@ -211,7 +205,7 @@
 
 <span class='kw'>use</span> <span class='ident'>invoke</span>::{<span class='ident'>Invoke</span>, <span class='ident'>Identity</span>};
 
-<span class='kw'>use</span> <span class='ident'>str</span>::<span class='ident'>ToInternedString</span>;
+<span class='kw'>use</span> <span class='ident'>symbol</span>::<span class='ident'>ToSymbol</span>;
 
 <span class='comment'>//////////////////////////////////////////////////////////////////////////////</span>
 
@@ -260,38 +254,32 @@
         <span class='self'>self</span>.<span class='ident'>bool</span>(<span class='bool-val'>false</span>)
     }
 
-    <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>int</span>(<span class='self'>self</span>, <span class='ident'>value</span>: <span class='ident'>i64</span>) <span class='op'>-&gt;</span> <span class='ident'>F</span>::<span class='prelude-ty'>Result</span> {
-        <span class='macro'>assert</span><span class='macro'>!</span>(<span class='ident'>value</span> <span class='op'>&gt;=</span> <span class='number'>0</span>);
-        <span class='self'>self</span>.<span class='ident'>build_lit</span>(<span class='ident'>ast</span>::<span class='ident'>LitKind</span>::<span class='ident'>Int</span>(<span class='ident'>value</span> <span class='kw'>as</span> <span class='ident'>u64</span>, <span class='ident'>ast</span>::<span class='ident'>LitIntType</span>::<span class='ident'>Unsuffixed</span>))
+    <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>int</span>(<span class='self'>self</span>, <span class='ident'>value</span>: <span class='ident'>u64</span>) <span class='op'>-&gt;</span> <span class='ident'>F</span>::<span class='prelude-ty'>Result</span> {
+        <span class='self'>self</span>.<span class='ident'>build_lit</span>(<span class='ident'>ast</span>::<span class='ident'>LitKind</span>::<span class='ident'>Int</span>(<span class='ident'>value</span>, <span class='ident'>ast</span>::<span class='ident'>LitIntType</span>::<span class='ident'>Unsuffixed</span>))
     }
 
-    <span class='kw'>fn</span> <span class='ident'>build_int</span>(<span class='self'>self</span>, <span class='ident'>value</span>: <span class='ident'>i64</span>, <span class='ident'>ty</span>: <span class='ident'>ast</span>::<span class='ident'>IntTy</span>) <span class='op'>-&gt;</span> <span class='ident'>F</span>::<span class='prelude-ty'>Result</span> {
-        <span class='macro'>assert</span><span class='macro'>!</span>(<span class='ident'>value</span> <span class='op'>&gt;=</span> <span class='number'>0</span>);
-        <span class='self'>self</span>.<span class='ident'>build_lit</span>(<span class='ident'>ast</span>::<span class='ident'>LitKind</span>::<span class='ident'>Int</span>(<span class='ident'>value</span> <span class='kw'>as</span> <span class='ident'>u64</span>, <span class='ident'>ast</span>::<span class='ident'>LitIntType</span>::<span class='ident'>Signed</span>(<span class='ident'>ty</span>)))
+    <span class='kw'>fn</span> <span class='ident'>build_int</span>(<span class='self'>self</span>, <span class='ident'>value</span>: <span class='ident'>u64</span>, <span class='ident'>ty</span>: <span class='ident'>ast</span>::<span class='ident'>IntTy</span>) <span class='op'>-&gt;</span> <span class='ident'>F</span>::<span class='prelude-ty'>Result</span> {
+        <span class='self'>self</span>.<span class='ident'>build_lit</span>(<span class='ident'>ast</span>::<span class='ident'>LitKind</span>::<span class='ident'>Int</span>(<span class='ident'>value</span>, <span class='ident'>ast</span>::<span class='ident'>LitIntType</span>::<span class='ident'>Signed</span>(<span class='ident'>ty</span>)))
     }
 
-    <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>isize</span>(<span class='self'>self</span>, <span class='ident'>value</span>: <span class='ident'>isize</span>) <span class='op'>-&gt;</span> <span class='ident'>F</span>::<span class='prelude-ty'>Result</span> {
-        <span class='self'>self</span>.<span class='ident'>build_int</span>(<span class='ident'>value</span> <span class='kw'>as</span> <span class='ident'>i64</span>, <span class='ident'>ast</span>::<span class='ident'>IntTy</span>::<span class='ident'>Is</span>)
+    <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>isize</span>(<span class='self'>self</span>, <span class='ident'>value</span>: <span class='ident'>usize</span>) <span class='op'>-&gt;</span> <span class='ident'>F</span>::<span class='prelude-ty'>Result</span> {
+        <span class='self'>self</span>.<span class='ident'>build_int</span>(<span class='ident'>value</span> <span class='kw'>as</span> <span class='ident'>u64</span>, <span class='ident'>ast</span>::<span class='ident'>IntTy</span>::<span class='ident'>Is</span>)
     }
 
-    <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>i8</span>(<span class='self'>self</span>, <span class='ident'>value</span>: <span class='ident'>i8</span>) <span class='op'>-&gt;</span> <span class='ident'>F</span>::<span class='prelude-ty'>Result</span> {
-        <span class='macro'>assert</span><span class='macro'>!</span>(<span class='ident'>value</span> <span class='op'>&gt;=</span> <span class='number'>0</span>);
-        <span class='self'>self</span>.<span class='ident'>build_int</span>(<span class='ident'>value</span> <span class='kw'>as</span> <span class='ident'>i64</span>, <span class='ident'>ast</span>::<span class='ident'>IntTy</span>::<span class='ident'>I8</span>)
+    <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>i8</span>(<span class='self'>self</span>, <span class='ident'>value</span>: <span class='ident'>u8</span>) <span class='op'>-&gt;</span> <span class='ident'>F</span>::<span class='prelude-ty'>Result</span> {
+        <span class='self'>self</span>.<span class='ident'>build_int</span>(<span class='ident'>value</span> <span class='kw'>as</span> <span class='ident'>u64</span>, <span class='ident'>ast</span>::<span class='ident'>IntTy</span>::<span class='ident'>I8</span>)
     }
 
-    <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>i16</span>(<span class='self'>self</span>, <span class='ident'>value</span>: <span class='ident'>i16</span>) <span class='op'>-&gt;</span> <span class='ident'>F</span>::<span class='prelude-ty'>Result</span> {
-        <span class='macro'>assert</span><span class='macro'>!</span>(<span class='ident'>value</span> <span class='op'>&gt;=</span> <span class='number'>0</span>);
-        <span class='self'>self</span>.<span class='ident'>build_int</span>(<span class='ident'>value</span> <span class='kw'>as</span> <span class='ident'>i64</span>, <span class='ident'>ast</span>::<span class='ident'>IntTy</span>::<span class='ident'>I16</span>)
+    <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>i16</span>(<span class='self'>self</span>, <span class='ident'>value</span>: <span class='ident'>u16</span>) <span class='op'>-&gt;</span> <span class='ident'>F</span>::<span class='prelude-ty'>Result</span> {
+        <span class='self'>self</span>.<span class='ident'>build_int</span>(<span class='ident'>value</span> <span class='kw'>as</span> <span class='ident'>u64</span>, <span class='ident'>ast</span>::<span class='ident'>IntTy</span>::<span class='ident'>I16</span>)
     }
 
-    <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>i32</span>(<span class='self'>self</span>, <span class='ident'>value</span>: <span class='ident'>i32</span>) <span class='op'>-&gt;</span> <span class='ident'>F</span>::<span class='prelude-ty'>Result</span> {
-        <span class='macro'>assert</span><span class='macro'>!</span>(<span class='ident'>value</span> <span class='op'>&gt;=</span> <span class='number'>0</span>);
-        <span class='self'>self</span>.<span class='ident'>build_int</span>(<span class='ident'>value</span> <span class='kw'>as</span> <span class='ident'>i64</span>, <span class='ident'>ast</span>::<span class='ident'>IntTy</span>::<span class='ident'>I32</span>)
+    <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>i32</span>(<span class='self'>self</span>, <span class='ident'>value</span>: <span class='ident'>u32</span>) <span class='op'>-&gt;</span> <span class='ident'>F</span>::<span class='prelude-ty'>Result</span> {
+        <span class='self'>self</span>.<span class='ident'>build_int</span>(<span class='ident'>value</span> <span class='kw'>as</span> <span class='ident'>u64</span>, <span class='ident'>ast</span>::<span class='ident'>IntTy</span>::<span class='ident'>I32</span>)
     }
 
-    <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>i64</span>(<span class='self'>self</span>, <span class='ident'>value</span>: <span class='ident'>i64</span>) <span class='op'>-&gt;</span> <span class='ident'>F</span>::<span class='prelude-ty'>Result</span> {
-        <span class='macro'>assert</span><span class='macro'>!</span>(<span class='ident'>value</span> <span class='op'>&gt;=</span> <span class='number'>0</span>);
-        <span class='self'>self</span>.<span class='ident'>build_int</span>(<span class='ident'>value</span>, <span class='ident'>ast</span>::<span class='ident'>IntTy</span>::<span class='ident'>I64</span>)
+    <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>i64</span>(<span class='self'>self</span>, <span class='ident'>value</span>: <span class='ident'>u64</span>) <span class='op'>-&gt;</span> <span class='ident'>F</span>::<span class='prelude-ty'>Result</span> {
+        <span class='self'>self</span>.<span class='ident'>build_int</span>(<span class='ident'>value</span> <span class='kw'>as</span> <span class='ident'>u64</span>, <span class='ident'>ast</span>::<span class='ident'>IntTy</span>::<span class='ident'>I64</span>)
     }
 
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>uint</span>(<span class='self'>self</span>, <span class='ident'>value</span>: <span class='ident'>u64</span>) <span class='op'>-&gt;</span> <span class='ident'>F</span>::<span class='prelude-ty'>Result</span> {
@@ -323,19 +311,19 @@
     }
 
     <span class='kw'>fn</span> <span class='ident'>build_float</span><span class='op'>&lt;</span><span class='ident'>S</span><span class='op'>&gt;</span>(<span class='self'>self</span>, <span class='ident'>value</span>: <span class='ident'>S</span>, <span class='ident'>ty</span>: <span class='ident'>ast</span>::<span class='ident'>FloatTy</span>) <span class='op'>-&gt;</span> <span class='ident'>F</span>::<span class='prelude-ty'>Result</span>
-        <span class='kw'>where</span> <span class='ident'>S</span>: <span class='ident'>ToInternedString</span>,
+        <span class='kw'>where</span> <span class='ident'>S</span>: <span class='ident'>ToSymbol</span>,
     {
-        <span class='self'>self</span>.<span class='ident'>build_lit</span>(<span class='ident'>ast</span>::<span class='ident'>LitKind</span>::<span class='ident'>Float</span>(<span class='ident'>value</span>.<span class='ident'>to_interned_string</span>(), <span class='ident'>ty</span>))
+        <span class='self'>self</span>.<span class='ident'>build_lit</span>(<span class='ident'>ast</span>::<span class='ident'>LitKind</span>::<span class='ident'>Float</span>(<span class='ident'>value</span>.<span class='ident'>to_symbol</span>(), <span class='ident'>ty</span>))
     }
 
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>f32</span><span class='op'>&lt;</span><span class='ident'>S</span><span class='op'>&gt;</span>(<span class='self'>self</span>, <span class='ident'>value</span>: <span class='ident'>S</span>) <span class='op'>-&gt;</span> <span class='ident'>F</span>::<span class='prelude-ty'>Result</span>
-        <span class='kw'>where</span> <span class='ident'>S</span>: <span class='ident'>ToInternedString</span>,
+        <span class='kw'>where</span> <span class='ident'>S</span>: <span class='ident'>ToSymbol</span>,
     {
         <span class='self'>self</span>.<span class='ident'>build_float</span>(<span class='ident'>value</span>, <span class='ident'>ast</span>::<span class='ident'>FloatTy</span>::<span class='ident'>F32</span>)
     }
 
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>f64</span><span class='op'>&lt;</span><span class='ident'>S</span><span class='op'>&gt;</span>(<span class='self'>self</span>, <span class='ident'>value</span>: <span class='ident'>S</span>) <span class='op'>-&gt;</span> <span class='ident'>F</span>::<span class='prelude-ty'>Result</span>
-        <span class='kw'>where</span> <span class='ident'>S</span>: <span class='ident'>ToInternedString</span>,
+        <span class='kw'>where</span> <span class='ident'>S</span>: <span class='ident'>ToSymbol</span>,
     {
         <span class='self'>self</span>.<span class='ident'>build_float</span>(<span class='ident'>value</span>, <span class='ident'>ast</span>::<span class='ident'>FloatTy</span>::<span class='ident'>F64</span>)
     }
@@ -349,9 +337,9 @@
     }
 
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>str</span><span class='op'>&lt;</span><span class='ident'>S</span><span class='op'>&gt;</span>(<span class='self'>self</span>, <span class='ident'>value</span>: <span class='ident'>S</span>) <span class='op'>-&gt;</span> <span class='ident'>F</span>::<span class='prelude-ty'>Result</span>
-        <span class='kw'>where</span> <span class='ident'>S</span>: <span class='ident'>ToInternedString</span>,
+        <span class='kw'>where</span> <span class='ident'>S</span>: <span class='ident'>ToSymbol</span>,
     {
-        <span class='kw'>let</span> <span class='ident'>value</span> <span class='op'>=</span> <span class='ident'>value</span>.<span class='ident'>to_interned_string</span>();
+        <span class='kw'>let</span> <span class='ident'>value</span> <span class='op'>=</span> <span class='ident'>value</span>.<span class='ident'>to_symbol</span>();
         <span class='self'>self</span>.<span class='ident'>build_lit</span>(<span class='ident'>ast</span>::<span class='ident'>LitKind</span>::<span class='ident'>Str</span>(<span class='ident'>value</span>, <span class='ident'>ast</span>::<span class='ident'>StrStyle</span>::<span class='ident'>Cooked</span>))
     }
 

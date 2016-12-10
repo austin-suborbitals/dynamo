@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="generator" content="rustdoc">
-    <meta name="description" content="Source to the Rust file `/home/travis/.cargo/registry/src/github.com-1ecc6299db9ec823/aster-0.30.0/src/path.rs`.">
+    <meta name="description" content="Source to the Rust file `/home/travis/.cargo/registry/src/github.com-1ecc6299db9ec823/aster-0.36.0/src/path.rs`.">
     <meta name="keywords" content="rust, rustlang, rust-lang">
 
     <title>path.rs.html -- source</title>
@@ -417,7 +417,7 @@
 <span class='kw'>use</span> <span class='ident'>invoke</span>::{<span class='ident'>Invoke</span>, <span class='ident'>Identity</span>};
 
 <span class='kw'>use</span> <span class='ident'>ident</span>::<span class='ident'>ToIdent</span>;
-<span class='kw'>use</span> <span class='ident'>name</span>::<span class='ident'>ToName</span>;
+<span class='kw'>use</span> <span class='ident'>symbol</span>::<span class='ident'>ToSymbol</span>;
 <span class='kw'>use</span> <span class='ident'>ty</span>::<span class='ident'>TyBuilder</span>;
 
 <span class='kw'>use</span> <span class='ident'>lifetime</span>::<span class='ident'>IntoLifetime</span>;
@@ -644,12 +644,12 @@
     }
 
     <span class='kw'>pub</span> <span class='kw'>fn</span> <span class='ident'>lifetime</span><span class='op'>&lt;</span><span class='ident'>N</span><span class='op'>&gt;</span>(<span class='self'>self</span>, <span class='ident'>name</span>: <span class='ident'>N</span>) <span class='op'>-&gt;</span> <span class='self'>Self</span>
-        <span class='kw'>where</span> <span class='ident'>N</span>: <span class='ident'>ToName</span>,
+        <span class='kw'>where</span> <span class='ident'>N</span>: <span class='ident'>ToSymbol</span>,
     {
         <span class='kw'>let</span> <span class='ident'>lifetime</span> <span class='op'>=</span> <span class='ident'>ast</span>::<span class='ident'>Lifetime</span> {
             <span class='ident'>id</span>: <span class='ident'>ast</span>::<span class='ident'>DUMMY_NODE_ID</span>,
             <span class='ident'>span</span>: <span class='self'>self</span>.<span class='ident'>span</span>,
-            <span class='ident'>name</span>: <span class='ident'>name</span>.<span class='ident'>to_name</span>(),
+            <span class='ident'>name</span>: <span class='ident'>name</span>.<span class='ident'>to_symbol</span>(),
         };
         <span class='self'>self</span>.<span class='ident'>with_lifetime</span>(<span class='ident'>lifetime</span>)
     }

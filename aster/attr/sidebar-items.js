@@ -1,1 +1,1 @@
-initSidebarItems({"struct":[["AttrBuilder",""],["AttrListBuilder",""],["AttrNameValueBuilder",""]]});
+initSidebarItems({"struct":[["AttrBuilder",""],["AttrListBuilder",""],["AttrNameValueBuilder",""],["NamedAttrBuilder",""]]});

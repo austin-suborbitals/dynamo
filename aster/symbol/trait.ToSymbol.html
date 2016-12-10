@@ -4,10 +4,10 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="generator" content="rustdoc">
-    <meta name="description" content="API documentation for the Rust `ToName` trait in crate `aster`.">
-    <meta name="keywords" content="rust, rustlang, rust-lang, ToName">
+    <meta name="description" content="API documentation for the Rust `ToSymbol` trait in crate `aster`.">
+    <meta name="keywords" content="rust, rustlang, rust-lang, ToSymbol">
 
-    <title>aster::name::ToName - Rust</title>
+    <title>aster::symbol::ToSymbol - Rust</title>
 
     <link rel="stylesheet" type="text/css" href="../../rustdoc.css">
     <link rel="stylesheet" type="text/css" href="../../main.css">
@@ -28,7 +28,7 @@
 
     <nav class="sidebar">
         
-        <p class='location'><a href='../index.html'>aster</a>::<wbr><a href='index.html'>name</a></p><script>window.sidebarCurrent = {name: 'ToName', ty: 'trait', relpath: ''};</script><script defer src="sidebar-items.js"></script>
+        <p class='location'><a href='../index.html'>aster</a>::<wbr><a href='index.html'>symbol</a></p><script>window.sidebarCurrent = {name: 'ToSymbol', ty: 'trait', relpath: ''};</script><script defer src="sidebar-items.js"></script>
     </nav>
 
     <nav class="sub">
@@ -43,25 +43,27 @@
     </nav>
 
     <section id='main' class="content trait">
-<h1 class='fqn'><span class='in-band'>Trait <a href='../index.html'>aster</a>::<wbr><a href='index.html'>name</a>::<wbr><a class='trait' href=''>ToName</a></span><span class='out-of-band'><span id='render-detail'>
+<h1 class='fqn'><span class='in-band'>Trait <a href='../index.html'>aster</a>::<wbr><a href='index.html'>symbol</a>::<wbr><a class='trait' href=''>ToSymbol</a></span><span class='out-of-band'><span id='render-detail'>
                    <a id="toggle-all-docs" href="javascript:void(0)" title="collapse all docs">
                        [<span class='inner'>&#x2212;</span>]
                    </a>
-               </span><a id='src-2961' class='srclink' href='../../src/aster/name.rs.html#6-8' title='goto source code'>[src]</a></span></h1>
-<pre class='rust trait'>pub trait ToName {
-    fn <a href='#tymethod.to_name' class='fnname'>to_name</a>(&amp;self) -&gt; <a class='struct' href='https://doc.rust-lang.org/nightly/syntax/ast/struct.Name.html' title='syntax::ast::Name'>Name</a>;
+               </span><a class='srclink' href='../../src/aster/symbol.rs.html#6-8' title='goto source code'>[src]</a></span></h1>
+<pre class='rust trait'>pub trait ToSymbol {
+    fn <a href='#tymethod.to_symbol' class='fnname'>to_symbol</a>(&amp;self) -&gt; <a class='struct' href='https://doc.rust-lang.org/nightly/syntax/symbol/struct.Symbol.html' title='syntax::symbol::Symbol'>Symbol</a>;
 }</pre>
             <h2 id='required-methods'>Required Methods</h2>
             <div class='methods'>
-        <h3 id='tymethod.to_name' class='method stab '><span id='to_name.v' class='invisible'><code>fn <a href='#tymethod.to_name' class='fnname'>to_name</a>(&amp;self) -&gt; <a class='struct' href='https://doc.rust-lang.org/nightly/syntax/ast/struct.Name.html' title='syntax::ast::Name'>Name</a></code></span></h3></div>
+        <h3 id='tymethod.to_symbol' class='method stab '><span id='to_symbol.v' class='invisible'><code>fn <a href='#tymethod.to_symbol' class='fnname'>to_symbol</a>(&amp;self) -&gt; <a class='struct' href='https://doc.rust-lang.org/nightly/syntax/symbol/struct.Symbol.html' title='syntax::symbol::Symbol'>Symbol</a></code></span></h3></div>
         <h2 id='implementors'>Implementors</h2>
         <ul class='item-list' id='implementors-list'>
-    <li><code>impl ToName for <a class='struct' href='https://doc.rust-lang.org/nightly/syntax/ast/struct.Name.html' title='syntax::ast::Name'>Name</a></code></li>
-<li><code>impl&lt;'a&gt; ToName for &amp;'a <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.str.html'>str</a></code></li>
-<li><code>impl&lt;'a, T&gt; ToName for &amp;'a T <span class='where'>where T: <a class='trait' href='../../aster/name/trait.ToName.html' title='aster::name::ToName'>ToName</a></span></code></li>
-<li><code>impl&lt;'a, T&gt; ToName for &amp;'a mut T <span class='where'>where T: <a class='trait' href='../../aster/name/trait.ToName.html' title='aster::name::ToName'>ToName</a></span></code></li>
+    <li><code>impl ToSymbol for <a class='struct' href='https://doc.rust-lang.org/nightly/syntax/symbol/struct.Symbol.html' title='syntax::symbol::Symbol'>Symbol</a></code></li>
+<li><code>impl&lt;'a&gt; ToSymbol for &amp;'a <a class='primitive' href='https://doc.rust-lang.org/nightly/std/primitive.str.html'>str</a></code></li>
+<li><code>impl ToSymbol for <a class='struct' href='https://doc.rust-lang.org/nightly/syntax/ast/struct.Ident.html' title='syntax::ast::Ident'>Ident</a></code></li>
+<li><code>impl ToSymbol for <a class='struct' href='https://doc.rust-lang.org/nightly/syntax/symbol/struct.InternedString.html' title='syntax::symbol::InternedString'>InternedString</a></code></li>
+<li><code>impl&lt;'a, T&gt; ToSymbol for &amp;'a T <span class='where'>where T: <a class='trait' href='../../aster/symbol/trait.ToSymbol.html' title='aster::symbol::ToSymbol'>ToSymbol</a></span></code></li>
+<li><code>impl&lt;'a, T&gt; ToSymbol for &amp;'a mut T <span class='where'>where T: <a class='trait' href='../../aster/symbol/trait.ToSymbol.html' title='aster::symbol::ToSymbol'>ToSymbol</a></span></code></li>
 </ul><script type="text/javascript" async
-                         src="../../implementors/aster/name/trait.ToName.js">
+                         src="../../implementors/aster/symbol/trait.ToSymbol.js">
                  </script></section>
     <section id='search' class="content hidden"></section>
 
