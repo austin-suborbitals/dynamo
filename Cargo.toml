@@ -10,3 +10,4 @@ crate_type = ["dylib"]
 [dependencies]
 aster = "*"
 bitmap = "*"
+num-traits = "*"

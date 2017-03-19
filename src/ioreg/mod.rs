@@ -10,6 +10,7 @@ use syntax::ext::base::{ExtCtxt, MacResult};
 
 pub mod parser;
 pub mod common;
+
 pub mod builder;
 
 
@@ -31,7 +32,7 @@ pub fn expand_ioreg_debug(cx: &mut ExtCtxt, _: Span, args: &[tokenstream::TokenT
 }
 
 
-fn generate_ioreg(_: &ExtCtxt, info: common::IoRegInfo, parser: parser::Parser, verbose: bool) -> Box<MacResult + 'static> {
+fn generate_ioreg(_: &ExtCtxt, info: common::IOReg, parser: parser::Parser, verbose: bool) -> Box<MacResult + 'static> {
     let builder = builder::Builder::new(info, parser, verbose);
 
     // now, generate code from the struct and get back Vec<ast::Item> to add to the token tree

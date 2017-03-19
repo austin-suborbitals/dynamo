@@ -35,6 +35,6 @@ pub fn expand_mcu_debug(cx: &mut ExtCtxt, _: Span, args: &[tokenstream::TokenTre
 fn generate_mcu(_: &ExtCtxt, info: common::McuInfo, parser: parser::Parser, verbose: bool)
     -> Box<MacResult + 'static>
 {
-    let builder = builder::Builder::new(info, parser, verbose);
+    let mut builder = builder::Builder::new(info, parser, verbose);
     syntax::ext::base::MacEager::items(SmallVector::many(builder.build()))
 }

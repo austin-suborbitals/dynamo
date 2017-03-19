@@ -10,7 +10,8 @@ extern crate rustc_plugin;
 
 use rustc_plugin::Registry;
 
-pub mod parser;
+#[macro_use]
+pub mod common;
 pub mod ioreg;
 pub mod mcu;
 

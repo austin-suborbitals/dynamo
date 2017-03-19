@@ -24,14 +24,10 @@ mod constants {
         // you can, however, use the key as lowercase in which case the constant will not be referenced in
         // generated code, but replaced with the literal.
         constants => {
-            // something_signed = -128;     // TODO: need signed ints
             unsuffixed_hex = 0xFFAA;
             unsuffixed_dec = 1234;
             suffixed_hex = 0xABu8;
             suffixed_dec = 128u8;
-            //suffixed_signed_16 = 123i16;
-            //suffixed_signed_32 = 456i32;
-            unsuffixed_float = 1.123;
             and_a_string = "some super critical string";
         };
 
@@ -94,11 +90,7 @@ mod constants {
         assert_constant!(UNSUFFIXED_DEC,        1234);
         assert_constant!(SUFFIXED_HEX,          0xAB);
         assert_constant!(SUFFIXED_DEC,          128);
-        //assert_constant!(SUFFIXED_SIGNED_16,    123i16);
-        //assert_constant!(SUFFIXED_SIGNED_32,    456i16);
-        assert_constant!(UNSUFFIXED_FLOAT,      1.123);
         assert_constant!(AND_A_STRING,          "some super critical string");
-
         assert_constant!(STATUS_NESTED_CONST,   0x0100);
     }
 }
@@ -247,11 +239,21 @@ mod write {
             24..31 => { local_gets_u8_narrowed => [local_large_constant]; }
         };
 
-        0x0070 => test_user_input r32 rw {
+        0x0080 => test_multiple_constants r32 rw {
+            constants => {
+                local_large_constant = 0xDEADBEEF;
+                local_other_large_constant = 0xC0FFEE;
+            };
+
+            2..9 =>  { multiple_gets_u8_narrowed => [glbl_large_constant, local_other_large_constant]; }
+            14..31 =>  { multiple_gets_u32_expanded => [glbl_large_constant, local_other_large_constant]; }
+        };
+
+        0x0090 => test_user_input r32 rw {
             0..31 => { set_user_data => (); }
         };
 
-        0x0080 => test_user_input_unaligned r32 rw {
+        0x00A0 => test_user_input_unaligned r32 rw {
             3..18 => { set_user_data_unaligned => (); } // 16 bit value, unaligned
         };
     );
@@ -464,7 +466,7 @@ mod write {
         t.glbl_gets_u8_narrowed();
         let expect = TestingStruct::GLBL_LARGE_CONSTANT & 0xFF;
         assert_eq!(0x78, expect);
-        assert_eq!(expect, t.read_test_constants());
+        assert_eq!(expect as u32, t.read_test_constants());
     }
 
     #[test]
@@ -475,7 +477,7 @@ mod write {
         t.glbl_gets_u16_narrowed();
         let expect = (TestingStruct::GLBL_LARGE_CONSTANT & 0xFFFF) << 8;
         assert_eq!(0x567800, expect);
-        assert_eq!(expect, t.read_test_constants());
+        assert_eq!(expect as u32, t.read_test_constants());
     }
 
     #[test]
@@ -485,8 +487,33 @@ mod write {
 
         t.local_gets_u8_narrowed();
         let expect = TestingStruct::TEST_CONSTANTS_LOCAL_LARGE_CONSTANT << 24;
-        assert_eq!(0xEF000000, expect);
-        assert_eq!(expect, t.read_test_constants());
+        assert_eq!(0xEF000000, expect as u32);
+        assert_eq!(expect as u32, t.read_test_constants());
+    }
+
+
+    //
+    // multiple constants usage in setter
+    //
+
+    #[test]
+    fn multiple_constant_u8_narrowed() {
+        let reg_mem: [u8; 4096] = [0; 4096];
+        let t = TestingStruct(&reg_mem as *const u8);
+
+        t.multiple_gets_u8_narrowed();
+        let expect = (TestingStruct::TEST_MULTIPLE_CONSTANTS_LOCAL_OTHER_LARGE_CONSTANT << 2) & 0xFF;
+        assert_eq!(expect as u32, t.read_test_multiple_constants());
+    }
+
+    #[test]
+    fn multiple_constant_u32_expanded() {
+        let reg_mem: [u8; 4096] = [0; 4096];
+        let t = TestingStruct(&reg_mem as *const u8);
+
+        t.multiple_gets_u32_expanded();
+        let expect = TestingStruct::TEST_MULTIPLE_CONSTANTS_LOCAL_OTHER_LARGE_CONSTANT << 14;
+        assert_eq!(expect as u32, t.read_test_multiple_constants());
     }
 
 
@@ -559,20 +586,40 @@ mod input_fn {
 
     ioreg!(
         name => TestingStruct;
-        0x000 => status r16 rw {
+        0x0000 => status r16 rw {
             0..4 => {
                 // this version of a function definition is special.
                 // rather than brackets, it uses parentheses.
                 //
                 // this signifies the function takes run-time input.
-                // the generated fn signature takes one argument, and the type is the smalles uint that
+                // the generated fn signature takes one argument, and the type is the smallest uint that
                 // can hold the width of the offset.
                 this_takes_input => ();
+            }
+
+
+            5..15 => {
+                // while it should be rare and is terrible, you can have this
+                // style of function as unaligned as you want.
+                oh_dear_god => ();
+            }
+        };
+
+        0x0004 => medium r16 rw {
+            4..8 => {
+                // this is a typical case
+                slide_to_the_left => ();
+            }
+        };
+
+        0x0008 => big r32 rw {
+            7..28 => {
+                // not only 1 byte in, but into the last byte without filling it
+                whoop => ();
             }
         };
     );
 
-    // TODO: test that scales up to each type
 
     #[test]
     fn sanity() {
@@ -581,6 +628,35 @@ mod input_fn {
 
         t.this_takes_input(0x12u8);
         assert_eq!(0x12, t.read_status());
+    }
+
+    #[test]
+    fn nibble_up() {
+        let reg_mem: [u8; 4096] = [0; 4096];
+        let t = TestingStruct(&reg_mem as *const u8);
+
+        t.slide_to_the_left(0x04u8);
+        assert_eq!(0x40, t.read_medium());
+    }
+
+    #[test]
+    fn offset_and_unaligned() {
+        let reg_mem: [u8; 4096] = [0; 4096];
+        let t = TestingStruct(&reg_mem as *const u8);
+
+        t.oh_dear_god(0x1234u16);
+        assert_eq!(0x4680, t.read_status());
+    }
+
+    #[test]
+    fn larger_offset_and_unaligned() {
+        let reg_mem: [u8; 4096] = [0; 4096];
+        let t = TestingStruct(&reg_mem as *const u8);
+
+        let mut expect = 0xDEADBEEFu32;
+        t.whoop(expect);
+        expect = (expect << 7/*offset*/) & 0x1FFFFF80/*mask of bits 7-28*/;
+        assert_eq!(expect, t.read_big());
     }
 }
 

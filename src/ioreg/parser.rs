@@ -3,78 +3,11 @@ extern crate aster;
 use syntax::parse::token;
 use syntax::ext::quote::rt::DUMMY_SP;
 
-use std;
 use std::collections::BTreeMap;
 
-use ::parser::StaticValue;
-use ::ioreg::common;
-
-
-//
-// helpers
-//
-
-macro_rules! read_uint_for_register {
-    ($parser:ident, $width:ident) => {{
-        match $width {
-            &common::RegisterWidth::R8 =>    { $parser.checked_parse_uint::<u8>() }
-            &common::RegisterWidth::R16 =>   { $parser.checked_parse_uint::<u16>() }
-            &common::RegisterWidth::R32 =>   { $parser.checked_parse_uint::<u32>() }
-            &common::RegisterWidth::Unknown => {
-                Err("cannot read value for register of unspecified size".to_string())
-            }
-        }
-    }}
-}
-
-
-/// Determine if a given parser::StaticValue can fit in the needed register
-fn fits_into(val: &StaticValue, width: &common::RegisterWidth) -> bool {
-    match val {
-        &StaticValue::Error(_, _) => { false }
-        &StaticValue::Ident(_, _, _) | &StaticValue::Path(_, _) => { false }
-        &StaticValue::Int(i, _, _) => {
-            match width {
-                &common::RegisterWidth::R8 => { i <= (i8::max_value() as i32) }
-                &common::RegisterWidth::R16 => { i <= (i16::max_value() as i32) }
-                &common::RegisterWidth::R32 => { i <= (i32::max_value()) }
-                &common::RegisterWidth::Unknown => { false }
-            }
-        }
-        &StaticValue::Uint(i, _, _) => {
-            match width {
-                &common::RegisterWidth::R8 => { i <= (u8::max_value() as u32) }
-                &common::RegisterWidth::R16 => { i <= (u16::max_value() as u32) }
-                &common::RegisterWidth::R32 => { i <= (u32::max_value()) }
-                &common::RegisterWidth::Unknown => { false }
-            }
-        }
-        &StaticValue::Float(f, _, _, _) => {
-            match width {
-                // TODO: what to do about f8 and f16
-                &common::RegisterWidth::R8 | &common::RegisterWidth::R16 => { false }
-                &common::RegisterWidth::R32 => { f <= std::f32::MAX }
-                &common::RegisterWidth::Unknown => { false }
-            }
-        }
-
-        // TODO: this is because we "don't care" but perhaps we should?
-        &StaticValue::Str(_, _, _) => { true }
-    }
-}
-
-/// Validate parsed constants using `fits_into()`.
-fn validate_constant(
-    width: &common::RegisterWidth, val: &StaticValue, _: &mut BTreeMap<String, StaticValue>
-)
-    -> Result<(), String>
-{
-    if ! fits_into(&val, width) {
-        Err(format!("given literal does not fit into register of size {:?}", width))
-    } else {
-        Ok(())
-    }
-}
+use common::data;
+use common::parser::StaticValue;
+use ioreg::common;
 
 
 //
@@ -82,7 +15,7 @@ fn validate_constant(
 //
 
 /// Thin wrapper around the CommonParser so we can add ioreg-specific functions to it.
-pub type Parser<'a> = ::parser::CommonParser<'a>;
+pub type Parser<'a> = ::common::parser::CommonParser<'a>;
 
 
 impl<'a> Parser<'a> {
@@ -91,11 +24,11 @@ impl<'a> Parser<'a> {
     //
 
     /// Entry to parsing the entire ioreg!() expansion.
-    pub fn parse_ioreg(&mut self) -> common::IoRegInfo {
+    pub fn parse_ioreg(&mut self) -> common::IOReg {
         let start_span = self.parser.span;
 
         // create the info struct we will parse into
-        let mut result = common::IoRegInfo{
+        let mut result = common::IOReg{
             name: "".to_string(),
             doc_srcs: vec!(),
             segments: BTreeMap::new(),
@@ -132,12 +65,9 @@ impl<'a> Parser<'a> {
                     };
                 }
                 "constants" => {
-                    self.parse_constants_block(
-                        &"".to_string(), &mut result.const_vals,
-                        validate_constant, &common::RegisterWidth::R32
-                    );
+                    self.parse_constants_block(&"".to_string(), &mut result.const_vals);
                 }
-                "doc_srcs" => { self.parse_doc_sources(&"".to_string(), &mut result.doc_srcs); }
+                "doc_srcs" => { self.parse_doc_sources(&mut result.doc_srcs); }
 
                 _ => { self.set_err(format!("unexpected block keyword '{}'", tok).as_str()); break; }
             }
@@ -145,7 +75,10 @@ impl<'a> Parser<'a> {
 
         // the rest of the macro should be segments
         while ! self.eat(&token::Token::Eof) {
-            let seg = self.parse_segment();
+            let seg_opt = self.parse_segment();
+			if seg_opt.is_none() { break; }
+
+			let seg = seg_opt.unwrap();
             if ! result.segments.contains_key(seg.name.as_str()) {
                 result.segments.insert(seg.name.clone(), seg);
             } else {
@@ -161,12 +94,17 @@ impl<'a> Parser<'a> {
     ///
     /// While "segments" are typically registers in and of themselves, they are more often than not accessed as a logical group.
     /// This grouping allows multiple related registers to be accessed as if they were one large (contiguous) register.
-    pub fn parse_segment(&mut self) -> common::IoRegSegmentInfo {
+    pub fn parse_segment(&mut self) -> Option<common::Segment> {
         let start_span = self.parser.span;
 
         // get an address
-        let addr = self.parse_uint::<u32>() as u32;
-        self.begin_segment = self.parser.span;
+        let addr = match self.parse_uint::<usize>() {
+			Ok(v) => { v }
+			Err(e) => {
+				self.parser.span_err(start_span, format!("could not parse address: {}", e).as_str());
+				return None;
+			}
+		};
         self.expect_fat_arrow();
 
         // gather metadata
@@ -183,26 +121,27 @@ impl<'a> Parser<'a> {
             let tok = extract_ident_name!(self);
             match tok.as_str() {
                 "constants" => {
-                    self.parse_constants_block(&name, &mut val_defs, validate_constant, &width);
+                    self.parse_constants_block(&name, &mut val_defs);
                 }
                 _ => { self.set_err("unexpected block keyword"); }
             }
         }
 
-        let mut result = common::IoRegSegmentInfo{
+        let reg = data::RegisterType::new(width, data::Address(addr.val), perms)
+                .expect("could not create register");
+
+        let mut result = common::Segment{
             name: name,
-            address: addr,
-            reg_width: width,
-            access_perms: perms,
+            reg: reg,
             const_vals: val_defs,
-            offsets: vec!(),
+            partials: vec!(),
             span: start_span,
         };
 
         // loop until we hit our closing brace
         while ! self.eat(&token::Token::CloseDelim(token::DelimToken::Brace)) {
-            match self.parse_offset(&mut result) {
-                Ok(o) => { result.push_offset(o); }
+            match self.parse_partial(&mut result) {
+                Ok(o) => { result.partials.push(o); }
                 Err(e) => {
                     self.set_err(e);  // TODO: and early escape?
                 }
@@ -210,54 +149,72 @@ impl<'a> Parser<'a> {
         }
 
         // expect the end of offset blocks
-        self.expect_semi();                       // ends with a semicolon
-        result
+        self.expect_semi(); // ends with a semicolon
+        Some(result)
     }
 
 
     /// Parses a register offset and index.
     ///
     /// Checks the range is not inverted, and width >= 1.
-    pub fn parse_index(&mut self) -> common::IoRegOffsetIndexInfo {
+    pub fn parse_index(&mut self) -> Option<data::RegisterSlice> {
         let start_span = self.parser.span;
-        let begin = self.parse_uint::<u8>() as u8;
-        if begin == u8::max_value() {
-            self.set_err("detected error while parsing index");
-            return common::IoRegOffsetIndexInfo{offset: 0, width: 0, span: start_span};
-        }
-
-        let mut end = begin;
-        if self.eat(&token::Token::DotDot) {
-            end = self.parse_uint::<u8>() as u8;
-            if end < begin {
-                self.set_err("index ranges are inverted");
-                return common::IoRegOffsetIndexInfo{offset: 0, width: 0, span: start_span};
-            } else if end == begin {
-                self.set_err("this should not be a range. indices are equal");
-                return common::IoRegOffsetIndexInfo{offset: 0, width: 0, span: start_span};
+        let begin = match self.parse_uint::<u8>() {
+            Ok(v) => { v }
+            Err(e) => {
+                self.set_err(e.as_str());
+                return None; // abort
             }
+        };
+
+        let end = match self.eat(&token::Token::DotDot) {
+            false => { begin }
+            true => {
+                match self.parse_uint::<u8>() {
+                    Ok(v) => { v }
+                    Err(e) => {
+                        self.set_err(e.as_str());
+                        return None; // abort
+                    }
+                }
+            }
+        };
+
+        if end < begin {
+            self.set_err("index ranges are inverted");
+            return None;
         }
 
-        return common::IoRegOffsetIndexInfo{
-            offset: begin,
-            width: (end-begin)+1, // add one to account for zero indexing
-            span: start_span,
-        };
+        Some(data::RegisterSlice::new((end-begin).val+1, begin.val, start_span))
     }
 
 
-    /// Parses offsets into the given ioreg offset and all associated functions.
+    /// Parses offsets into the given ioreg segment and all associated functions.
     ///
     /// The block being parsed are those of the form `1..5 => { some_func => [...]; other_func => [...]; };`.
-    pub fn parse_offset(&mut self, seg: &mut common::IoRegSegmentInfo) -> Result<common::IoRegOffsetInfo, &'static str> {
-        let start_span = self.parser.span;
-
+    pub fn parse_partial(&mut self, seg: &mut common::Segment)
+        -> Result<common::Partial, &'static str>
+    {
         // parse the index width and begin offset
-        let offset_index = self.parse_index();
-        let last_bit = offset_index.offset + offset_index.width;
-        if last_bit > seg.reg_width.as_u8() {
+        // then format the address based on the index/width
+        let mut reg_off = match self.parse_index() {
+            Some(r) => { r }
+            None => { return Err("could not parse index"); }
+        };
+
+        let adj_addr = seg.reg.addr() + reg_off.offset_in_bytes(); // move N bytes forward
+        reg_off.offset -= reg_off.offset_in_bytes() * 8;              // offset (N bytes * 8) bits lower
+
+        let reg_part = data::PartialType::from(adj_addr, reg_off).expect("could not create partial");
+        let last_bit = reg_part.slice().offset + reg_part.slice().width;
+        let last_byte = last_bit / 8;
+
+        if last_byte > seg.reg.width() {
             self.set_err(format!("index ({}) + width ({}) = {} cannot fit in register of size {}",
-                offset_index.offset, offset_index.width, last_bit, seg.reg_width.as_u8()).as_str());
+                reg_part.slice().offset, reg_part.slice().width,
+				last_bit, seg.reg.width()).as_str()
+			);
+			return Err("invalid register configuration");
         }
 
         // we expect a fat arrow and a curly brace to kick things off
@@ -265,28 +222,28 @@ impl<'a> Parser<'a> {
         self.expect_open_curly();
 
         // loop (parsing function defs) until we hit our closing bracket
-        let mut func_defs =  BTreeMap::<String, common::IoRegFuncDef>::new();
+        let mut fns = BTreeMap::<String, common::FunctionDef>::new();
         while ! self.eat(&token::Token::CloseDelim(token::DelimToken::Brace)) {
             // get a name and a colon to start the definition
             let name = self.parse_ident_string();
-            if ! func_defs.contains_key(&name) {    // check the function has not been registered TODO: check globally
-                let func = self.parse_func_def(name.clone(), &seg.reg_width);
-                if func.ty == common::FunctionType::Setter && seg.access_perms == common::RegisterPermissions::ReadOnly {
+
+            // check the function has not been registered
+            if ! fns.contains_key(&name) {
+                let func = self.parse_func_def(name.clone());
+                if func.ty == common::FunctionType::Setter && seg.reg.perms().read_only() {
                     return Err("cannot create setter function on read only segment");
                 }
 
-                func_defs.insert(name, func);
+                fns.insert(name, func);
             } else {
                 return Err("duplicate function definition");
             }
         }
 
-        Ok(common::IoRegOffsetInfo{
-            index: offset_index,
-            functions: func_defs,
-            span: start_span,
+        Ok(common::Partial{
+            reg: reg_part,
+            functions: fns,
         })
-
     }
 
 
@@ -301,15 +258,15 @@ impl<'a> Parser<'a> {
     /// The values used may be internal constants or literals.
     /// If an internal constant is specified, we lookup up the constant value and use it directly.
     /// If a constant (StaticValue) is found to not be numeric, a syntax error is placed.
-    pub fn parse_static_setter_values(&mut self, result: &mut common::IoRegFuncDef, width: &common::RegisterWidth) {
+    pub fn parse_static_setter_values(&mut self, result: &mut common::FunctionDef) {
         // until the end of the values
         while ! self.eat(&token::CloseDelim(token::DelimToken::Bracket)) {
             // inspect the token we are currently considering
             match self.parser.token {
                 // if we have a literal, we expect it to be an integral, so parse that
-                token::Token::Literal(token::Lit::Integer(_), _) => {  // TODO: consider float
-                    match read_uint_for_register!(self, width) {
-                        Ok(i) => { result.values.push(common::FunctionValueType::Static(i as u32, self.parser.prev_span)); }
+                token::Token::Literal(token::Lit::Integer(_), _) => {
+                    match self.parse_uint::<usize>() {
+                        Ok(i) => { result.values.push(common::FunctionValueType::Static(i, self.parser.prev_span)); }
                         Err(e) => {
                             self.set_err(e.as_str());
                             break;  // TODO: better return
@@ -338,7 +295,7 @@ impl<'a> Parser<'a> {
     /// Parses a function definition on a register.
     ///
     /// Consumes `fn_name => [....];` or `fn_name => ();` depending on function type.
-    pub fn parse_func_def(&mut self, name: String, width: &common::RegisterWidth) -> common::IoRegFuncDef {
+    pub fn parse_func_def(&mut self, name: String) -> common::FunctionDef {
         let span = self.parser.span.clone();
 
         self.expect_fat_arrow();                  // functions must be followed with fat arrow
@@ -347,12 +304,12 @@ impl<'a> Parser<'a> {
             &token::Token::OpenDelim(token::DelimToken::Bracket) => { common::FunctionType::StaticSetter }
             _ => {
                 self.set_fatal_err("expected an open bracket or paren"); // fatal error
-                common::FunctionType::Setter                             // make the compiler happy -- should not get used
+                common::FunctionType::Setter // make the compiler happy -- should not get used
             }
         };
         self.parser.bump();
 
-        let mut result = common::IoRegFuncDef {
+        let mut result = common::FunctionDef {
             name: name,
             values: vec!(),
             ty: setter_type,
@@ -364,7 +321,7 @@ impl<'a> Parser<'a> {
                 self.expect_close_paren();
                 self.expect_semi();
             }
-            common::FunctionType::StaticSetter => { self.parse_static_setter_values(&mut result, width); }
+            common::FunctionType::StaticSetter => { self.parse_static_setter_values(&mut result); }
             _ => { self.set_fatal_err("unexpected function type"); }
         }
 
@@ -377,28 +334,29 @@ impl<'a> Parser<'a> {
     // register metadata
     //
 
-    /// Parses the width of a register (i.e. r8, r16, r32) into the internal representation common::RegisterWidth.
-    pub fn parse_reg_width(&mut self) -> common::RegisterWidth {
+    /// Parses the width of a register (i.e. r8, r16, r32) into an integral representation.
+    pub fn parse_reg_width(&mut self) -> usize {
         match self.parse_ident_string().as_str() {
-            "r8" => { common::RegisterWidth::R8 },
-            "r16" => { common::RegisterWidth::R16 },
-            "r32" => { common::RegisterWidth::R32 },
+            "r8" => { 8 },
+            "r16" => { 16 },
+            "r32" => { 32 },
+            "r64" => { 64 },
             _ => {
                 self.set_err("unknown register width keyword");
-                common::RegisterWidth::Unknown
+                0
             }
         }
     }
 
     /// Parses the access permissions of a register (i.e. ro, rw, wo) into the internal representation common::RegisterPermissions.
-    pub fn parse_reg_access(&mut self) -> common::RegisterPermissions {
+    pub fn parse_reg_access(&mut self) -> data::RegisterPermissions {
         match self.parse_ident_string().as_str() {
-            "ro" => { common::RegisterPermissions::ReadOnly },
-            "wo" => { common::RegisterPermissions::WriteOnly },
-            "rw" => { common::RegisterPermissions::ReadWrite },
+            "ro" => { data::RegisterPermissions::ReadOnly },
+            "wo" => { data::RegisterPermissions::WriteOnly },
+            "rw" => { data::RegisterPermissions::ReadWrite },
             _ => {
                 self.set_err("unknown register access keyword");
-                common::RegisterPermissions::Unknown
+                data::RegisterPermissions::Unknown
             }
         }
     }

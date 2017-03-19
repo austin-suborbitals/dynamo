@@ -1,29 +1,18 @@
 extern crate aster;
+extern crate num_traits;
 
 use syntax::ast;
 use syntax::ptr;
-use syntax::codemap::Span;
 use syntax::print::pprust;
-use syntax::ext::quote::rt::DUMMY_SP;
 
 use std::fmt;
-use std::ops::BitAnd;
 use std::collections::BTreeMap;
 
-use ::parser;
-use ::ioreg::common;
+use common::data;
+use common::parser;
+use ioreg::common;
 
 type ImplBuilder = aster::item::ItemImplBuilder<aster::invoke::Identity>;
-type FnInternalBlockBuilder = aster::block::BlockBuilder<
-    aster::expr::ExprBuilder<
-        aster::block::BlockBuilder<
-            aster::item::ItemImplMethodBuilder<
-                aster::item::ItemImplBuilder<aster::invoke::Identity>
-            >
-        >
-    >
->;
-type FnArgsBuilder = aster::expr::ExprCallArgsBuilder<aster::stmt::StmtExprBuilder<aster::invoke::Identity>>;
 
 
 /// Creates a ptr type to the ast::Ty given as $ty with a bool for mutability.
@@ -57,22 +46,34 @@ macro_rules! ptr_cast {
 macro_rules! expect_uint {
     ($self_:ident, $expect:ident, $t:ident) => {
         match $expect {
-            &parser::StaticValue::Uint(u, _, _) => { $t::narrow(u) }
+            &parser::StaticValue::Uint(u) => { u.val.into() }
 
-              &parser::StaticValue::Int(_,_,sp)
-            | &parser::StaticValue::Float(_,_,_,sp)
-            | &parser::StaticValue::Str(_,_,sp)
+              &parser::StaticValue::Str(_,sp)
             | &parser::StaticValue::Ident(_,_,sp)
             | &parser::StaticValue::Path(_,sp)
             | &parser::StaticValue::Error(_,sp)
             => {
                 $self_.parser.parser.span_fatal(sp,
                     "expected a static value after lookup up constant value definition").emit();
-                $t::narrow(0u32)
+                Default::default()
             }
         }
     }
 }
+
+
+macro_rules! try_parse_err {
+    ($parser:expr, $sp:expr, $e:expr) => {
+        match $e {
+            Ok(v) => { v }
+            Err(e) => {
+                $parser.parser.span_fatal($sp, e.as_str()).emit();
+                Default::default()
+            }
+        }
+    }
+}
+
 
 /// Used to have non-quoted strings in the Debug printer.
 struct NonQuoteString(String);
@@ -84,22 +85,24 @@ impl fmt::Debug for NonQuoteString {
 }
 
 /// Generate documentation attributes for the given setter function.
-fn make_setter_doc(func: &common::IoRegFuncDef, seg: &common::IoRegSegmentInfo, off: &common::IoRegOffsetInfo) -> String {
-    let mut mask_qual = "";
-    let mask_str = "\n///\n/// **NOTE**: all values in unaligned writes are subject to masking which is not displayed here.";
-    
+fn make_setter_doc(func: &common::FunctionDef, seg: &common::Segment, reg: &common::Partial) -> Vec<String> {
+    let mut result = vec!();
+    let mut mask_str = vec!(
+        String::from("///"),
+        String::from("/// **NOTE:** As an unaligned write, values displayed here are before any shifting or masking occurs."),
+    );
+
     if func.ty == common::FunctionType::Setter {
-        return format!(
-            "/// Writes the value of the given argument to the `{}` register at relative address 0x{:X} and offset {} bits.{}",
-            seg.name, seg.address, off.index.offset, if off.index.is_fully_byte_aligned() { "" } else { mask_str }
-        )
+        result.push(format!(
+            "/// Writes the value of the given argument to the `{}` register at relative address 0x{:X} and offset {} bits.",
+            seg.name, reg.addr(), reg.offset()
+        ));
+        if ! reg.slice().is_aligned() { result.append(&mut mask_str) }
+        return result;
     }
-    
+
     let mut actual_vals: Vec<NonQuoteString> = vec!();
     for i in &func.values {
-        if mask_qual.len() == 0 && ! off.index.is_fully_byte_aligned() {
-            mask_qual = mask_str;
-        }
         match i {
             &common::FunctionValueType::Static(val, _) => {
                 // if we will be using a static value, and the qualifier has not been set, set it.
@@ -116,34 +119,37 @@ fn make_setter_doc(func: &common::IoRegFuncDef, seg: &common::IoRegSegmentInfo, 
             &common::FunctionValueType::Argument(_, _) => { /* do nothing */ }
         }
     }
-    
-    match actual_vals.len() {
+
+    result.push(match actual_vals.len() {
         1 => {
             format!(
-                "/// Writes the value `{}` to the `{}` register at relative address 0x{:X} and offset {} bits.{}",
-                actual_vals[0], seg.name, seg.address, off.index.offset, mask_qual
+                "/// Writes the value `{}` to the `{}` register at relative address 0x{:X} and offset {} bits.",
+                actual_vals[0], seg.name, reg.addr(), reg.offset()
             )
         }
         _ => {
             format!(
-                "/// Consecutively writes the values `{:?}` to the `{}` register at relative address 0x{:X} and offset {} bits.{}",
-                actual_vals, seg.name, seg.address, off.index.offset, mask_qual
+                "/// Consecutively writes the values `{:?}` to the `{}` register at relative address 0x{:X} and offset {} bits.",
+                actual_vals, seg.name, reg.addr(), reg.offset()
             )
         }
-    }
+    });
+
+    if ! reg.slice().is_aligned() { result.append(&mut mask_str) }
+    result
 }
 
 /// Builds the AST from the parsed ioreg!() macro.
 pub struct Builder<'a> {
     verbose: bool,
-    reg: common::IoRegInfo,
+    reg: common::IOReg,
     bldr: aster::AstBuilder,
     parser: ::ioreg::parser::Parser<'a>,
 }
 
 impl<'a> Builder<'a> {
-    /// Consumes the parsed IoRegInfo as well as the parser (for later syntax error placement).
-    pub fn new(ioreg: common::IoRegInfo, parser: ::ioreg::parser::Parser, verbose: bool) -> Builder {
+    /// Consumes the parsed IOReg as well as the parser (for later syntax error placement).
+    pub fn new(ioreg: common::IOReg, parser: ::ioreg::parser::Parser, verbose: bool) -> Builder {
         Builder {
             verbose: verbose,
             reg: ioreg,
@@ -152,15 +158,13 @@ impl<'a> Builder<'a> {
         }
     }
 
-    // TODO: better name?
-    // TODO: better return?
     /// Outputs Rust AST items representing the generated ioreg.
     pub fn build(&self) -> Vec<ptr::P<ast::Item>> {
         if self.verbose { println!("\n\n=====   Generating: {}   =====\n", self.reg.name); }
 
         let mut items: Vec<ptr::P<ast::Item>> = vec!();
 
-        // generate the base "struct" pointer.
+        // documentation generation for the ioreg struct
         let mut docced_item = self.bldr.item().span(self.reg.span)
             .attr().list("repr").word("C").build()
             .attr().list("derive").word("Debug").build()
@@ -176,6 +180,7 @@ impl<'a> Builder<'a> {
             }
         }
 
+        // finish generating the base "struct" pointer.
         let type_def = docced_item
             .pub_().tuple_struct(self.reg.name.clone())
                 .field().pub_().build_ty( ptr_type!(self.bldr.ty().u8(), false) ) // false = immutable
@@ -184,11 +189,11 @@ impl<'a> Builder<'a> {
 
         // grab the root-level constants to start the impl block
         let mut impl_build = self.bldr.item().span(self.reg.span).impl_();
-        impl_build = self.build_const_vals(&self.reg.const_vals, impl_build);
+        impl_build = self.build_assoc_const_vals(&self.reg.const_vals, impl_build);
 
         // now build the segments
         for s in &self.reg.segments {
-            impl_build = self.build_const_vals(&s.1.const_vals, impl_build);
+            impl_build = self.build_assoc_const_vals(&s.1.const_vals, impl_build);
 
             // TODO: support manual getter func decl
             if s.1.can_read() {
@@ -197,8 +202,9 @@ impl<'a> Builder<'a> {
             }
 
             if s.1.can_write() {
-                for o in &s.1.offsets {
-                    impl_build = self.build_setters(&o, &s.1, impl_build);
+                impl_build = match self.build_setters(&s.1, impl_build) {
+                    Ok(i) => { i }
+                    Err(_) => { return items; }
                 }
             }
         }
@@ -218,28 +224,18 @@ impl<'a> Builder<'a> {
     }
 
     /// Builds associated constants for the given ioreg as defined in the `constants => { ... }` block.
-    fn build_const_vals(&self, vals: &BTreeMap<String, parser::StaticValue>, prev_build: ImplBuilder) -> ImplBuilder {
+    fn build_assoc_const_vals(&self, vals: &BTreeMap<String, parser::StaticValue>, prev_build: ImplBuilder) -> ImplBuilder {
         let mut builder = prev_build;
         // generate associated constants in the impl block
         for v in vals {
             let name = v.0.to_uppercase();
             match v.1 {
-                &parser::StaticValue::Int(i, _, sp) => {
-                    builder = builder.item(name).span(sp)
+                &parser::StaticValue::Uint(i) => {
+                    builder = builder.item(name).span(i.span)
                         .attr().list("allow").word("dead_code").build()
-                        .const_().expr().i32(i).ty().i32();
+                        .const_().expr().i32(i.val as i32).ty().i32(); // TODO: narrow not as
                 }
-                &parser::StaticValue::Uint(u, _, sp) => {
-                    builder = builder.item(name).span(sp)
-                        .attr().list("allow").word("dead_code").build()
-                        .const_().expr().u32(u).ty().u32();
-                }
-                &parser::StaticValue::Float(_, ref s, _, sp) => {
-                    builder = builder.item(name).span(sp)
-                        .attr().list("allow").word("dead_code").build()
-                        .const_().expr().f32(s).ty().f32();
-                }
-                &parser::StaticValue::Str(ref s, _, sp) => {
+                &parser::StaticValue::Str(ref s, sp) => {
                     builder = builder.item(name).span(sp)
                         .attr().list("allow").word("dead_code").build()
                         .const_().expr().str(s.clone().as_str())
@@ -262,327 +258,263 @@ impl<'a> Builder<'a> {
 
     /// Builds a getter function for a given Segment.
     ///
-    /// The generated function has the signature `pub fn read_{seg_name}() -> {u8, u16, u32}` depending on the Segment info.
+    /// The generated function has the signature `pub fn read_{seg_name}() -> T` depending on the Segment info.
     ///
     /// Getters are only generated for segments that can be read.
-    fn build_getter(&self, seg: &common::IoRegSegmentInfo, prev_builder: ImplBuilder) -> ImplBuilder {
-        let fn_bldr = prev_builder
-            .item(format!("read_{}", seg.name)).attr().doc(
-                format!("/// Reads the contents (as `{}`) of the `{}` register at relative address 0x{:X}",
-                    seg.reg_width.to_type_string(), seg.name, seg.address
-            ).as_str())
-            .pub_().method().span(seg.span).fn_decl().self_().ref_();
-        match seg.reg_width {
-            common::RegisterWidth::R8 => {
-                fn_bldr.return_().u8().block()
-                    .expr().block().unsafe_()
-                        .build_expr(self.build_read_register::<u8>(seg.address, seg.span))
-            }
-            common::RegisterWidth::R16 => {
-                fn_bldr.return_().u16().block()
-                    .expr().block().unsafe_()
-                        .build_expr(self.build_read_register::<u16>(seg.address, seg.span))
-            }
-            common::RegisterWidth::R32 => {
-                fn_bldr.return_().u32().block()
-                    .expr().block().unsafe_()
-                        .build_expr(self.build_read_register::<u32>(seg.address, seg.span))
-            }
-            common::RegisterWidth::Unknown => {
-                self.parser.parser.span_fatal(seg.span, "encountered register of unknown size").emit();
-                fn_bldr.return_().u32().block().build()
-            }
-        }
-    }
-
-    // TODO: assumes u32 address space
-    /// Builds a `volatile_read()` call that reads the entire mcu-proper-register (internally called an Segment).
-    ///
-    /// For setters that are not fully-byte-aligned, a read is done before the write and the current value is masked
-    /// and the re-written with the new bits properly set.
-    pub fn build_read_register<T>(&self, addr: u32, sp: Span) -> ptr::P<ast::Expr>
-        where T: parser::ToAstType<T>
-    {
-        let self_offset = self.bldr.expr().span(sp)
+    fn build_getter(&self, seg: &common::Segment, prev_bldr: ImplBuilder) -> ImplBuilder {
+        let self_offset = self.bldr.expr().span(seg.span)
             .method_call("offset").tup_field(0).self_()
-            .arg().lit().isize(addr as usize)
+            .arg().lit().isize(seg.addr().0 as usize)
             .build();
 
-        // volatile_load(self.0.offset(0x1234) as *T)
-        self.bldr.expr().span(sp).call().id("volatile_load")
-            .with_arg(  ptr_cast!(self_offset, T::to_type(), false)  ) // immutable
+        let fn_sig = prev_bldr
+            .item(format!("read_{}", seg.name)).attr().doc(
+                format!("/// Reads the contents (as `{}`) of the `{}` register at relative address 0x{:X}",
+                    seg.reg.type_str(), seg.name, seg.addr().0
+            ).as_str())
+            .pub_().method().span(seg.span).fn_decl().self_().ref_();
+
+        match &seg.reg {
+            &data::RegisterType::U8(_) => { fn_sig.return_().u8().block() }
+            &data::RegisterType::U16(_) => { fn_sig.return_().u16().block() }
+            &data::RegisterType::U32(_) => { fn_sig.return_().u32().block() }
+            &data::RegisterType::U64(_) => { fn_sig.return_().u64().block() }
+        }.expr().block().unsafe_()
+            .expr().span(seg.span).call().id("volatile_load") // volatile_load(self.0.offset(0x1234) as *T)
+            .with_arg(ptr_cast!(self_offset, seg.reg.to_type(&self.bldr), false)) // immutable
             .build()
     }
 
-    /// Builds the skeleton of a `volatile_store()` call, with only the destination location set.
-    pub fn build_volatile_store_base<T>(&self, addr: u32, sp: Span) -> FnArgsBuilder
-        where T: parser::ToAstType<T>
-    {
-        let self_offset = self.bldr.expr().span(sp)
-            .method_call("offset").tup_field(0).self_()
-            .arg().lit().isize(addr as usize)
-            .build();
 
-        // volatile_store(self.0.offset(0x1234) as *T, 0x1234)
-        self.bldr.stmt().expr().span(sp).call().id("volatile_store")
-            .with_arg(ptr_cast!(self_offset, T::to_type(), true)) // mutable
-    }
-
-    /// Builds the `volatile_store(dst, src, len)` statement for a setter.
-    pub fn build_volatile_store<T>(
-        &self, addr: u32, fn_def: &common::IoRegFuncDef, seg: &common::IoRegSegmentInfo, v: &common::FunctionValueType
-    )
-        -> ast::Stmt
-        where T: parser::ToAstType<T> + parser::Narrow<u32>
-    {
-        let base = self.build_volatile_store_base::<T>(addr, fn_def.span);
-        match fn_def.ty {
-            common::FunctionType::StaticSetter => {
-                base.with_arg( T::to_lit(self.get_uint_const_val::<T>(v, seg))  ).build()
-            }
-            common::FunctionType::Setter => {
-                match v {
-                    &common::FunctionValueType::Argument(ref arg_name, sp) => {
-                        base.with_arg( self.bldr.expr().span(sp).id(arg_name) ).build()
-                    }
-                    &common::FunctionValueType::Static(_, sp) | &common::FunctionValueType::Reference(_, sp) => {
-                        self.parser.parser.span_fatal(sp, "did not expect non-argument type for FunctionType::Setter").emit();
-                        base.with_arg( self.bldr.expr().span(sp).id("non_argument_err") ).build()
-                    }
-                }
-            }
-            common::FunctionType::Getter => {
-                self.parser.parser.span_fatal(fn_def.span, "did not expect getter function for generating volatile_store").emit();
-                base.with_arg( self.bldr.expr().span(fn_def.span).id("wrong_func_type") ).build()
-            }
-        }
-    }
 
     /// Reads into the defined constants for this ioreg and returns the numeric literal behind the constant.
     ///
-    /// If not found as a defined internal-constant, a syntax error is placed an 0u32 is returned.
-    pub fn get_uint_const_val<T>(&self, v: &common::FunctionValueType, seg: &common::IoRegSegmentInfo) -> T
-        where T: parser::ToAstType<T> + parser::Narrow<u32>
+    /// If not found as a defined internal-constant, a syntax error is placed.
+    pub fn get_uint_const_val(&self, v: &common::FunctionValueType, seg: &common::Segment)
+        -> Result<data::Unsigned, String>
     {
         match v {
-            &common::FunctionValueType::Static(val, _) => { T::narrow(val) }
-            &common::FunctionValueType::Reference(ref name, _) => {
-                match self.lookup_const_val(name, seg) {
-                    Ok(v) => { expect_uint!(self, v, T) }
-                    Err(e) => {
-                        panic!(e); // TODO
-                    }
+            &common::FunctionValueType::Static(val, _) => {
+                Ok(val)
+            }
+            &common::FunctionValueType::Reference(ref name, sp) => {
+                let sv = try!(self.lookup_const_val(name, seg));
+                if let &parser::StaticValue::Uint(u) = sv {
+                    Ok(u)
+                } else {
+                    self.parser.parser.span_fatal(sp,
+                        "static reference is not a uint").emit();
+                    Err(String::from("reference was not a uint"))
                 }
             }
             &common::FunctionValueType::Argument(_, sp) => {
                 self.parser.parser.span_fatal(sp, "arguments cannot be looked up as constants").emit();
-                T::narrow(0u32)
+                Err(String::from("did not expect argument type"))
             }
         }
     }
 
 
-    /// Considers the register, offset, and idex to be written to. Then optimizes and reads/writes needed to achieve the action.
+    /// Generate the statements needer to store the passed in value.
     ///
-    /// If writing to a partial register, add a statement that says `let fetched = volatile_load(addr as *const T)`.
-    /// Then, we will mask this value and then do a `volatile_store(addr as *mut T, masked | val)`
-    ///
-    /// TODO: This function is a little heavy duty to be done in a loop -- same responsibilities, but
-    ///       perhaps pass in the mask and address so their "expensive" calculations can be reduced
-    pub fn optimize_write<T>(&self,
-        fn_def: &common::IoRegFuncDef, fn_prev: FnInternalBlockBuilder,
-        off: &common::IoRegOffsetIndexInfo, seg: &common::IoRegSegmentInfo
+    /// `do_lookup` should be true when the index, offset, or type is unaligned and a load
+    /// needs to be generated. This value is recycled across stores as it is masked out.
+    pub fn setter_store(
+        &self,
+        fn_def: &common::FunctionDef,
+        seg: &common::Segment, off: &common::Partial,
+        write_base: ptr::P<ast::Expr>, do_lookup: bool
     )
-        -> FnInternalBlockBuilder
-        where T: parser::ToAstType<T> + parser::Narrow<u32> + BitAnd<T>
+        -> Result<Vec<ast::Stmt>, &'static str>
     {
-        let write_address = seg.address + off.offset_in_bytes();
-        let shift_offset = off.offset % 8;
+        let mut result: Vec<ast::Stmt> = vec!();
+        let mut write_val = write_base;
 
-        // make a mask for the value as well based on the width of the partial register.
-        // if you give the value 0xFF to a setter of a 3bit partial, we only take the lowest 3 bits i.e.
-        //      (0xFF & 0b0111) == 0x05
-        let mut val_mask: u32 = 0;
-        for i in 0..off.width { val_mask |= 1 << i; }
+        // create: `self.0.offset({our offset})`
+        let self_offset = self.bldr.expr().span(off.slice().span)
+            .method_call("offset").tup_field(0).self_()
+            .arg().lit().isize(off.addr())
+            .build();
 
-        // this is what we will use to mask our "canvas" out of the read register
-        let mask: T = T::narrow( !(val_mask << off.offset) );
-        let mask_id = "fetched";
+        // create the opening to a vol store: `volatile_store(self.0.offset(0x1234) as *mut T,`
+        let mut store_call = self.bldr.stmt().expr().span(fn_def.span).call().id("volatile_store")
+            .with_arg(ptr_cast!(self_offset.clone(), off.reg.width_ty(), true)); // true = mutable
 
-        // add a statement that reads the current value and ANDs it with our mask
-        // i.e.: let mask_id = volatile_load(addr as *const T) & mask;
-        let mut fn_block = fn_prev.stmt().span(fn_def.span)
-            .let_()
-                .id(mask_id.clone())
-                .expr().build_bit_and(
-                    self.build_read_register::<T>(write_address, fn_def.span),
-                    T::to_lit(mask)
+        // if not fully aligned, add a vol read and masking to the fn body
+        if ! off.slice().is_aligned() {
+            let tmp_ident = self.bldr.id("tmp");
+
+            if do_lookup {
+                let get_addr = ptr_cast!(
+                    self_offset,
+                    off.reg.width_ty(),
+                    false
+                );
+                let read_expr = self.bldr.expr().span(seg.span).call().id("volatile_load")
+                    .with_arg(get_addr) // immutable
+                    .build();
+
+                let read_masked = self.bldr.expr().span(off.slice().span).build_bit_and(
+                    read_expr,
+                    off.reg.not_mask(&self.bldr)
                 );
 
-
-        match fn_def.ty {
-            common::FunctionType::Setter => {
-                let arg_id = self.bldr.expr().span(fn_def.span).id("val");
-                let write_val = match off.offset {
-                    0 => { arg_id }
-                    _ => {
-                        self.bldr.expr().span(fn_def.span).paren().build_shl(
-                            self.bldr.expr().span(fn_def.span).paren().build_bit_and(
-                                arg_id, T::to_lit(T::narrow(val_mask))
-                            ),
-                            self.bldr.expr().span(fn_def.span).lit().u8(shift_offset)
-                        )
-                    }
-                };
-
-                fn_block = fn_block.with_stmt(
-                    self.build_volatile_store_base::<T>(write_address, fn_def.span)
-                        .with_arg(
-                            self.bldr.expr().span(fn_def.span).build_bit_or(
-                                self.bldr.expr().span(fn_def.span).id(mask_id),
-                                write_val
-                            )
-                        )
-                        .build()
+                let read_set = self.bldr.stmt().span(off.slice().span).build_let(
+                    self.bldr.pat().span(off.slice().span).id(tmp_ident.clone()),
+                    Some(off.slice().width_ty()),
+                    Some(read_masked),
+                    vec!()
                 );
+                result.push(read_set);
             }
-            common::FunctionType::StaticSetter => {
-                for v in &fn_def.values {
-                    // if we are not writing the entire width, we cannot reliable set a portion of the register with a
-                    // single binop. so instead, we read the current value and mask out the region we will be writing.
-                    // now we can write the entire register and simply OR the needed value into the mask
-                    let write_val = match off.offset {
-                        0 => {
-                            T::to_lit(T::narrow( self.get_uint_const_val::<u32>(v, seg) & val_mask ))
-                        }
-                        _ => {
-                            self.bldr.expr().span(fn_def.span).paren().build_shl(
-                                T::to_lit( T::narrow( self.get_uint_const_val::<u32>(v, seg) & val_mask )),
-                                self.bldr.expr().span(fn_def.span).lit().u8(shift_offset)
-                            )
-                        }
-                    };
 
-                    fn_block = fn_block.with_stmt(
-                        self.build_volatile_store_base::<T>(write_address, fn_def.span)
-                            .with_arg(
-                                self.bldr.expr().span(fn_def.span).build_bit_or(
-                                    self.bldr.expr().span(fn_def.span).id(mask_id),
-                                    write_val
-                                )
-                            )
-                            .build()
-                    );
-                }
-            }
-            common::FunctionType::Getter => {
-                self.parser.parser.span_fatal(fn_def.span, "optimize_write did not expect a getter function").emit();
-            }
+            let shift_write = self.bldr.expr().span(off.slice().span).build_shl(
+                write_val,
+                self.bldr.expr().span(off.slice().span).lit().usize(off.slice().offset)
+            );
+            let masked_shift = self.bldr.expr().span(off.slice().span).build_bit_and(
+                self.bldr.expr().span(off.slice().span).paren().build(shift_write),
+                off.reg.mask(&self.bldr)
+            );
+
+            write_val = self.bldr.expr().span(off.slice().span).build_bit_or(
+                self.bldr.expr().id(tmp_ident.clone()),
+                self.bldr.expr().span(off.slice().span).paren().build(masked_shift)
+            );
         }
 
-        fn_block
+        // do any bit flipping based on the perms we have
+        store_call = match seg.reg.perms() {
+            // errors
+            data::RegisterPermissions::Unknown | data::RegisterPermissions::ReadOnly => {
+                self.parser.parser.span_err(seg.span, "encountered register with invalid permissions");
+                return Err("invalid register perms");
+            }
+
+            // if this is a write-only register, blindly write
+            data::RegisterPermissions::WriteOnly => {
+                store_call.with_arg(write_val)
+            }
+
+            data::RegisterPermissions::ReadWrite => {
+                store_call.with_arg(write_val)
+            }
+        };
+
+        result.push(store_call.build());
+        Ok(result)
     }
+
+
 
 
     /// Generates a setter for a given offset+index.
     ///
     /// Given the offset+index type, it will optimize read-before-write unless fully byte aligned.
     /// Also generates documentation for the setter.
-    pub fn build_setter<T>(&self, fn_def: &common::IoRegFuncDef, seg: &common::IoRegSegmentInfo, off: &common::IoRegOffsetIndexInfo,  fn_sig: FnInternalBlockBuilder)
-        -> ImplBuilder
-        where T: parser::ToAstType<T> + parser::Narrow<u32>
+    pub fn build_setter(
+        &self,
+        fn_def: &common::FunctionDef,
+        seg: &common::Segment, off: &common::Partial,
+        prev_bldr: ImplBuilder
+    )
+        -> Result<ImplBuilder, &'static str>
     {
-        let mut fn_block = fn_sig;
 
-        // if we are setting the entire register, or byte aligned length and index, then write the whole thing blindly :)
-        if off.is_fully_byte_aligned() {
-            let write_address = seg.address + off.offset_in_bytes();
-            match fn_def.ty {
-                common::FunctionType::Setter => {
-                    let v = common::FunctionValueType::Argument("val".to_string(), DUMMY_SP);
-                    fn_block = fn_block.with_stmt(self.build_volatile_store::<T>(write_address, &fn_def, &seg, &v));
+        if ! fn_def.ty.is_write() {
+            return Err("cannot build a setter for a non-write fn def");
+        }
+
+        let mut item_base = prev_bldr.item(fn_def.name.clone());
+        for d in make_setter_doc(fn_def, seg, off) {
+            item_base = item_base.attr().doc(d.as_str())
+        }
+        let mut fn_base = item_base.pub_().method().span(fn_def.span).fn_decl().self_().ref_();
+
+        if fn_def.ty.has_arg() {
+            fn_base = fn_base.arg_id("val").with_ty(off.slice().width_ty());
+        }
+
+        let mut fn_block = fn_base
+            .default_return().block()
+            .expr().block().unsafe_();
+
+        for (i, val) in fn_def.values.iter().enumerate() {
+            // get+/format the value we are going to write into the representative AST type
+            let write_val: ptr::P<ast::Expr> = match val {
+                &common::FunctionValueType::Static(u, sp) => {
+                    if fn_def.ty != common::FunctionType::StaticSetter {
+                        self.parser.parser.span_fatal(sp,
+                            "internal error: expected FunctionType::StaticSetter").emit();
+                        return Err("invalid argument type");
+                    }
+                    off.to_lit(&u, &self.bldr)
                 }
-                common::FunctionType::StaticSetter => {
-                    for v in &fn_def.values {
-                        match off.width {
-                            8 => {
-                                fn_block = fn_block.with_stmt(self.build_volatile_store::<u8>(write_address, &fn_def, &seg, &v));
+
+                &common::FunctionValueType::Argument(ref arg_name, sp) => {
+                    if fn_def.ty != common::FunctionType::Setter {
+                        self.parser.parser.span_fatal(sp,
+                            "internal error: expected FunctionType::Setter").emit();
+                        return Err("invalid argument type");
+                    }
+                    self.bldr.expr().span(sp).id(arg_name)
+                }
+
+                &common::FunctionValueType::Reference(ref name, sp) => {
+                    if fn_def.ty != common::FunctionType::StaticSetter {
+                        self.parser.parser.span_fatal(sp,
+                            "internal error: expected FunctionType::StaticSetter").emit();
+                        return Err("invalid argument type");
+                    }
+                    match self.lookup_const_val(name.as_str(), seg) {
+                        Ok(v) => {
+                            if let &parser::StaticValue::Uint(u) = v {
+                                off.to_lit(&u, &self.bldr)
+                            } else {
+                                self.parser.parser.span_fatal(sp,
+                                    "internal error: invalid static value type").emit();
+                                return Err("invalid static value type");
                             }
-                            16 => {
-                                fn_block = fn_block.with_stmt(self.build_volatile_store::<u16>(write_address, &fn_def, &seg, &v));
-                            }
-                            32 => {
-                                fn_block = fn_block.with_stmt(self.build_volatile_store::<u32>(write_address, &fn_def, &seg, &v));
-                            }
-                            _ => {
-                                self.parser.parser.span_fatal(fn_def.span, "found non-aligned width despite alignment check").emit();
-                            }
+                        }
+                        Err(_) => {
+                            self.parser.parser.span_fatal(sp, "unknown identifier").emit();
+                            return Err("could not find constant reference");
                         }
                     }
                 }
-                common::FunctionType::Getter => {
-                    self.parser.parser.span_fatal(fn_def.span, "did not expect a getter for generating a setter").emit();
-                }
-            }
-        } else {
-            // TODO: how to handle PARTIAL writes to WriteOnly registers?
-            if seg.access_perms == common::RegisterPermissions::WriteOnly {
-                self.parser.parser.span_fatal(fn_def.span, "partial writes to WriteOnly register indices is currently not supported").emit();
-            }
-
-            match off.width {
-                1...8 => { fn_block = self.optimize_write::<u8>(fn_def, fn_block, off, seg); }
-                9...16 => { fn_block = self.optimize_write::<u16>(fn_def, fn_block, off, seg); }
-                17...32 => { fn_block = self.optimize_write::<u32>(fn_def, fn_block, off, seg); }
-                _ => { self.parser.parser.span_fatal(fn_def.span, "unknown size for write optimization").emit(); }
+            };
+            let stmts = try!(self.setter_store(fn_def, seg, off, write_val, i == 0));
+            for s in stmts {
+                fn_block = fn_block.with_stmt(s);
             }
         }
 
-        fn_block.build()
+        if fn_def.ty.has_arg() {
+            let stmts = try!(self.setter_store(fn_def, seg, off, self.bldr.expr().span(fn_def.span).id("val"), true));
+            for s in stmts {
+                fn_block = fn_block.with_stmt(s);
+            }
+        }
+
+        Ok(fn_block.build())
     }
 
     /// Loops the offset+info blocks for this segment and generates all setters.
-    pub fn build_setters(&self, off: &common::IoRegOffsetInfo, seg: &common::IoRegSegmentInfo, prev: ImplBuilder)
-        -> ImplBuilder {
-
+    pub fn build_setters(&self, seg: &common::Segment, prev: ImplBuilder)
+        -> Result<ImplBuilder, &'static str>
+    {
         let mut bldr = prev;
-        for f in &off.functions {
-            // we know how many bits we need to operate on, but we can only address bytes...
-            // so, if we have less than 8 bits, operate on a byte, otherwise get the pow_2 >= width
-
-            let mut fn_base = bldr.item(f.1.name.clone())
-                .attr().doc(make_setter_doc(f.1, seg, off).as_str())
-                .pub_().method().span(f.1.span).fn_decl()
-                    .self_().ref_();
-
-            if f.1.ty == common::FunctionType::Setter {
-                //return self.build_user_input_setter();
-                fn_base = fn_base.arg_id("val").with_ty(common::offset_width_to_ty(&off.index));
+        for reg in &seg.partials {
+            for (_, fn_def) in &reg.functions {
+                bldr = try!(self.build_setter(&fn_def, &seg, &reg, bldr));
             }
-
-            let ctx = fn_base
-                .default_return().block()
-                .expr().block().unsafe_();
-
-            bldr = match seg.reg_width {
-                common::RegisterWidth::R8 => { self.build_setter::<u8>(&f.1, seg, &off.index, ctx) }
-                common::RegisterWidth::R16 => { self.build_setter::<u16>(&f.1, seg, &off.index, ctx) }
-                common::RegisterWidth::R32 => { self.build_setter::<u32>(&f.1, seg, &off.index, ctx) }
-                _ => {
-                    // TODO: proper error
-                    self.parser.parser.span_fatal(seg.span, format!("unknown register width to create setter function in segment '{}'", seg.name).as_str()).emit();
-                    self.build_setter::<u8>(&f.1, seg, &off.index, ctx) // TODO: ewww, but temporary
-                }
-            };
         }
-        bldr
+        Ok(bldr)
     }
 
 
     /// Gets the StaticValue from the constants defined from this ioreg, with an error if it does not exist.
-    ///
-    /// **NOTE:** this looks up the constants using the scoped name, but scope prefix is done for you by the function.
-    pub fn lookup_const_val<'b>(&'b self, name: &str, seg: &'b common::IoRegSegmentInfo) -> Result<&parser::StaticValue, String> {
+    pub fn lookup_const_val<'b>(&'b self, name: &str, seg: &'b common::Segment) -> Result<&parser::StaticValue, String> {
         // first, check for global def
         let mut val = self.reg.const_vals.get(name);
         if val.is_some() {

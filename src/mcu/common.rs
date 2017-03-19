@@ -8,7 +8,7 @@ use syntax::ext::quote::rt::DUMMY_SP;
 
 use std::collections::BTreeMap;
 
-use parser::StaticValue;
+use ::common::parser::StaticValue;
 use ::mcu::common;
 
 #[derive(Debug)]

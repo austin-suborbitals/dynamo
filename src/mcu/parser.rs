@@ -3,14 +3,15 @@ use syntax::ast;
 use syntax::parse::token;
 use syntax::parse::parser::PathStyle;
 use syntax::codemap::Span;
-use syntax::ext::quote::rt::DUMMY_SP;
 
 extern crate bitmap;
 use self::bitmap::Bitmap;
 
 use std::collections::BTreeMap;
 
-use ::parser;
+use ::common::data;
+use ::common::parser;
+use ::common::parser::StaticValue;
 use ::mcu::common;
 
 macro_rules! token_is_path {
@@ -28,14 +29,6 @@ macro_rules! token_is_path {
         }
     }
 }
-
-// TODO: check less than usize? not sure if or what we want/need to validate
-fn validate_constant(_: &(), _: &::parser::StaticValue, _: &mut BTreeMap<String, parser::StaticValue>)
-    -> Result<(), String>
-{
-    Ok(())
-}
-
 
 /// Extends the ::parser::CommonParser struct to add mcu-specific parsing functions.
 ///
@@ -67,9 +60,7 @@ impl<'a> Parser<'a> {
                     self.expect_semi();
                 }
                 "constants" => {
-                    self.parse_constants_block(
-                        &"".to_string(), &mut result.constants, validate_constant, &()
-                    );
+                    self.parse_constants_block(&"".to_string(), &mut result.constants);
                 }
                 "externs" => {
                     self.parse_externs_block(&mut result.externs);
@@ -78,7 +69,7 @@ impl<'a> Parser<'a> {
                     self.parse_link_script(&mut result);
                 }
                 "doc_srcs" => {
-                    self.parse_doc_sources(&"".to_string(), &mut result.docs);
+                    self.parse_doc_sources(&mut result.docs);
                 }
                 "interrupts" => {
                     result.interrupts.span = self.parser.span.clone();
@@ -116,9 +107,9 @@ impl<'a> Parser<'a> {
         self.expect_fat_arrow();
 
         // read the literal and assert string
-        let doc_src = self.parse_constant_literal(&format!("{}_link_script", into.name));
+        let doc_src = self.parse_constant_literal();
         match doc_src {
-            parser::StaticValue::Str(v, _, _) => { into.link_script = v; }
+            StaticValue::Str(v,_) => { into.link_script = v; }
             _ => { self.set_err_last("expected a string literal"); return; }
         }
 
@@ -159,7 +150,15 @@ impl<'a> Parser<'a> {
 
         // parse interrupt count
         self.expect_open_bracket();
-        into.total_ints = self.parse_uint::<u8>() as u8;
+        into.total_ints = match self.parse_uint::<u8>() {
+            Ok(u) => {
+                u.val as u8
+            }
+            Err(e) => {
+				self.set_err(e.as_str());
+                return;
+            }
+        };
         self.expect_close_bracket();
 
         // parse link section
@@ -178,7 +177,14 @@ impl<'a> Parser<'a> {
         self.expect_open_curly();
         while ! self.eat(&token::CloseDelim(token::DelimToken::Brace)) {
             let span = self.parser.span.clone();
-            let range = self.parse_index_or_range();
+            let range = match self.parse_index_or_range() {
+                Ok(v) => { v }
+                Err(e) => {
+                    self.parser.span_fatal(span, format!("could not parse inde/range: {}", e).as_str())
+                        .emit();
+                    return;
+                }
+            };
             self.expect_fat_arrow();
             for i in range.begin..range.end+1 {
                 if set_ints.get(i).expect("error getting bitmap index") == 1 {
@@ -192,10 +198,10 @@ impl<'a> Parser<'a> {
             let fn_ident = if token_is_path!(self) {
                     let res = self.parser.parse_path(PathStyle::Expr);
                     if res.is_err() { res.err().unwrap().emit(); return; }
-                    parser::StaticValue::Path(res.unwrap(), sp)
+                    StaticValue::Path(res.unwrap(), sp)
                 } else {
                     let id = self.get_ident();
-                    parser::StaticValue::Ident(id.name.to_string(), id, sp)
+                    StaticValue::Ident(id.name.to_string(), id, sp)
                 };
 
             into.ints.push((range, fn_ident));
@@ -218,12 +224,28 @@ impl<'a> Parser<'a> {
 
         self.expect_ident_value("addr");
         self.expect_fat_arrow();
-        into.addr = self.parse_uint::<u32>() as u32;
+        into.addr = match self.parse_uint::<u32>() {
+            Ok(u) => {
+                u.val as u32
+            }
+            Err(e) => {
+				self.set_err(e.as_str());
+                return;
+            }
+        };
         self.expect_semi();
 
         self.expect_ident_value("prio_bits");
         self.expect_fat_arrow();
-        into.prio_bits = self.parse_uint::<u8>() as u8;
+        into.prio_bits = match self.parse_uint::<u8>() {
+            Ok(u) => {
+                u.val as u8
+            }
+            Err(e) => {
+				self.set_err(e.as_str());
+                return;
+            }
+        };
         self.expect_semi();
 
         self.expect_close_curly();
@@ -277,17 +299,17 @@ impl<'a> Parser<'a> {
     /// Values to either the `base` or `limit` keywords can be either a numeric literal or identifier.
     ///
     /// The link location __must__ be a string, and prefixed with a period ('.').
-    pub fn parse_stack(&mut self, into: &mut common::StackInfo, consts: &BTreeMap<String, parser::StaticValue>) {
+    pub fn parse_stack(&mut self, into: &mut common::StackInfo, consts: &BTreeMap<String, StaticValue>) {
         // parse base
         self.expect_ident_value("base");
         self.expect_fat_arrow();
-        into.base = self.parse_lit_or_ident("stack_base", consts);
+        into.base = self.parse_lit_or_ident(consts);
         self.expect_semi();
 
         // parse limit
         self.expect_ident_value("limit");
         self.expect_fat_arrow();
-        into.limit = self.parse_lit_or_ident("stack_limit", consts);
+        into.limit = self.parse_lit_or_ident(consts);
         self.expect_semi();
 
         // TODO: how to validate values if they are idents!?
@@ -299,23 +321,23 @@ impl<'a> Parser<'a> {
     /// Parses the entire `data => { src_begin => val; src_end => val; dest => val };` block.
     ///
     /// Values can be either a numeric literal or identifier.
-    pub fn parse_data(&mut self, into: &mut common::DataInfo, consts: &BTreeMap<String, parser::StaticValue>) {
+    pub fn parse_data(&mut self, into: &mut common::DataInfo, consts: &BTreeMap<String, StaticValue>) {
         // parse src
         self.expect_ident_value("src_begin");
         self.expect_fat_arrow();
-        into.src_begin = self.parse_lit_or_ident("data_src_begin", consts);
+        into.src_begin = self.parse_lit_or_ident(consts);
         self.expect_semi();
 
         // parse dest_begin
         self.expect_ident_value("src_end");
         self.expect_fat_arrow();
-        into.src_end = self.parse_lit_or_ident("data_src_end", consts);
+        into.src_end = self.parse_lit_or_ident(consts);
         self.expect_semi();
 
         // parse dest_end
         self.expect_ident_value("dest");
         self.expect_fat_arrow();
-        into.dest = self.parse_lit_or_ident("data_dest", consts);
+        into.dest = self.parse_lit_or_ident(consts);
         self.expect_semi();
 
         // TODO: how to validate values if they are idents!?
@@ -327,17 +349,17 @@ impl<'a> Parser<'a> {
     /// Parses the entire `heap => { base => val; limit => val; };` block.
     ///
     /// Values can be either a numeric literal or identifier.
-    pub fn parse_heap(&mut self, into: &mut common::HeapInfo, consts: &BTreeMap<String, parser::StaticValue>) {
+    pub fn parse_heap(&mut self, into: &mut common::HeapInfo, consts: &BTreeMap<String, StaticValue>) {
         // parse base
         self.expect_ident_value("base");
         self.expect_fat_arrow();
-        into.base = self.parse_lit_or_ident("heap_base", consts);
+        into.base = self.parse_lit_or_ident(consts);
         self.expect_semi();
 
         // parse limit
         self.expect_ident_value("limit");
         self.expect_fat_arrow();
-        into.limit = self.parse_lit_or_ident("heap_limit", consts);
+        into.limit = self.parse_lit_or_ident(consts);
         self.expect_semi();
 
         // TODO: how to validate values if they are idents!?
@@ -349,17 +371,17 @@ impl<'a> Parser<'a> {
     /// Parses the entire `bss => { base => val; limit => val; };` block.
     ///
     /// Values can be either a numeric literal or identifier.
-    pub fn parse_bss(&mut self, into: &mut common::BssInfo, consts: &BTreeMap<String, parser::StaticValue>) {
+    pub fn parse_bss(&mut self, into: &mut common::BssInfo, consts: &BTreeMap<String, StaticValue>) {
         // parse base
         self.expect_ident_value("base");
         self.expect_fat_arrow();
-        into.base = self.parse_lit_or_ident("bss_base", consts);
+        into.base = self.parse_lit_or_ident(consts);
         self.expect_semi();
 
         // parse limit
         self.expect_ident_value("limit");
         self.expect_fat_arrow();
-        into.limit = self.parse_lit_or_ident("bss_limit", consts);
+        into.limit = self.parse_lit_or_ident(consts);
         self.expect_semi();
 
         // TODO: how to validate values if they are idents!?
@@ -372,7 +394,7 @@ impl<'a> Parser<'a> {
     ///
     /// This is the block that associates all ioreg-defined peripherals with the generated MCU.
     /// Each peripheral is added as a field to the MCU structure and initialized with each ioreg's memory address.
-    pub fn parse_peripherals(&mut self, into: &mut Vec<common::PeripheralInfo>, consts: &BTreeMap<String, parser::StaticValue>) {
+    pub fn parse_peripherals(&mut self, into: &mut Vec<common::PeripheralInfo>, consts: &BTreeMap<String, StaticValue>) {
         while ! self.eat(&token::CloseDelim(token::DelimToken::Brace)) {
             let sp = self.parser.span;
             let name = self.parse_ident_string();
@@ -381,7 +403,7 @@ impl<'a> Parser<'a> {
             let exp_at = self.parser.expect(&token::Token::At);
             if exp_at.is_err() { exp_at.err().unwrap().emit(); }
 
-            let addr = self.parse_lit_or_ident(format!("{}_addr", name).as_str(), consts);
+            let addr = self.parse_lit_or_ident(consts);
             into.push(common::PeripheralInfo{name: name, path: periph, ptr: addr, span: sp});
             self.expect_semi();
         }
@@ -429,23 +451,23 @@ impl<'a> Parser<'a> {
                 if token_is_path!(self) {
                     let res = self.parser.parse_path(PathStyle::Expr);
                     if res.is_err() { res.err().unwrap().emit(); return; }
-                    parser::StaticValue::Path(res.unwrap(), sp)
+                    StaticValue::Path(res.unwrap(), sp)
                 } else {
                     let id = self.get_ident();
-                    parser::StaticValue::Ident(id.name.to_string(), id, sp)
+                    StaticValue::Ident(id.name.to_string(), id, sp)
                 }
             }
             &token::Token::ModSep => {
                 let res = self.parser.parse_path(PathStyle::Expr);
                 if res.is_err() { res.err().unwrap().emit(); return; }
-                parser::StaticValue::Path(res.unwrap(), sp)
+                StaticValue::Path(res.unwrap(), sp)
             }
             &token::Token::Literal(_,_) => {
-                self.parse_constant_literal(&"exit_fn".to_string())
+                self.parse_constant_literal()
             }
             _ => {
                 self.parser.span_fatal(sp, "unexpected token type for exit function").emit();
-                parser::StaticValue::Uint(0, "0".to_string(), sp.clone())
+                StaticValue::Uint(data::Unsigned::nospan(0).unwrap())
             }
         };
         self.expect_semi();
@@ -470,7 +492,7 @@ impl<'a> Parser<'a> {
     /// If the token is a literal, it is assumed to be an unsigned int. If not, a syntax error is placed.
     ///
     /// **NOTE:** will return a literal if the ident is an internal constant
-    pub fn parse_lit_or_ident(&mut self, name: &str, consts: &BTreeMap<String, parser::StaticValue>) -> parser::StaticValue {
+    pub fn parse_lit_or_ident(&mut self, consts: &BTreeMap<String, StaticValue>) -> StaticValue {
         let sp = self.parser.span.clone();
         match self.curr_token() {
             &token::Token::Ident(id) => {
@@ -478,15 +500,15 @@ impl<'a> Parser<'a> {
                     self.parser.bump(); // did not actually read anything
                     (*consts.get(&id.name.to_string()).expect("could not get constant from const map")).clone()
                 } else {
-                    parser::StaticValue::Ident(id.name.to_string().clone(), self.get_ident(), sp)
+                    StaticValue::Ident(id.name.to_string().clone(), self.get_ident(), sp)
                 }
             }
             &token::Token::Literal(_, _) => {
-                parser::StaticValue::Uint(self.parse_uint::<u32>() as u32, name.to_string(), sp)
+                self.parse_constant_literal()
             }
             _ => {
                 self.set_fatal_err("expected a literal or ident");
-                parser::StaticValue::Uint(0, "0".to_string(), DUMMY_SP)
+                StaticValue::Uint(data::Unsigned::nospan(0).unwrap())
             }
         }
     }
@@ -496,17 +518,23 @@ impl<'a> Parser<'a> {
     ///     2. `3..7` i.e. a range
     ///
     /// **Note:** RangeInfo::width() is 0 for all indices (as opposed to a range).
-    pub fn parse_index_or_range(&mut self) -> common::RangeInfo {
-        let start = self.parse_uint::<u8>();
+    pub fn parse_index_or_range(&mut self) -> Result<common::RangeInfo, String> {
+        let start = match self.parse_uint::<u8>() {
+            Ok(v) => { v }
+            Err(e) => { return Err(format!("failed to get start: {}", e)); }
+        };
         let mut end = start;
 
         if self.parser.eat(&token::Token::DotDot) {
-            end = self.parse_uint::<u8>();
+            end = match self.parse_uint::<u8>() {
+                Ok(v) => { v }
+                Err(e) => { return Err(format!("failed to get end: {}", e)); }
+            };
             if end < start {
                 self.set_fatal_err_last("range indices are inverted");
             }
         }
 
-        common::RangeInfo{begin:start as usize, end:end as usize}
+        Ok(common::RangeInfo{begin:start.val, end:end.val})
     }
 }

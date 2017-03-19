@@ -1,20 +1,30 @@
 #![macro_use]
 
-extern crate aster;
+use std;
+use std::fmt;
+use std::collections::BTreeMap;
 
 use syntax::ast;
 use syntax::ptr;
 use syntax::tokenstream;
-use syntax::symbol;
 use syntax::parse::token;
 use syntax::codemap::Span;
 use syntax::ext::base::ExtCtxt;
 use syntax::ext::quote::rt::DUMMY_SP;
 use syntax::parse::parser as rsparse;
 
-use std;
-use std::fmt;
-use std::collections::BTreeMap;
+// extern 
+
+extern crate aster;
+extern crate num_traits;
+
+use self::num_traits::{PrimInt, ToPrimitive};
+
+
+// local
+
+use ::common::data;
+
 
 /// Simple boolean check on whether the Parser's current token is a token::Ident.
 macro_rules! is_ident {
@@ -29,113 +39,77 @@ macro_rules! is_ident {
 /// Get the current ident as a string, otherwise set a parser error.
 macro_rules! extract_ident_name {
     ($parser:ident) => {
-        match $parser.curr_token() {
-            &token::Token::Ident(i) => { i.name.as_str().to_string().clone() } // TODO: these coercions are gross
+        match $parser.parser.token {
+            token::Token::Ident(i) => { i.name.as_str().to_string().clone() } // TODO: these coercions are gross
             _ => { $parser.set_err("detected an ident, but did not parse as an ident"); "".to_string() } // TODO: better default
         }
     }
 }
 
 
-/// Trait used in register/value sizing and conversion.
-///
-/// This is used typically the "select" unsigned numerics in generic functions.
-/// Each type must implement ::max_value() and ::min_value() for that type.
-pub trait HasMinMax<T> {
-    fn max_value() -> T;
-    fn min_value() -> T;
-}
-
-impl HasMinMax<u8> for u8 {
-    fn max_value() -> u8 { u8::max_value() }
-    fn min_value() -> u8 { u8::min_value() }
-}
-impl HasMinMax<u16> for u16 {
-    fn max_value() -> u16 { u16::max_value() }
-    fn min_value() -> u16 { u16::min_value() }
-}
-impl HasMinMax<u32> for u32 {
-    fn max_value() -> u32 { u32::max_value() }
-    fn min_value() -> u32 { u32::min_value() }
-}
-impl HasMinMax<f32> for f32 {
-    fn max_value() -> f32 { std::f32::MAX }
-    fn min_value() -> f32 { std::f32::MIN }
-}
-
-
-
-/// Simple trait to support "safe" narrowing (via truncation) of a u32 to a u16 or u8.
-pub trait Narrow<T> {
-    fn narrow(u: T) -> Self;
-}
-impl Narrow<u32> for u8 {
-    fn narrow(u: u32) -> Self { (u & 0xFFFF) as u8 }
-}
-impl Narrow<u32> for u16 {
-    fn narrow(u: u32) -> Self { (u & 0xFFFF) as u16 }
-}
-impl Narrow<u32> for u32 {
-    fn narrow(u: u32) -> Self { u }
-}
-
-
 /// Trait for types that can convert themselves into ast types.
 ///
 /// The required ast types are ast::Ty and ast::Lit + ast::Arg (with the latter two represented as ast::Expr)
-pub trait ToAstType<T> {
+pub trait ToAstType {
     fn to_type() -> ptr::P<ast::Ty>;
-    fn to_lit(val: T) -> ptr::P<ast::Expr>;
-    fn to_arg(val: T) -> ptr::P<ast::Expr>;
+    fn to_lit(self) -> ptr::P<ast::Expr>;
+    fn to_arg(self) -> ptr::P<ast::Expr>;
 }
 
 // TODO: do not require a new builder
-impl ToAstType<u8> for u8 {
+impl ToAstType for u8 {
     fn to_type() -> ptr::P<ast::Ty> { aster::AstBuilder::new().ty().u8() }
-    fn to_lit(val: u8) -> ptr::P<ast::Expr> { aster::AstBuilder::new().expr().lit().u8(val) }
-    fn to_arg(val: u8) -> ptr::P<ast::Expr> { aster::AstBuilder::new().expr().lit().u8(val) }
+    fn to_lit(self) -> ptr::P<ast::Expr> { aster::AstBuilder::new().expr().lit().u8(self) }
+    fn to_arg(self) -> ptr::P<ast::Expr> { aster::AstBuilder::new().expr().lit().u8(self) }
 }
 // TODO: do not require a new builder
-impl ToAstType<u16> for u16 {
+impl ToAstType for u16 {
     fn to_type() -> ptr::P<ast::Ty> { aster::AstBuilder::new().ty().u16() }
-    fn to_lit(val: u16) -> ptr::P<ast::Expr> { aster::AstBuilder::new().expr().lit().u16(val) }
-    fn to_arg(val: u16) -> ptr::P<ast::Expr> { aster::AstBuilder::new().expr().lit().u16(val) }
+    fn to_lit(self) -> ptr::P<ast::Expr> { aster::AstBuilder::new().expr().lit().u16(self) }
+    fn to_arg(self) -> ptr::P<ast::Expr> { aster::AstBuilder::new().expr().lit().u16(self) }
 }
 // TODO: do not require a new builder
-impl ToAstType<u32> for u32 {
+impl ToAstType for u32 {
     fn to_type() -> ptr::P<ast::Ty> { aster::AstBuilder::new().ty().u32() }
-    fn to_lit(val: u32) -> ptr::P<ast::Expr> { aster::AstBuilder::new().expr().lit().u32(val) }
-    fn to_arg(val: u32) -> ptr::P<ast::Expr> { aster::AstBuilder::new().expr().lit().u32(val) }
+    fn to_lit(self) -> ptr::P<ast::Expr> { aster::AstBuilder::new().expr().lit().u32(self) }
+    fn to_arg(self) -> ptr::P<ast::Expr> { aster::AstBuilder::new().expr().lit().u32(self) }
+}
+// TODO: do not require a new builder
+impl ToAstType for u64 {
+    fn to_type() -> ptr::P<ast::Ty> { aster::AstBuilder::new().ty().u64() }
+    fn to_lit(self) -> ptr::P<ast::Expr> { aster::AstBuilder::new().expr().lit().u64(self) }
+    fn to_arg(self) -> ptr::P<ast::Expr> { aster::AstBuilder::new().expr().lit().u64(self) }
+}
+// TODO: do not require a new builder
+impl ToAstType for usize {
+    fn to_type() -> ptr::P<ast::Ty> { aster::AstBuilder::new().ty().usize() }
+    fn to_lit(self) -> ptr::P<ast::Expr> { aster::AstBuilder::new().expr().lit().usize(self) }
+    fn to_arg(self) -> ptr::P<ast::Expr> { aster::AstBuilder::new().expr().lit().usize(self) }
 }
 
 
 
-// TODO: 32bit limitation imposed here
-#[derive(Clone)]
 /// Tuple type representing a static value parsed from the input.
 ///
 /// Certain value types can only be used in certain places/actions.
 /// Each type carries the Span for which it was defined to properly place errors.
+#[derive(Clone)]
 pub enum StaticValue {
-    Int(i32, String, Span),
-    Uint(u32, String, Span),
-    Float(f32, symbol::Symbol, String, Span), // TODO: avoid carrying the symbol around
-    Str(String, String, Span),
-    Ident(String, ast::Ident, Span),
+    Uint(data::Unsigned),
+    Str(String, Span),
+    Ident(String, ast::Ident, Span), // TODO: remove String member
     Path(ast::Path, Span),
     Error(String, Span),
 }
 impl StaticValue {
     pub fn default_uint() -> StaticValue {
-        StaticValue::Uint(0, "default_static_uint".to_string(), DUMMY_SP)
+        StaticValue::Uint(data::Unsigned::nospan(0usize).expect("could not make 0usize into Unsigned"))
     }
 
     pub fn to_string(&self) -> String {
         match self {
-            &StaticValue::Int(i, _, _) => { i.to_string() }
-            &StaticValue::Uint(u, _, _) => { u.to_string() }
-            &StaticValue::Float(f, _, _, _) => { f.to_string() }
-            &StaticValue::Str(ref s, _, _) => { s.clone() }
+            &StaticValue::Uint(u) => { u.val.to_string() }
+            &StaticValue::Str(ref s, _) => { s.clone() }
             &StaticValue::Ident(ref s, _, _) => { s.clone() }
             &StaticValue::Path(ref p, _) => { format!("{:?}", p) }
             &StaticValue::Error(ref e, _) => { e.clone() }
@@ -144,10 +118,9 @@ impl StaticValue {
 
     pub fn get_span(&self) -> Span {
         match self {
-              &StaticValue::Int(_, _, sp)
-            | &StaticValue::Uint(_, _, sp)
-            | &StaticValue::Float(_, _, _, sp)
-            | &StaticValue::Str(_, _, sp)
+              &StaticValue::Uint(u) => { u.span }
+
+              &StaticValue::Str(_, sp)
             | &StaticValue::Ident(_, _, sp)
             | &StaticValue::Path(_, sp)
             | &StaticValue::Error(_, sp) =>
@@ -159,12 +132,10 @@ impl StaticValue {
 impl fmt::Debug for StaticValue {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            &StaticValue::Int(i, ref n, _) => { write!(f, "({}:int) {}", n, i) }
-            &StaticValue::Uint(i, ref n, _) => { write!(f, "({}:uint) {}", n, i) }
-            &StaticValue::Float(i, _, ref n, _) => { write!(f, "({}:float) {}", n, i) }
-            &StaticValue::Str(ref s, ref n, _) => { write!(f, "({}:str) {}", n, s) }
-            &StaticValue::Ident(ref s, _, _) => { write!(f, "({}:ident)", s) }
-            &StaticValue::Path(ref s, _) => { write!(f, "({:?}:path)", s) }
+            &StaticValue::Uint(i) => { write!(f, "(uint) {}", i) }
+            &StaticValue::Str(ref s, _) => { write!(f, "(str) {}", s) }
+            &StaticValue::Ident(ref s, _, _) => { write!(f, "(ident) {}", s) }
+            &StaticValue::Path(ref s, _) => { write!(f, "(path) {:?}", s) }
             &StaticValue::Error(ref e, _) => { write!(f, "(PARSER ERROR) {}", e) }
         }
     }
@@ -179,7 +150,7 @@ pub struct CommonParser<'a> {
         builder:    aster::AstBuilder,
 
     // state
-    pub begin_segment:  Span,
+    pub curr_segment_start:  Span,
 }
 
 impl<'a> CommonParser<'a> {
@@ -190,7 +161,7 @@ impl<'a> CommonParser<'a> {
         CommonParser {
             parser: p,
             builder: aster::AstBuilder::new(),
-            begin_segment: s,   // TODO: better initializer
+            curr_segment_start: s,
         }
     }
 
@@ -218,7 +189,7 @@ impl<'a> CommonParser<'a> {
     ///
     /// **Note:** this will be moving to the ioreg parser shortly as this is generic, but missed in the split.
     pub fn set_segment_err(&mut self, err: &str) {
-        self.parser.span_err(self.begin_segment, err);
+        self.parser.span_err(self.curr_segment_start, err);
     }
 
 
@@ -242,7 +213,7 @@ impl<'a> CommonParser<'a> {
     pub fn expect_semi(&mut self) -> bool {
         match self.parser.expect(&token::Token::Semi) {
             Ok(_) => { true }
-            Err(e) => { self.set_fatal_err(e.message()); false }
+            Err(e) => { self.set_fatal_err(e.message().as_str()); false }
         }
     }
 
@@ -252,7 +223,7 @@ impl<'a> CommonParser<'a> {
     pub fn expect_equal(&mut self) -> bool {
         match self.parser.expect(&token::Token::Eq) {
             Ok(_) => { true }
-            Err(e) => { self.set_fatal_err(e.message()); false }
+            Err(e) => { self.set_fatal_err(e.message().as_str()); false }
         }
     }
 
@@ -358,7 +329,7 @@ impl<'a> CommonParser<'a> {
         match self.parser.parse_ident() {
             Ok(i) => { i }
             Err(e) => {
-                self.set_err(e.message());
+                self.set_err(e.message().as_str());
                 self.builder.id("error")
             }
         }
@@ -371,7 +342,7 @@ impl<'a> CommonParser<'a> {
         match self.parser.parse_path(rsparse::PathStyle::Type) {
             Ok(i) => { i }
             Err(e) => {
-                self.set_err(e.message());
+                self.set_err(e.message().as_str());
                 ast::Path::from_ident(DUMMY_SP, self.builder.id("error"))
             }
         }
@@ -383,11 +354,11 @@ impl<'a> CommonParser<'a> {
     pub fn get_literal(&mut self) -> Result<ast::Lit, String> {
         match self.parser.parse_lit() {
             Ok(i) => {
-                return Ok(i);
+                Ok(i)
             }
             Err(e) => {
-                self.set_err(e.message());
-                return Err(e.message().to_string());
+                self.set_err(e.message().as_str());
+                Err(e.message())
             }
         }
     }
@@ -397,73 +368,52 @@ impl<'a> CommonParser<'a> {
     // numeric reads
     //
 
-    /// Parse the current token (i.e. literal) as a unsigned integer.
-    ///
-    /// This function is essentially a sanity wrapper around `checked_parse_uint()`.
-    /// We cannot genericize the return value, so it is returned as a u64 which should then be cast appropriately.
-    ///
-    /// **Note:** there should be changes to the return value coming shortly, if Rust supports it.
-    pub fn parse_uint<T: HasMinMax<T> + From<T>>(&mut self) -> u64
-        where u64: From<T> {
-
-        match self.checked_parse_uint::<T>() {
-            Ok(i) => { i }
-            Err(e) => {
-                self.set_err(e.as_str());
-                u64::max_value()
-            }
-        }
-    }
-
-    // TODO: why can I not cast u64 to T where T is uint < u64
-    // TODO: use the new Narrow trait
     /// Reads the parser's current token as an unsigned numeric literal, asserting it fits into T::max_value().
     ///
-    /// If the current token is not a numeric literal or the parsed value does not fit within T::max_value() then an
-    /// error is returned describing as such.
-    pub fn checked_parse_uint<T: HasMinMax<T> + From<T>>(&mut self) -> Result<u64, String>
-        where u64: From<T> {
-
+    /// If the current token is not a numeric literal an error is returned describing as such.
+    pub fn parse_uint<T: PrimInt + ToPrimitive>(&mut self) -> Result<data::Unsigned, String> {
         let t_as_str = unsafe { std::intrinsics::type_name::<T>() };
 
+        let sp = self.parser.span;
         let lit = match self.get_literal() {
             Ok(i) => { i.node }
             Err(e) => { return Err(e); }
         };
+
+
         if let ast::LitKind::Int(value, ty) = lit {
             match ty {
                 ast::LitIntType::Unsigned(_) | ast::LitIntType::Unsuffixed => {
-                    // some unsigned or unspecified int
-                    if value <= (u64::from(T::max_value())) { // TODO: better assertion
-                        return Ok(value);
-                    } else {
-                        return Err(format!("found value is larger than {}", t_as_str));
-                    }
+            		match (value as usize) < T::max_value().to_usize().unwrap() {
+                    	true => { Ok(data::Unsigned::new(value as usize, sp)) }
+            			false => {
+            				Err(format!("value is too large to fit in {} bytes",
+            					std::mem::size_of::<T>()*8
+            				))
+            			}
+            		}
                 }
                 // everything else
                 _ => {
-                    return Err(format!("expected {}, but parsed {:?}", t_as_str, ty));
+                    Err(format!("expected {}, but parsed {:?}", t_as_str, ty))
                 }
             }
         } else {
-            return Err(format!("expected a {}", t_as_str));
+            Err(format!("expected a {}", t_as_str))
         }
     }
 
     /// Parses the parser's current token as a literal, and converts it to our StaticValue type.
     ///
-    /// **Note:** Numeric literals are tokenized as u32, and as such, must fit within u32::max_value().
-    /// **Note:** Signed integers are not yet supported.
-    ///
-    /// There are multiple error cases here, depending on the type of literal.
-    pub fn parse_constant_literal(&mut self, name: &String) -> StaticValue {
+    /// **Note:** Numeric literals are tokenized as usize (for the target platform).
+    pub fn parse_constant_literal(&mut self) -> StaticValue {
         let curr_span = self.parser.span;
-        match self.curr_token() {
+        match self.parser.token {
             // parse an integer literal value
-            &token::Token::Literal(token::Lit::Integer(_), _) => {
-                match self.checked_parse_uint::<u32>() {
+            token::Token::Literal(token::Lit::Integer(_), _) => {
+                match self.parse_uint::<usize>() {
                     Ok(i) => {
-                        return StaticValue::Uint(i as u32, name.clone(), curr_span);
+                        return StaticValue::Uint(i);
                     }
                     Err(e) => {
                         return StaticValue::Error(e, curr_span);
@@ -471,34 +421,13 @@ impl<'a> CommonParser<'a> {
                 }
             }
         
-            // parse a floating literal value
-            &token::Token::Literal(token::Lit::Float(_), _) => {
-                match self.get_literal() {
-                    Ok(l) => {
-                        match l.node {
-                            // TODO: do we care about type? stored as f64....
-                            ast::LitKind::Float(s, _) | ast::LitKind::FloatUnsuffixed(s) => {
-                                let conv = s.as_str().parse::<f32>();
-                                if conv.is_err() {
-                                    return StaticValue::Error(conv.unwrap_err().to_string(), curr_span);
-                                }
-    
-                                return StaticValue::Float(conv.unwrap(), s, name.clone(), curr_span);
-                            }
-                            _ => { return StaticValue::Error("could not be parsed as a float".to_string(), curr_span); }
-                        }
-                    }
-                    Err(e) => { return StaticValue::Error(e, curr_span); }
-                }
-            }
-    
             // parse a string literal value
-            &token::Token::Literal(token::Lit::Str_(_), _) => {
+            token::Token::Literal(token::Lit::Str_(_), _) => {
                 match self.get_literal() {
                     Ok(l) => {
                         match l.node {
                             ast::LitKind::Str(s, _) => {
-                                return StaticValue::Str(s.to_string(), name.clone(), curr_span);
+                                return StaticValue::Str(s.to_string(), curr_span);
                             }
                             _ => { return StaticValue::Error("expected a string literal".to_string(), curr_span); }
                         }
@@ -509,16 +438,8 @@ impl<'a> CommonParser<'a> {
                 }
             }
 
-            // TODO: we need to handle negative ints
-            /*
-            &token::Token::BinOp(token::BinOpToken::Minus) => {
-                self.eat(&token::Token::BinOp(token::BinOpToken::Minus));
-                return self.parse_constant_literal(name);
-            }
-            */
-
             _ => {
-                return StaticValue::Error("unexpected token. expected a static literal".to_string(), curr_span);
+                return StaticValue::Error("unexpected or unsupported token while parsing static literal".to_string(), curr_span);
             }
         }
     }
@@ -545,24 +466,21 @@ impl<'a> CommonParser<'a> {
     /// Parses an entire `doc_srcs => [ ... ]` block into the given vector
     ///
     /// **Note:** trailing commas are not allowed.
-    pub fn parse_doc_sources(&mut self, prefix: &String, into: &mut Vec<String>) {
+    pub fn parse_doc_sources(&mut self, into: &mut Vec<String>) {
         // expect the opening syntax
         self.expect_ident_value("doc_srcs");
         self.expect_fat_arrow();
         self.expect_open_bracket();
 
-        let mut doc_cnt: usize = 0;
-        
         // until we hit the closing brace
         loop {
             // read the literal and assert string
-            let doc_src = self.parse_constant_literal(&format!("{}_doc_{}", prefix, doc_cnt));
-            match doc_src {
-                StaticValue::Str(v, _, _) => { into.push(v); doc_cnt += 1; }
+            match self.parse_constant_literal() {
+                StaticValue::Str(v, _) => { into.push(v); }
                 _ => { self.set_err("expected a string literal"); return; }
             }
 
-            if ! self.eat(&token::Token::CloseDelim(token::DelimToken::Bracket)) {
+            if ! self.parser.eat(&token::Token::CloseDelim(token::DelimToken::Bracket)) {
                 self.expect_comma();
             } else {
                 break;
@@ -574,24 +492,17 @@ impl<'a> CommonParser<'a> {
 
     /// Parse an entire `constants => { ... };` block into the given hash map.
     ///
-    /// If any constant fails to parse, a syntax error is placed and parsing is aborted.
-    /// This can lead to further, somewhat confusing, syntax errors but it follows the Rust style.
-    ///
-    /// **NOTE:** this function takes a validator function as an argument in case any validation needs to happen. This can be a nop.
-    pub fn parse_constants_block<T>(
-        &mut self, prefix: &String, into: &mut BTreeMap<String, StaticValue>,
-        validate: fn(&T,&StaticValue,&mut BTreeMap<String, StaticValue>) -> Result<(), String>,
-        validate_ctx: &T
-    ) {
+    /// If any constant fails to parse, a syntax error is placed.
+    pub fn parse_constants_block(&mut self, prefix: &String, into: &mut BTreeMap<String, StaticValue>) {
         // expect the opening syntax
         self.expect_ident_value("constants");
         self.expect_fat_arrow();
         self.expect_open_curly();
         
         // until we hit the closing brace
-        while ! self.eat(&token::Token::CloseDelim(token::DelimToken::Brace)) {
+        while ! self.parser.eat(&token::Token::CloseDelim(token::DelimToken::Brace)) {
             let mut const_name = self.parse_ident_string();
-            if ! self.eat(&token::Token::Eq) {
+            if ! self.parser.eat(&token::Token::Eq) {
                 self.set_err("expected a '=' after constant definition name");
                 return; // TODO: should we just return here? would require func sig change
             }
@@ -601,23 +512,16 @@ impl<'a> CommonParser<'a> {
             }
         
             // get the value and add it to the list
-            let parsed_val = self.parse_constant_literal(&const_name);
+            let parsed_val = self.parse_constant_literal();
             match parsed_val {
                 // if error, set the error
                 StaticValue::Error(e,_) => { self.set_err(e.as_str()); }
-                // otherwise, validate and push the value
+                // otherwise, push the value
                 _ => {
-                    match validate(validate_ctx, &parsed_val, into) {
-                        Ok(_) => {
-                            if into.contains_key(&const_name) {
-                                self.set_err("duplicate constant definition");
-                            } else {
-                                into.insert(const_name.clone(), parsed_val);
-                            }
-                        }
-                        Err(e) => {
-                            self.set_err(e.as_str());
-                        }
+                    if into.contains_key(&const_name) {
+                        self.set_err("duplicate constant definition");
+                    } else {
+                        into.insert(const_name.clone(), parsed_val);
                     }
                 }
             }

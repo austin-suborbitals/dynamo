@@ -1,4 +1,6 @@
 extern crate aster;
+extern crate num_traits;
+use self::num_traits::ToPrimitive;
 
 use syntax::ast;
 use syntax::ptr;
@@ -7,7 +9,7 @@ use syntax::print::pprust;
 
 use ::mcu::common;
 use ::mcu::parser;
-use ::parser::StaticValue;
+use ::common::parser::StaticValue;
 
 type ImplBuilder = aster::item::ItemImplBuilder<aster::invoke::Identity>;
 
@@ -54,20 +56,17 @@ macro_rules! cast {
 /// Only StaticValue::Uint, StaticValue::Int, and StaticValue::Ident are compatible.
 /// All other types will result in a fata syntax error and a dummy 0 value returned.
 macro_rules! integral_or_ident_to_expr {
-    ($val:expr, $err:expr, $self_:ident) => {
+    ($val:expr, $err:expr, $self_:expr) => {
         match $val {
-            StaticValue::Uint(addr, _, sp) => {
-                $self_.bldr.expr().span(sp).lit().span(sp).u32(addr as u32)
-            }
-            StaticValue::Int(addr, _, sp) => {
-                $self_.bldr.expr().span(sp).lit().span(sp).u32(addr as u32)
+            StaticValue::Uint(addr) => {
+                $self_.bldr.expr().span(addr.span).lit().span(addr.span).u32(addr.val as u32)
             }
             StaticValue::Ident(ref id, _, sp) => {
                 $self_.bldr.expr().span(sp).id(id)
             }
-            StaticValue::Float(_,_,_,sp) | StaticValue::Str(_,_,sp) | StaticValue::Path(_,sp) | StaticValue::Error(_,sp) => {
-                $self_.parser.parser.span_fatal(sp, $err).emit();
-                $self_.bldr.expr().lit().u32(0)
+            _ => {
+                $self_.parser.set_err($err);
+                $self_.bldr.expr().lit().usize(0)
             }
         }
     }
@@ -146,7 +145,7 @@ impl<'a> Builder<'a> {
     // TODO: better name?
     // TODO: better return?
     /// Generates the AST from the consumed descriptor block.
-    pub fn build(&self) -> Vec<ptr::P<ast::Item>> {
+    pub fn build(&mut self) -> Vec<ptr::P<ast::Item>> {
         let mut result = Vec::<ptr::P<ast::Item>>::new();
         if ! self.mcu.externs.is_empty() {
             result.push(self.build_externs());
@@ -220,11 +219,11 @@ impl<'a> Builder<'a> {
             };
 
             match &p.ptr {
-                &StaticValue::Uint(addr, _, sp) => {
-                    built_struct = built_struct.span(sp).field(p.name.clone())
+                &StaticValue::Uint(addr) => {
+                    built_struct = built_struct.span(addr.span).field(p.name.clone())
                         .call().build_path(ty_path).arg().build(
                             ptr_cast!(
-                                self.bldr.span(sp).expr().u32(addr),
+                                self.bldr.span(addr.span).expr().u32(addr.val.to_u32().unwrap()),
                                 self.bldr.ty().u8(),
                                 false
                             )
@@ -314,7 +313,7 @@ impl<'a> Builder<'a> {
     }
 
     /// Entry for generating the impl block for the mcu.
-    pub fn build_impl(&self) -> ptr::P<ast::Item> {
+    pub fn build_impl(&mut self) -> ptr::P<ast::Item> {
         let mut impl_block = self.bldr.item().impl_();
         impl_block = self.build_const_vals(impl_block);
 
@@ -342,7 +341,7 @@ impl<'a> Builder<'a> {
     /// Builds the `::copy_data_section()` function for the MCU definition.
     ///
     /// This function will copy the range [src_begin, src_end] to the data destination location in memory.
-    pub fn build_copy_data(&self, impl_block: ImplBuilder) -> ImplBuilder {
+    pub fn build_copy_data(&mut self, impl_block: ImplBuilder) -> ImplBuilder {
         let begin_expr = integral_or_ident_to_expr!(
             self.mcu.data.src_begin, "data src must be a numeric literal or ident", self);
         let end_expr = integral_or_ident_to_expr!(
@@ -369,7 +368,7 @@ impl<'a> Builder<'a> {
     }
 
     /// Builds the `::null_bss()` function for the MCU definition.
-    pub fn build_null_bss(&self, impl_block: ImplBuilder) -> ImplBuilder {
+    pub fn build_null_bss(&mut self, impl_block: ImplBuilder) -> ImplBuilder {
         let begin_expr = integral_or_ident_to_expr!(
             self.mcu.bss.base, "bss base must be a numeric literal or ident", self);
         let end_expr = integral_or_ident_to_expr!(
@@ -401,16 +400,10 @@ impl<'a> Builder<'a> {
         for v in &self.mcu.constants {
             let name = v.0.to_uppercase();
             match v.1 {
-                &StaticValue::Int(i, _, sp) => {
-                    builder = builder.item(name).span(sp).const_().span(sp).expr().i32(i).ty().i32();
+                &StaticValue::Uint(u) => {
+                    builder = builder.item(name).span(u.span).const_().span(u.span).expr().u32(u.val as u32).ty().u32();
                 }
-                &StaticValue::Uint(u, _, sp) => {
-                    builder = builder.item(name).span(sp).const_().span(sp).expr().u32(u).ty().u32();
-                }
-                &StaticValue::Float(_, ref s, _, sp) => {
-                    builder = builder.item(name).span(sp).const_().span(sp).expr().f32(s).ty().f32();
-                }
-                &StaticValue::Str(ref s, _, sp) => {
+                &StaticValue::Str(ref s, sp) => {
                     builder = builder.item(name).span(sp).const_().span(sp).expr()
                         .str(s.clone().as_str())
                         .ty().ref_().lifetime("'static").ty().path().id("str").build();
@@ -438,7 +431,7 @@ impl<'a> Builder<'a> {
     /// The array generated is of type `[core::option::Option<fn()>; NUM_INTERRUPTS-1]` and defaults to `None` (0u32)
     /// for all interrupts. Making this #[repr(C)] structure keeps type safety while achieving the packed
     /// table structure we need.
-    pub fn build_interrupts(&self) -> Vec<ptr::P<ast::Item>> {
+    pub fn build_interrupts(&mut self) -> Vec<ptr::P<ast::Item>> {
         let stack_ty = match self.is_extern(&self.mcu.stack.base) {
             true => { self.bldr.span(self.mcu.interrupts.span).ty().ref_().lifetime("'static").ty().u32() }
             false => { self.bldr.span(self.mcu.interrupts.span).ty().u32() }
@@ -498,11 +491,12 @@ impl<'a> Builder<'a> {
                 }
 
                 // not allowed
-                &StaticValue::Uint(_, _, sp) |
-                &StaticValue::Int(_, _,sp) |
-                &StaticValue::Float(_,_,_,sp) |
-                &StaticValue::Str(_, _,sp) => {
-                    self.parser.parser.span_err(sp, "invalid interrupt function location type");
+                &StaticValue::Uint(u) => {
+                    self.parser.parser.span_err(u.span, "invalid interrupt function location type (uint)");
+                    none_expr.clone()
+                }
+                &StaticValue::Str(_,sp) => {
+                    self.parser.parser.span_err(sp, "invalid interrupt function location type (string)");
                     none_expr.clone()
                 }
                 &StaticValue::Error(ref err, sp) =>  {
